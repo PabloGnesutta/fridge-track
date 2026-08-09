@@ -1,0 +1,134 @@
+import { dbStore } from "../common/state.js";
+import { normalize } from "../lib/string.js";
+import { clearArray } from "../lib/utils.js";
+import { computeStatus, getSoonestDays } from "../lib/freshnessStatus.js";
+import { deleteOne, getAllWithIndex, putOne } from "../lib/indexedDb.js";
+
+
+/**
+ * @template T
+ * @typedef {import("../common/types.js").ServiceReturn<T>} ServiceReturn<T>
+ */
+
+/**
+ * @typedef {import("../lib/indexedDb.js").StoreKey} StoreKey
+ */
+
+/**
+ * @typedef {object} Item
+ * @property {IDBValidKey} locationKey
+ * @property {string} name
+ * @property {string} [normalizedName]
+ * @property {string} [quantity]
+ * @property {Date} addedDate
+ * @property {Date|null} useByDate
+ * @property {number|null} shelfLifeDays
+ * @property {string} [notes]
+ * @property {IDBValidKey} [_key]
+ * @property {Date} [createdAt]
+ * @property {Date} [updatedAt]
+ */
+
+/**
+ * @typedef {object} ItemInput
+ * @property {string} [quantity]
+ * @property {Date} [addedDate]
+ * @property {Date|null} [useByDate]
+ * @property {number|null} [shelfLifeDays]
+ * @property {string} [notes]
+ */
+
+
+/**
+ * Creates a food item for the given storage location.
+ * @param {IDBValidKey} locationKey
+ * @param {string} name
+ * @param {ItemInput} data
+ * @param {Date} [date]
+ * @returns {ServiceReturn<Item>}
+ */
+async function createItem(locationKey, name, data, date = new Date()) {
+  name = name.trim();
+  if (!name) { return { errorMsg: 'Ingresar nombre' }; }
+  if (!data.useByDate && !data.shelfLifeDays) {
+    return { errorMsg: 'Ingresar una fecha de vencimiento o una duración en días' };
+  }
+
+  /** @type {Item} */
+  const item = {
+    locationKey,
+    name,
+    normalizedName: normalize(name),
+    quantity: data.quantity || '',
+    addedDate: data.addedDate || date,
+    useByDate: data.useByDate || null,
+    shelfLifeDays: data.shelfLifeDays || null,
+    notes: data.notes || '',
+    createdAt: date,
+    updatedAt: date,
+  };
+  item._key = await putOne('items', item);
+
+  dbStore.items.push(item);
+  return { data: item };
+}
+
+/**
+ * Updates an item's editable fields. Mutates the given item.
+ * @param {Item} item
+ * @param {{name?: string, quantity?: string, useByDate?: Date|null, shelfLifeDays?: number|null, notes?: string}} data
+ * @param {Date} [date]
+ * @returns {ServiceReturn<Item>}
+ */
+async function updateItem(item, data, date = new Date()) {
+  if (!item._key) { return { errorMsg: 'Llave no provista' }; }
+  if (data.name) {
+    item.name = data.name;
+    item.normalizedName = normalize(data.name);
+  }
+  if ('quantity' in data) { item.quantity = data.quantity || ''; }
+  if ('useByDate' in data) { item.useByDate = data.useByDate || null; }
+  if ('shelfLifeDays' in data) { item.shelfLifeDays = data.shelfLifeDays || null; }
+  if ('notes' in data) { item.notes = data.notes || ''; }
+  if (!item.useByDate && !item.shelfLifeDays) {
+    return { errorMsg: 'Ingresar una fecha de vencimiento o una duración en días' };
+  }
+  item.updatedAt = date;
+
+  await putOne('items', item, item._key);
+  return { data: item };
+}
+
+/**
+ * @param {StoreKey} itemKey
+ * @returns {Promise<StoreKey>}
+ */
+async function deleteItem(itemKey) {
+  return deleteOne('items', itemKey);
+}
+
+/**
+ * Fetch all items for the given location, sorted by how soon they're due
+ * (most overdue/closest to expiring first), then name. Stores them in dbStore.
+ * @param {IDBValidKey} locationKey
+ * @param {Date} currentDate
+ * @returns {Promise<Item[]>}
+ */
+async function fetchItems(locationKey, currentDate) {
+  /** @type {Item[]} */ // @ts-ignore
+  const items = await getAllWithIndex('items', 'locationKey', locationKey);
+
+  items.sort((a, b) => {
+    const soonestA = getSoonestDays(computeStatus(a, currentDate));
+    const soonestB = getSoonestDays(computeStatus(b, currentDate));
+    if (soonestA !== soonestB) { return soonestA - soonestB; }
+    return a.name.localeCompare(b.name);
+  });
+
+  clearArray(dbStore.items);
+  dbStore.items.push(...items);
+  return items;
+}
+
+
+export { createItem, updateItem, deleteItem, fetchItems };

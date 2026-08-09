@@ -1,0 +1,352 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --app-bg: #111;
+  --header-bg: black;
+  --header-heigt: 64px;
+  --footer-heigt: 48px;
+  --status-fresh: #1c8a3f;
+  --status-expiring-soon: #b8860b;
+  --status-expired: #b0132f;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: #222;
+}
+
+div {
+  user-select: none;
+}
+
+svg {
+  width: 100%;
+  height: 100%;
+}
+
+#app {
+  background-color: var(--app-bg);
+  color: white;
+}
+
+#cacheMajorVersion,
+#indexedDbVersion {
+  background-color: white;
+  color: black;
+  padding: 4px;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+#indexedDbVersion {
+  background-color: cyan;
+}
+
+#mainHeader {
+  min-height: var(--header-heigt);
+  background-color: var(--header-bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: none;
+}
+
+.page-title {
+  font-size: 34px;
+  padding-left: 1rem;
+  color: white;
+}
+
+.location-switcher-btn {
+  font-size: 16px;
+  color: #bbb;
+  padding: 4px 10px;
+  border: 1px solid #444;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.location-switcher-btn:active {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.views {
+  background-color: #001a22;
+}
+
+.views .page {
+  min-height: calc(100dvh - var(--header-heigt) - var(--footer-heigt));
+}
+
+#mainFooter {
+  background-color: var(--header-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1dvw;
+}
+
+#mainFooter .btn {
+  padding: 3dvw;
+  color: white;
+}
+
+#itemListView {
+  --list-row-bg: #1e2c47;
+  padding-bottom: 4.5rem;
+}
+
+#itemListView .list {
+  padding: 0.5rem 0.25rem;
+}
+
+#itemListView .list .row {
+  background: var(--list-row-bg);
+}
+
+#itemListView .list .row .left-side {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+#itemListView .list .row .itemName {
+  font-size: 22px;
+  background-color: #ffffff29;
+  padding: .5rem 1rem;
+  border-radius: 6px;
+  align-self: flex-start;
+}
+
+#itemListView .list .row .itemNotes {
+  font-size: 13px;
+  color: #999;
+  padding: 0 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#itemListView .btns {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+#newItemBtn {
+  position: fixed;
+  bottom: calc(var(--footer-heigt) + 1dvh);
+  right: 2.5dvw;
+  width: 80px;
+  height: 80px;
+  z-index: 1;
+  border: 1px solid white;
+  border-radius: 50%;
+  background-color: var(--list-row-bg);
+  color: white;
+  font-size: 40px;
+}
+
+#newItemBtn:active {
+  background-color: #2c4066;
+}
+
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 14px;
+  color: white;
+  display: inline-block;
+}
+
+[data-status="fresh"] .status-badge,
+.status-badge[data-status="fresh"] {
+  background-color: var(--status-fresh);
+}
+
+[data-status="expiring-soon"] .status-badge,
+.status-badge[data-status="expiring-soon"] {
+  background-color: var(--status-expiring-soon);
+}
+
+[data-status="expired"] .status-badge,
+.status-badge[data-status="expired"] {
+  background-color: var(--status-expired);
+}
+
+.due-detail {
+  font-size: 14px;
+  color: #ffc8c8;
+}
+
+#singleItemView {}
+
+#singleItemView .heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #142845;
+}
+
+#singleItemView .name {
+  font-size: 26px;
+  padding: 1rem 0.75rem;
+}
+
+#singleItemView .right-side {
+  display: flex;
+  align-items: center;
+}
+
+#singleItemView .status-summary {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+#singleItemView .status-summary .status-badge {
+  align-self: flex-start;
+  font-size: 16px;
+  padding: 4px 12px;
+}
+
+#singleItemView .status-summary .due-detail {
+  font-size: 18px;
+}
+
+#singleItemView .status-summary .quantity-detail,
+#singleItemView .status-summary .expiry-detail,
+#singleItemView .status-summary .notes-detail {
+  font-size: 14px;
+  color: #999;
+}
+
+#singleItemView .btns {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+}
+
+#usedBtn,
+#discardedBtn {
+  padding: 1rem 1.5rem;
+  background-color: #1e2c47;
+  color: white;
+  border: 1px solid wheat;
+}
+
+#discardedBtn {
+  background-color: #3a1414;
+}
+
+/* Generic for lists */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list .row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2dvw;
+  color: white;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.list .row:active {
+  background-color: rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.list .row .right-side {
+  display: flex;
+  flex-direction: column;
+  align-items: end;
+  text-align: right;
+  gap: 4px;
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  z-index: 10;
+
+  display: flex;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  padding: 1dvw;
+}
+
+.modal .backdrop {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.modal .close-modal {
+  position: absolute;
+  top: 1dvh;
+  right: 5dvw;
+  font-size: 42px;
+}
+
+.modal .content {
+  position: absolute;
+  top: 60px;
+  width: 90%;
+  max-width: 600px;
+  border-radius: 8px;
+  max-height: 85dvh;
+  overflow-y: auto;
+}
+
+/* State Machine */
+
+/* Modal/Forms state */
+#app[data-show-location-form='true'] .modal,
+#app[data-show-location-switcher='true'] .modal,
+#app[data-show-item-form='true'] .modal {
+  display: flex;
+}
+
+#app[data-show-location-form='false'] #locationForm,
+#app[data-show-location-switcher='false'] #locationSwitcher,
+#app[data-show-item-form='false'] #itemForm {
+  display: none;
+}
+
+/* Onboarding: modal can't be dismissed, hide the close button */
+#app[data-onboarding='true'] .close-modal {
+  visibility: hidden;
+}
+
+/* Views state */
+#app:not([data-current-view='ItemList']) #itemListView,
+#app:not([data-current-view='SingleItem']) #singleItemView {
+  display: none;
+}
+
+/* Go Back button visibility */
+#app[data-current-view='ItemList'] .go-back {
+  visibility: hidden;
+}

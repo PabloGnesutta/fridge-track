@@ -1,0 +1,79 @@
+#logger {
+  background-color: #111;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 100%;
+  z-index: 1000;
+  overflow-y: auto;
+  padding-bottom: 52px;
+  user-select: text;
+}
+
+#closeLogsBtn {
+  padding: 1rem;
+  font-size: 20px;
+  text-align: right;
+  background-color: #222;
+  color: #aaa;
+  position: fixed;
+  top: 3px;
+  right: 3px;
+  user-select: none;
+  border: 1px solid #aaa;
+  border-radius: 8px;
+}
+
+#logs {
+  margin-top: 64px;
+}
+
+.log-entry {
+  position: relative;
+  font-family: 'Courier New', Courier, monospace;
+  white-space: pre;
+  background-color: #333;
+  font-size: 20px;
+  padding: 4px;
+  margin-bottom: 4px;
+  color: white;
+  min-height: 32px;
+}
+
+.log-entry.type-info {
+  background-color: #005600;
+}
+
+.log-entry.type-debug {
+  background-color: #000f4e;
+}
+
+.log-entry.type-warn {
+  background-color: #7c4f00;
+}
+
+.log-entry.type-error {
+  background-color: #890000;
+}
+
+.log-entry.folded {
+  max-height: 64px;
+  overflow-y: hidden;
+}
+.log-entry.folded::after {
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.5);
+  font-size: 20px;
+  padding-right: 4px;
+  padding-bottom: 4px;
+  display: flex;
+  content: "🔍";
+  justify-content: end;
+  align-items: end;
+}

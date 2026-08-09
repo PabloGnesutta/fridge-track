@@ -1,0 +1,69 @@
+.base-button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 6px;
+  color: inherit;
+  user-select: none;
+}
+
+.base-button.horizontal {
+  flex-direction: row;
+}
+
+.base-button .label {
+}
+
+.base-button .icon {
+  display: flex;
+}
+
+.base-button .overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  z-index: 9;
+  color: white;
+}
+
+.base-button .overlay:hover {
+  cursor: pointer;
+}
+
+.base-button .overlay:active {
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+.go-back {
+  color: white;
+}
+.go-back .btn {
+  padding: 0.5rem;
+}
+
+.go-back .btn .icon {
+  width: 12vw;
+  height: 12vw;
+}
+
+.edit-btn .btn {
+  padding: 1rem;
+}
+.edit-btn .btn .icon {
+  width: 8dvw;
+  height: 8dvw;
+}
+
+.delete .btn, .delete-btn .btn {
+  padding: 1rem;
+}
+.delete .btn .icon, .delete-btn .btn .icon {
+  width: 8dvw;
+  height: 8dvw;
+}

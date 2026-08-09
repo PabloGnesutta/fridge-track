@@ -1,0 +1,92 @@
+textarea,
+input {
+  width: 100%;
+  outline: none;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  font-size: 24px;
+  padding: 4px;
+}
+
+.base-form {
+  --title-bg: #1e2c47;
+  --title-color: #ffffff;
+  --content-bg: #ed143d;
+  --control-bg: rgba(0, 0, 0, 0.5);
+}
+
+.base-form {}
+
+.form-title {
+  font-size: 2rem;
+  padding: 1rem;
+  background-color: var(--title-bg);
+  color: var(--title-color);
+}
+
+.form-content {
+  background-color: var(--content-bg);
+  padding: 0.5rem;
+}
+
+.form-control {
+  background-color: var(--control-bg);
+  padding: 0.75rem;
+  border-radius: 6px;
+  /* custom: */
+  margin-bottom: 0.75rem;
+}
+
+.form-control label {
+  color: white;
+  display: block;
+  font-size: 20px;
+  padding: 4px 0;
+}
+
+.numeric-inputs {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.numeric-inputs .form-control {
+  flex: 1;
+}
+
+textarea {
+  background-color: rgb(50, 50, 50);
+  color: white;
+}
+
+/* custom */
+#locationForm {
+  --title-bg: #4e004e;
+  --content-bg: #711942;
+}
+
+#locationForm .submit .btn,
+#itemForm .submit .btn {
+  background-color: #d0276e;
+  padding: 2rem;
+  font-size: 22px;
+  border: 1px solid wheat;
+}
+
+#itemForm {
+  --content-bg: #1e2c47;
+}
+
+.search-container {
+  padding: 4px;
+}
+
+.search-container input {
+  background-color: black;
+  color: #e7e7e7;
+  border-bottom: 1px solid #717171;
+}
+
+.search-container input::placeholder {
+  color: rgb(100, 100, 100);
+  padding: 0 2px;
+}

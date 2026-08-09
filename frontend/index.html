@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+
+  <title>FridgeTrack</title>
+  <meta name="description" content="Seguimiento de vencimientos de la heladera" />
+
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+
+  <link rel="manifest" href="static/manifest.json" />
+  <link rel="icon" type="image/png" sizes="32x32" href="static/icons/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="static/icons/favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="static/icons/apple-touch-icon.png" />
+
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/classes.css" />
+  <link rel="stylesheet" href="css/logger.css" />
+  <link rel="stylesheet" href="css/cache-control.css" />
+  <link rel="stylesheet" href="css/btn.css" />
+  <link rel="stylesheet" href="css/input.css" />
+  <link rel="stylesheet" href="css/switcher.css" />
+
+  <script src="js/app.js" type="module" defer></script>
+</head>
+
+<body>
+  <!-- Application -->
+  <div id="app">
+    <header id="mainHeader">
+      <div class="page-title"></div>
+      <div id="locationSwitcherBtn" class="location-switcher-btn"></div>
+      <div id="goBack2" class="go-back"></div>
+    </header>
+
+    <div class="views">
+      <!-- Item List -->
+      <div id="itemListView" class="page">
+        <div class="search-container">
+          <label for="searchItem"></label>
+          <input type="text" name="search" id="searchItem" placeholder="buscar" />
+        </div>
+
+        <div class="list">
+          <!--  -->
+        </div>
+        <div class="btns">
+          <div id="newItemBtn" role="button" class="base-button">&plus;</div>
+        </div>
+      </div>
+
+      <!-- Single Item -->
+      <div id="singleItemView" class="page">
+        <div class="heading">
+          <h3 class="name"><!-- --></h3>
+          <div class="right-side">
+            <div class="delete-btn"> <!--  --> </div>
+            <div class="edit-btn"><!--  --></div>
+          </div>
+        </div>
+
+        <div class="status-summary">
+          <div class="status-badge"><!-- --></div>
+          <div class="due-detail"><!-- --></div>
+          <div class="quantity-detail"><!-- --></div>
+          <div class="expiry-detail"><!-- --></div>
+          <div class="notes-detail"><!-- --></div>
+        </div>
+
+        <div class="btns">
+          <div id="usedBtn" role="button" class="base-button">Usado</div>
+          <div id="discardedBtn" role="button" class="base-button">Tirado</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="main-modal" class="modal">
+      <div class="backdrop">
+        <div class="close-modal">&times;</div>
+      </div>
+
+      <div class="content">
+        <!-- Location Form (Create) -->
+        <form id="locationForm" class="base-form">
+          <h3 class="form-title">Nueva Ubicación</h3>
+          <div class="form-content">
+            <div class="form-control">
+              <label for="locationName">Nombre</label>
+              <input type="text" name="locationName" placeholder="ej. Heladera" />
+            </div>
+            <div class="submit"><!--  --></div>
+          </div>
+        </form>
+
+        <!-- Location Switcher -->
+        <div id="locationSwitcher" class="base-form">
+          <h3 class="form-title">Cambiar de ubicación</h3>
+          <div class="form-content">
+            <div class="location-list"><!--  --></div>
+            <div class="submit">
+              <div id="addLocationBtn" role="button" class="base-button">&plus; Agregar ubicación</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Item Form (Create/Edit) -->
+        <form id="itemForm" class="base-form">
+          <h3 class="form-title">Nuevo Alimento</h3>
+          <div class="form-content">
+            <div class="form-control">
+              <label for="itemName">Nombre</label>
+              <input type="text" name="itemName" placeholder="ej. Leche" />
+            </div>
+            <div class="form-control">
+              <label for="quantity">Cantidad</label>
+              <input type="text" name="quantity" placeholder="ej. 1 litro" />
+            </div>
+            <div class="form-control">
+              <label for="addedDate">Fecha agregado</label>
+              <input type="date" name="addedDate" />
+            </div>
+            <div class="numeric-inputs">
+              <div class="form-control">
+                <label for="useByDate">Vence el (fecha)</label>
+                <input type="date" name="useByDate" />
+              </div>
+              <div class="form-control">
+                <label for="shelfLifeDays">Dura (días desde agregado)</label>
+                <input type="number" step="1" min="0" name="shelfLifeDays" />
+              </div>
+            </div>
+            <div class="form-control">
+              <label for="itemNotes">Notas</label>
+              <textarea rows="3" name="itemNotes"></textarea>
+            </div>
+            <div class="submit"><!--  --></div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="mainFooter">
+      <div id="cacheMajorVersion"></div>
+      <div id="indexedDbVersion"></div>
+    </div>
+  </div>
+
+  <!-- Cache update banner -->
+  <div id="updateBanner" class="folded">
+    <p>Hay una nueva versión disponible</p>
+    <button id="refreshPageBtn">Refrescá la página para actualizar</button>
+  </div>
+
+  <!-- Logger -->
+  <div id="logger" class="display-none">
+    <div id="closeLogsBtn">
+      <h4>Cerrar logs</h4>
+    </div>
+    <div id="logs"></div>
+  </div>
+</body>
+
+</html>

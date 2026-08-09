@@ -1,0 +1,33 @@
+#updateBanner {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  padding: 12px 6px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  z-index: 1001;
+  background-color: white;
+  color: black;
+  transition: all 500ms ease-out;
+}
+
+#updateBanner.folded {
+  transform: translateY(110%);
+}
+
+#updateBanner p {
+  text-align: center;
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+
+#updateBanner #refreshPageBtn {
+  padding: 24px 12px;
+  border: none;
+  outline: none;
+  font-size: 18px;
+  border-radius: 6px;
+  background: #009b1b;
+  color: #ffffff;
+}

@@ -1,0 +1,11 @@
+.display-none {
+  display: none !important;
+}
+
+.hidden {
+  visibility: hidden !important;
+}
+
+.selected {
+  background-color: green;
+}

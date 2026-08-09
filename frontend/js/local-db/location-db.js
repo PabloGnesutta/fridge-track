@@ -1,0 +1,82 @@
+import { dbStore } from "../common/state.js";
+import { clearArray } from "../lib/utils.js";
+import { getAll, putOne } from "../lib/indexedDb.js";
+
+
+/**
+ * @template T
+ * @typedef {import("../common/types.js").ServiceReturn<T>} ServiceReturn<T>
+ */
+
+/**
+ * @typedef {object} Location
+ * @property {string} name
+ * @property {IDBValidKey} [_key]
+ * @property {Date} [createdAt]
+ * @property {Date} [updatedAt]
+ */
+
+const LAST_USED_LOCATION_KEY = 'lastUsedLocationKey';
+
+
+/**
+ * Creates a new storage location (e.g. "Heladera", "Freezer").
+ * @param {string} name
+ * @param {Date} [date]
+ * @returns {ServiceReturn<Location>}
+ */
+async function createLocation(name, date = new Date()) {
+  name = name.trim();
+  if (!name) { return { errorMsg: 'Ingresar nombre' }; }
+
+  /** @type {Location} */
+  const location = { name, createdAt: date, updatedAt: date };
+  location._key = await putOne('locations', location);
+
+  dbStore.locations.push(location);
+  setLastUsedLocationKey(location._key);
+  return { data: location };
+}
+
+/**
+ * Fetch all locations. Stores them in dbStore.
+ * @returns {Promise<Location[]>}
+ */
+async function fetchLocations() {
+  /** @type {Location[]} */ // @ts-ignore
+  const locations = await getAll('locations');
+  clearArray(dbStore.locations);
+  dbStore.locations.push(...locations);
+  return locations;
+}
+
+/** @param {IDBValidKey} key */
+function setLastUsedLocationKey(key) {
+  localStorage.setItem(LAST_USED_LOCATION_KEY, String(key));
+}
+
+/** @returns {string|null} */
+function getLastUsedLocationKey() {
+  return localStorage.getItem(LAST_USED_LOCATION_KEY);
+}
+
+/**
+ * Resolves which location should be active on boot: the last-used one if it
+ * still exists, otherwise the most recently updated one.
+ * @param {Location[]} locations
+ * @returns {Location|null}
+ */
+function resolveCurrentLocation(locations) {
+  if (!locations.length) { return null; }
+  const lastUsedKey = getLastUsedLocationKey();
+  const lastUsed = locations.find(l => String(l._key) === lastUsedKey);
+  if (lastUsed) { return lastUsed; }
+
+  return locations.slice().sort((a, b) => {
+    if (!a.updatedAt || !b.updatedAt) { return 0; }
+    return a.updatedAt <= b.updatedAt ? 1 : -1;
+  })[0];
+}
+
+
+export { createLocation, fetchLocations, setLastUsedLocationKey, getLastUsedLocationKey, resolveCurrentLocation };
