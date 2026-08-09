@@ -1,6 +1,6 @@
 import { dbStore } from "../common/state.js";
 import { clearArray } from "../lib/utils.js";
-import { getAll, putOne } from "../lib/indexedDb.js";
+import { deleteMany, deleteOne, getAll, putOne } from "../lib/indexedDb.js";
 
 
 /**
@@ -36,6 +36,34 @@ async function createLocation(name, date = new Date()) {
   dbStore.locations.push(location);
   setLastUsedLocationKey(location._key);
   return { data: location };
+}
+
+/**
+ * Renames a location. Mutates the given location.
+ * @param {Location} location
+ * @param {string} name
+ * @param {Date} [date]
+ * @returns {ServiceReturn<Location>}
+ */
+async function updateLocation(location, name, date = new Date()) {
+  if (!location._key) { return { errorMsg: 'Llave no provista' }; }
+  name = name.trim();
+  if (!name) { return { errorMsg: 'Ingresar nombre' }; }
+
+  location.name = name;
+  location.updatedAt = date;
+  await putOne('locations', location, location._key);
+  return { data: location };
+}
+
+/**
+ * Deletes a location and all of its items.
+ * @param {IDBValidKey} locationKey
+ * @returns {Promise<void>}
+ */
+async function deleteLocationAndItems(locationKey) {
+  await deleteOne('locations', locationKey);
+  await deleteMany('items', 'locationKey', locationKey);
 }
 
 /**
@@ -79,4 +107,7 @@ function resolveCurrentLocation(locations) {
 }
 
 
-export { createLocation, fetchLocations, setLastUsedLocationKey, getLastUsedLocationKey, resolveCurrentLocation };
+export {
+  createLocation, updateLocation, deleteLocationAndItems, fetchLocations,
+  setLastUsedLocationKey, getLastUsedLocationKey, resolveCurrentLocation,
+};

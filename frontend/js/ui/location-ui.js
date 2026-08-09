@@ -1,7 +1,11 @@
-import { $, $form, $getInner, $new, $queryOneInput } from "../lib/dom.js";
+import { $, $form, $getInner, $new, $queryOne, $queryOneInput } from "../lib/dom.js";
 import { _error } from "../lib/logger.js";
+import { pen_solid, svg_trash } from "../svg/svgFn.js";
 import { dataState, dbStore, setStateField } from "../common/state.js";
-import { createLocation, setLastUsedLocationKey } from "../local-db/location-db.js";
+import {
+  createLocation, deleteLocationAndItems, resolveCurrentLocation, setLastUsedLocationKey, updateLocation,
+} from "../local-db/location-db.js";
+import { countItemsByStatus } from "../local-db/item-db.js";
 import { fetchAndRenderItems, openItemList } from "./item-ui.js";
 
 
@@ -11,10 +15,15 @@ import { fetchAndRenderItems, openItemList } from "./item-ui.js";
 
 const locationForm = $form('locationForm');
 const locationNameInput = $queryOneInput('#locationForm input[name="locationName"]');
+const formTitleText = $getInner(locationForm, '.form-title-text');
+const deleteLocationBtn = $('deleteLocationBtn');
+const submitLocationBtn = $queryOne('#locationForm .submit');
 
-const locationSwitcher = $('locationSwitcher');
-const locationList = $getInner(locationSwitcher, '.location-list');
-const locationSwitcherBtn = $('locationSwitcherBtn');
+const chipsContainer = $queryOne('#itemListView .location-chips');
+
+/** Location currently being renamed/deleted via the form, if any. */
+/** @type {Location|null} */
+let locationBeingEdited = null;
 
 // Intercept native form submission (e.g. pressing Enter in a field) so it
 // doesn't navigate the browser away with the field as a GET query string.
@@ -22,20 +31,38 @@ locationForm.addEventListener('submit', submitLocationForm);
 
 
 /**
- * Open the "new location" modal.
- * @param {boolean} onboarding - When true, blocks dismissal until a location is created.
+ * Open the "new/edit location" modal.
+ * @param {boolean} [onboarding] - When true, blocks dismissal until a location is created.
+ * @param {Location|null} [editTarget] - When given, edits this location instead of creating a new one.
  */
-function openLocationForm(onboarding = false) {
-  setStateField('showLocationSwitcher', false);
+function openLocationForm(onboarding = false, editTarget = null) {
   if (onboarding) {
     setStateField('onboarding', true);
   }
+
+  const submitLabel = $getInner(submitLocationBtn, '.label');
+  locationBeingEdited = editTarget;
+
+  if (editTarget) {
+    locationNameInput.value = editTarget.name;
+    formTitleText.innerText = 'Editar Ubicación';
+    submitLabel.innerText = 'Guardar Cambios';
+    deleteLocationBtn.classList.remove('display-none');
+  } else {
+    locationForm.reset();
+    formTitleText.innerText = 'Nueva Ubicación';
+    submitLabel.innerText = 'Agregar Ubicación';
+    deleteLocationBtn.classList.add('display-none');
+  }
+
   setStateField('showLocationForm', true);
   locationNameInput.focus();
+  locationNameInput.select();
 }
 
 /**
- * Creates the location and activates it as current.
+ * Creates or renames the location, depending on whether it was opened for
+ * editing.
  * @param {Event} e
  */
 async function submitLocationForm(e) {
@@ -43,6 +70,16 @@ async function submitLocationForm(e) {
   const formData = new FormData(locationForm);
   const name = formData.get('locationName') || '';
   if (typeof name !== 'string') { return; }
+
+  if (locationBeingEdited) {
+    const result = await updateLocation(locationBeingEdited, name);
+    if (!result.data) { return _error(result.errorMsg); }
+    locationBeingEdited = null;
+    locationForm.reset();
+    setStateField('showLocationForm', false);
+    await renderLocationChips();
+    return;
+  }
 
   const result = await createLocation(name);
   if (!result.data) {
@@ -57,49 +94,80 @@ async function submitLocationForm(e) {
 }
 
 /**
- * Sets the given location as current, updates the header,
- * and fetches+renders its items.
+ * Deletes the location currently open in the edit form.
+ */
+async function deleteLocationFromForm() {
+  const location = locationBeingEdited;
+  if (!location) { return; }
+  if (!confirm(`¿Seguro que querés borrar "${location.name}" y todos sus alimentos?`)) { return; }
+
+  locationBeingEdited = null;
+  locationForm.reset();
+  setStateField('showLocationForm', false);
+
+  await deleteLocation(location._key || '');
+}
+
+/**
+ * Sets the given location as current, fetches+renders its items
+ * (which also refreshes the chips), and opens the list view.
  * @param {Location} location
  */
 async function activateLocation(location) {
   dataState.currentLocation = location;
   setLastUsedLocationKey(location._key || '');
 
-  updateLocationHeader(location);
-
   await fetchAndRenderItems(location);
   openItemList();
 }
 
-/** @param {Location} location */
-function updateLocationHeader(location) {
-  locationSwitcherBtn.innerText = location.name;
-}
-
 /**
- * Opens the location switcher modal, listing all locations.
+ * Renders the location chip row: one chip per location (name + status
+ * badges + rename icon), the active one highlighted, plus a trailing "+"
+ * chip to add another. Called whenever locations or items change.
  */
-function openLocationSwitcher() {
-  renderLocationSwitcherList();
-  setStateField('showLocationSwitcher', true);
-}
-
-function renderLocationSwitcherList() {
-  locationList.innerHTML = '';
+async function renderLocationChips() {
+  chipsContainer.innerHTML = '';
   const currentKey = dataState.currentLocation?._key;
-  dbStore.locations.forEach(location => {
-    const row = $new({
-      class: 'row' + (location._key === currentKey ? ' selected' : ''),
+  const today = new Date();
+
+  for (const location of dbStore.locations) {
+    const key = (location._key || '').toString();
+    const { expired, expiringSoon } = await countItemsByStatus(location._key || '', today);
+
+    /** @type {HTMLElement[]} */
+    const badges = [];
+    if (expired > 0) {
+      badges.push($new({ class: 'location-badge expired', text: String(expired) }));
+    }
+    if (expiringSoon > 0) {
+      badges.push($new({ class: 'location-badge expiring-soon', text: String(expiringSoon) }));
+    }
+
+    const chip = $new({
+      class: 'location-chip' + (location._key === currentKey ? ' active' : ''),
       dataset: [
         ['clickAction', 'switchLocation'],
-        ['locationKey', (location._key || '').toString()],
+        ['locationKey', key],
       ],
       children: [
         $new({ class: 'locationName', text: location.name }),
+        ...badges,
+        $new({
+          class: 'icon-btn',
+          html: pen_solid(),
+          dataset: [['clickAction', 'editLocation'], ['locationKey', key]],
+        }),
       ],
     });
-    locationList.append(row);
-  });
+    chipsContainer.append(chip);
+  }
+
+  chipsContainer.append($new({
+    class: 'location-chip add-chip',
+    text: '+',
+    dataset: [['clickAction', 'openAddLocation']],
+  }));
 }
 
 /**
@@ -107,23 +175,54 @@ function renderLocationSwitcherList() {
  */
 async function switchLocation(locationKey) {
   const key = +locationKey;
-  if (key === dataState.currentLocation?._key) {
-    setStateField('showLocationSwitcher', false);
-    return;
-  }
+  if (key === dataState.currentLocation?._key) { return; }
   const location = dbStore.locations.find(l => l._key === key);
   if (!location) { return; }
 
-  setStateField('showLocationSwitcher', false);
   await activateLocation(location);
 }
 
-function openAddLocationFromSwitcher() {
+function openAddLocation() {
   openLocationForm(false);
+}
+
+/**
+ * @param {string} locationKey
+ */
+function editLocation(locationKey) {
+  const location = dbStore.locations.find(l => l._key === +locationKey);
+  if (!location) { return; }
+  openLocationForm(false, location);
+}
+
+/**
+ * Deletes a location and all of its items. If it was the active one,
+ * activates another remaining location (or re-triggers onboarding if none
+ * are left).
+ * @param {IDBValidKey} locationKey
+ */
+async function deleteLocation(locationKey) {
+  await deleteLocationAndItems(locationKey);
+
+  const idx = dbStore.locations.findIndex(l => l._key === locationKey);
+  if (idx !== -1) { dbStore.locations.splice(idx, 1); }
+
+  if (dataState.currentLocation?._key === locationKey) {
+    const next = resolveCurrentLocation(dbStore.locations);
+    if (next) {
+      await activateLocation(next);
+    } else {
+      dataState.currentLocation = null;
+      openLocationForm(true);
+      return;
+    }
+  }
+
+  await renderLocationChips();
 }
 
 
 export {
-  openLocationForm, submitLocationForm, activateLocation,
-  openLocationSwitcher, switchLocation, openAddLocationFromSwitcher,
+  openLocationForm, submitLocationForm, deleteLocationFromForm, activateLocation,
+  renderLocationChips, switchLocation, openAddLocation, editLocation,
 };

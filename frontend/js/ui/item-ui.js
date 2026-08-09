@@ -2,10 +2,12 @@ import { fromYYYYMMDD, toYYYYMMDD } from "../lib/date.js";
 import { _error } from "../lib/logger.js";
 import { matches, normalize } from "../lib/string.js";
 import { $, $form, $getInner, $new, $queryOne, $queryOneInput } from "../lib/dom.js";
+import { showUndoToast } from "../lib/toast.js";
 import { appState, dataState, dbStore, setCurrentView, setStateField } from "../common/state.js";
-import { createItem, deleteItem, fetchItems, updateItem } from "../local-db/item-db.js";
+import { createItem, deleteItem, fetchItems, restoreItem, updateItem } from "../local-db/item-db.js";
 import { computeStatus, formatDueDetail } from "../lib/freshnessStatus.js";
 import { pageTitle } from "./ui.js";
+import { renderLocationChips } from "./location-ui.js";
 
 
 /**
@@ -63,7 +65,15 @@ searchInput.addEventListener('input', e => {
 async function fetchAndRenderItems(location) {
   const items = await fetchItems(location._key || '', new Date());
   itemList.innerHTML = '';
-  items.forEach(item => appendItemRow(item));
+  if (!items.length) {
+    itemList.append($new({
+      class: 'empty-state',
+      text: 'No hay alimentos acá todavía. Tocá + para agregar uno.',
+    }));
+  } else {
+    items.forEach(item => appendItemRow(item));
+  }
+  await renderLocationChips();
 }
 
 /** Open the item list view */
@@ -80,8 +90,9 @@ function appendItemRow(item) {
   const { status, daysUntilUseBy, daysUntilShelfLifeEnd } = computeStatus(item, new Date());
 
   const nameChildren = [$new({ class: 'itemName', text: item.name })];
-  if (item.notes) {
-    nameChildren.push($new({ class: 'itemNotes', text: item.notes }));
+  const meta = [item.quantity, item.notes].filter(Boolean).join(' · ');
+  if (meta) {
+    nameChildren.push($new({ class: 'itemMeta', text: meta }));
   }
 
   const row = $new({
@@ -206,6 +217,7 @@ function renderItemDetail(item) {
   itemName.innerText = item.name;
   statusBadge.innerText = STATUS_LABELS[status];
   statusBadge.dataset.status = status;
+  dueDetail.dataset.status = status;
   dueDetail.innerText = formatDueDetail({ status, daysUntilUseBy, daysUntilShelfLifeEnd });
   quantityDetail.innerText = item.quantity ? `Cantidad: ${item.quantity}` : '';
 
@@ -224,17 +236,17 @@ function closeSingleItem() {
 }
 
 /**
- * Removes an item from the list (used for delete, "Usado" and "Tirado" alike
- * — there's no history to distinguish them, just the confirm-prompt wording).
- * @param {string} confirmMessage
+ * Removes an item from the list immediately (used for delete, "Usado" and
+ * "Tirado" alike — there's no history to distinguish them, just the toast
+ * wording) and offers a few seconds to undo instead of a blocking confirm.
+ * @param {string} toastMessage
  */
-async function removeItem(confirmMessage) {
+async function removeItem(toastMessage) {
   const item = dataState.currentItem;
   const location = dataState.currentLocation;
   if (!item || !location) { return; }
   const itemKey = item._key;
   if (!itemKey) { return; }
-  if (!confirm(confirmMessage)) { return; }
 
   await deleteItem(itemKey);
 
@@ -245,24 +257,29 @@ async function removeItem(confirmMessage) {
 
   dataState.currentItem = null;
   await fetchAndRenderItems(location);
+
+  showUndoToast(toastMessage, async () => {
+    await restoreItem(item);
+    await fetchAndRenderItems(location);
+  });
 }
 
 function tryDeleteItem() {
   const item = dataState.currentItem;
   if (!item) { return; }
-  return removeItem(`¿Seguro que querés borrar "${item.name}"?`);
+  return removeItem(`"${item.name}" eliminado`);
 }
 
 function markItemUsed() {
   const item = dataState.currentItem;
   if (!item) { return; }
-  return removeItem(`¿Ya usaste "${item.name}"?`);
+  return removeItem(`"${item.name}" usado`);
 }
 
 function markItemDiscarded() {
   const item = dataState.currentItem;
   if (!item) { return; }
-  return removeItem(`¿Tiraste "${item.name}"?`);
+  return removeItem(`"${item.name}" tirado`);
 }
 
 

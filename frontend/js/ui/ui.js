@@ -1,9 +1,9 @@
 import { appState, dataState, dbStore, setStateField } from "../common/state.js";
 import { $, $button, $getInner, $queryOne } from "../lib/dom.js";
 import { _info, _log, _warn, openLogs } from "../lib/logger.js";
-import { arrow_left, pen_solid, svg_trash } from "../svg/svgFn.js";
+import { arrow_left, pen_solid, svg_check, svg_trash } from "../svg/svgFn.js";
 import {
-  openAddLocationFromSwitcher, openLocationSwitcher, submitLocationForm, switchLocation,
+  deleteLocationFromForm, editLocation, openAddLocation, submitLocationForm, switchLocation,
 } from "./location-ui.js";
 import {
   closeSingleItem, markItemDiscarded, markItemUsed, openItemForm, openSingleItem, submitItemBtn, submitItemForm, tryDeleteItem,
@@ -32,16 +32,34 @@ function initUi() {
     }
   });
 
-  $('locationSwitcherBtn').addEventListener('click', () => { openLocationSwitcher(); });
   $('newItemBtn').addEventListener('click', () => { openItemForm(false); });
-  $('addLocationBtn').addEventListener('click', () => { openAddLocationFromSwitcher(); });
-  $('usedBtn').addEventListener('click', () => { markItemUsed(); });
-  $('discardedBtn').addEventListener('click', () => { markItemDiscarded(); });
+
+  $button({
+    label: 'Usado',
+    svgFn: svg_check,
+    class: 'horizontal',
+    listener: { fn: markItemUsed },
+    appendTo: $('usedBtn'),
+  });
+  $button({
+    label: 'Tirado',
+    svgFn: svg_trash,
+    class: 'horizontal',
+    listener: { fn: markItemDiscarded },
+    appendTo: $('discardedBtn'),
+  });
 
   $button({
     label: 'Agregar Ubicación',
     listener: { fn: submitLocationForm },
     appendTo: $queryOne('#locationForm .submit'),
+  });
+
+  $button({
+    // Borrar Ubicación (only shown while editing an existing one)
+    listener: { fn: deleteLocationFromForm },
+    svgFn: svg_trash,
+    appendTo: $('deleteLocationBtn'),
   });
 
   $button({
@@ -73,7 +91,9 @@ function initUi() {
       target.select();
       return;
     }
-    if (!(target instanceof HTMLElement)) { return; }
+    // Note: `instanceof Element` (not HTMLElement) so clicks landing on an
+    // inline <svg>/<path> icon (an SVGElement) aren't silently dropped.
+    if (!(target instanceof Element)) { return; }
     const clickElement = target.closest('[data-click-action]');
     if (!clickElement) { return; }
     if (!('dataset' in clickElement)) { return; }
@@ -85,6 +105,12 @@ function initUi() {
         break;
       case 'switchLocation':
         switchLocation(dataset.locationKey || '');
+        break;
+      case 'editLocation':
+        editLocation(dataset.locationKey || '');
+        break;
+      case 'openAddLocation':
+        openAddLocation();
         break;
       default:
         return _warn(' :: clickAction not defined: ' + dataset.clickAction);
@@ -100,7 +126,6 @@ function modalBackdropHandler() {
     if (clickedBackdrop) {
       setStateField('editingItem', false);
       setStateField('showLocationForm', false);
-      setStateField('showLocationSwitcher', false);
       setStateField('showItemForm', false);
     }
   });

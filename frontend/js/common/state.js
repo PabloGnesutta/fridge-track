@@ -13,7 +13,6 @@ import { _log } from "../lib/logger.js";
  * @property {boolean} onboarding Forces the location form open and blocks dismissal until a first location exists
  * @property {boolean} editingItem
  * @property {boolean} showLocationForm
- * @property {boolean} showLocationSwitcher
  * @property {boolean} showItemForm
  * @property {Views} currentView
  *
@@ -39,7 +38,6 @@ const appState = {
     onboarding: false,
     editingItem: false,
     showLocationForm: false,
-    showLocationSwitcher: false,
     showItemForm: false,
     currentView: 'ItemList',
 };
@@ -86,7 +84,6 @@ function initAppState() {
     setStateField('onboarding', false);
     setStateField('editingItem', false);
     setStateField('showLocationForm', false);
-    setStateField('showLocationSwitcher', false);
     setStateField('showItemForm', false);
     setCurrentView('ItemList');
 }

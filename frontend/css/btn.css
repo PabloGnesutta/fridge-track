@@ -44,26 +44,26 @@
   color: white;
 }
 .go-back .btn {
-  padding: 0.5rem;
+  padding: 0.75rem;
 }
 
 .go-back .btn .icon {
-  width: 12vw;
-  height: 12vw;
+  width: 22px;
+  height: 22px;
 }
 
 .edit-btn .btn {
-  padding: 1rem;
+  padding: 0.75rem;
 }
 .edit-btn .btn .icon {
-  width: 8dvw;
-  height: 8dvw;
+  width: 20px;
+  height: 20px;
 }
 
 .delete .btn, .delete-btn .btn {
-  padding: 1rem;
+  padding: 0.75rem;
 }
 .delete .btn .icon, .delete-btn .btn .icon {
-  width: 8dvw;
-  height: 8dvw;
+  width: 20px;
+  height: 20px;
 }

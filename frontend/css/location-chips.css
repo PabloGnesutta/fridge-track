@@ -1,0 +1,86 @@
+.location-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0.75rem;
+  background-color: #000e1c;
+}
+
+.location-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background-color: #1e2c47;
+  border: 1px solid transparent;
+  color: #ccc;
+}
+
+.location-chip:active {
+  background-color: #26385c;
+}
+
+.location-chip.active {
+  background-color: #2c4066;
+  border-color: white;
+  color: white;
+}
+
+.location-chip .locationName {
+  font-size: 16px;
+  max-width: 40vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.location-chip .icon-btn {
+  box-sizing: content-box;
+  width: 14px;
+  height: 14px;
+  padding: 6px;
+  border-radius: 6px;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.location-chip .icon-btn:active {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.location-chip.add-chip {
+  justify-content: center;
+  width: 34px;
+  padding: 6px;
+  font-size: 18px;
+  line-height: 1;
+  color: #999;
+  border: 1px dashed #555;
+  background-color: transparent;
+}
+
+.location-chip.add-chip:active {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.location-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.location-badge.expired {
+  background-color: var(--status-expired);
+}
+
+.location-badge.expiring-soon {
+  background-color: var(--status-expiring-soon);
+}

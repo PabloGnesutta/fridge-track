@@ -12,6 +12,9 @@
   --status-fresh: #1c8a3f;
   --status-expiring-soon: #b8860b;
   --status-expired: #b0132f;
+  --status-fresh-text: #6fcf8f;
+  --status-expiring-soon-text: #e0b34d;
+  --status-expired-text: #ff8a8a;
 }
 
 body {
@@ -60,19 +63,6 @@ svg {
   font-size: 34px;
   padding-left: 1rem;
   color: white;
-}
-
-.location-switcher-btn {
-  font-size: 16px;
-  color: #bbb;
-  padding: 4px 10px;
-  border: 1px solid #444;
-  border-radius: 999px;
-  white-space: nowrap;
-}
-
-.location-switcher-btn:active {
-  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .views {
@@ -125,13 +115,23 @@ svg {
   align-self: flex-start;
 }
 
-#itemListView .list .row .itemNotes {
+#itemListView .list .row .itemMeta {
   font-size: 13px;
   color: #999;
   padding: 0 0.25rem;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+#itemListView .list .empty-state {
+  color: #777;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  font-size: 16px;
 }
 
 #itemListView .btns {
@@ -145,8 +145,8 @@ svg {
   position: fixed;
   bottom: calc(var(--footer-heigt) + 1dvh);
   right: 2.5dvw;
-  width: 80px;
-  height: 80px;
+  width: 60px;
+  height: 60px;
   z-index: 1;
   border: 1px solid white;
   border-radius: 50%;
@@ -184,7 +184,34 @@ svg {
 
 .due-detail {
   font-size: 14px;
-  color: #ffc8c8;
+}
+
+.due-detail[data-status="fresh"],
+.row[data-status="fresh"] .due-detail {
+  color: var(--status-fresh-text);
+}
+
+.due-detail[data-status="expiring-soon"],
+.row[data-status="expiring-soon"] .due-detail {
+  color: var(--status-expiring-soon-text);
+}
+
+.due-detail[data-status="expired"],
+.row[data-status="expired"] .due-detail {
+  color: var(--status-expired-text);
+}
+
+/* Left-border accent so urgency reads at a glance, before the text does */
+.list .row[data-status="fresh"] {
+  border-left: 4px solid var(--status-fresh);
+}
+
+.list .row[data-status="expiring-soon"] {
+  border-left: 4px solid var(--status-expiring-soon);
+}
+
+.list .row[data-status="expired"] {
+  border-left: 4px solid var(--status-expired);
 }
 
 #singleItemView {}
@@ -227,7 +254,17 @@ svg {
 #singleItemView .status-summary .expiry-detail,
 #singleItemView .status-summary .notes-detail {
   font-size: 14px;
-  color: #999;
+  color: #bbb;
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+#singleItemView .status-summary .quantity-detail:empty,
+#singleItemView .status-summary .expiry-detail:empty,
+#singleItemView .status-summary .notes-detail:empty {
+  display: none;
 }
 
 #singleItemView .btns {
@@ -238,16 +275,22 @@ svg {
   padding: 0.5rem;
 }
 
-#usedBtn,
-#discardedBtn {
+#usedBtn .btn,
+#discardedBtn .btn {
   padding: 1rem 1.5rem;
   background-color: #1e2c47;
   color: white;
   border: 1px solid wheat;
 }
 
-#discardedBtn {
+#discardedBtn .btn {
   background-color: #3a1414;
+}
+
+#usedBtn .icon,
+#discardedBtn .icon {
+  width: 18px;
+  height: 18px;
 }
 
 /* Generic for lists */
@@ -324,13 +367,11 @@ svg {
 
 /* Modal/Forms state */
 #app[data-show-location-form='true'] .modal,
-#app[data-show-location-switcher='true'] .modal,
 #app[data-show-item-form='true'] .modal {
   display: flex;
 }
 
 #app[data-show-location-form='false'] #locationForm,
-#app[data-show-location-switcher='false'] #locationSwitcher,
 #app[data-show-item-form='false'] #itemForm {
   display: none;
 }

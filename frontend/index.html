@@ -22,7 +22,8 @@
   <link rel="stylesheet" href="css/cache-control.css" />
   <link rel="stylesheet" href="css/btn.css" />
   <link rel="stylesheet" href="css/input.css" />
-  <link rel="stylesheet" href="css/switcher.css" />
+  <link rel="stylesheet" href="css/location-chips.css" />
+  <link rel="stylesheet" href="css/toast.css" />
 
   <script src="js/app.js" type="module" defer></script>
 </head>
@@ -32,13 +33,14 @@
   <div id="app">
     <header id="mainHeader">
       <div class="page-title"></div>
-      <div id="locationSwitcherBtn" class="location-switcher-btn"></div>
       <div id="goBack2" class="go-back"></div>
     </header>
 
     <div class="views">
       <!-- Item List -->
       <div id="itemListView" class="page">
+        <div class="location-chips"><!--  --></div>
+
         <div class="search-container">
           <label for="searchItem"></label>
           <input type="text" name="search" id="searchItem" placeholder="buscar" />
@@ -71,8 +73,8 @@
         </div>
 
         <div class="btns">
-          <div id="usedBtn" role="button" class="base-button">Usado</div>
-          <div id="discardedBtn" role="button" class="base-button">Tirado</div>
+          <div id="usedBtn"></div>
+          <div id="discardedBtn"></div>
         </div>
       </div>
     </div>
@@ -84,9 +86,12 @@
       </div>
 
       <div class="content">
-        <!-- Location Form (Create) -->
+        <!-- Location Form (Create/Edit) -->
         <form id="locationForm" class="base-form">
-          <h3 class="form-title">Nueva Ubicación</h3>
+          <h3 class="form-title">
+            <span class="form-title-text">Nueva Ubicación</span>
+            <div id="deleteLocationBtn" class="display-none"></div>
+          </h3>
           <div class="form-content">
             <div class="form-control">
               <label for="locationName">Nombre</label>
@@ -95,17 +100,6 @@
             <div class="submit"><!--  --></div>
           </div>
         </form>
-
-        <!-- Location Switcher -->
-        <div id="locationSwitcher" class="base-form">
-          <h3 class="form-title">Cambiar de ubicación</h3>
-          <div class="form-content">
-            <div class="location-list"><!--  --></div>
-            <div class="submit">
-              <div id="addLocationBtn" role="button" class="base-button">&plus; Agregar ubicación</div>
-            </div>
-          </div>
-        </div>
 
         <!-- Item Form (Create/Edit) -->
         <form id="itemForm" class="base-form">
@@ -153,6 +147,12 @@
   <div id="updateBanner" class="folded">
     <p>Hay una nueva versión disponible</p>
     <button id="refreshPageBtn">Refrescá la página para actualizar</button>
+  </div>
+
+  <!-- Undo toast -->
+  <div id="undoToast" class="folded">
+    <span class="message"></span>
+    <div id="undoBtn" role="button" class="undo-btn">Deshacer</div>
   </div>
 
   <!-- Logger -->

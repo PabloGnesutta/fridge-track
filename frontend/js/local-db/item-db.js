@@ -108,6 +108,19 @@ async function deleteItem(itemKey) {
 }
 
 /**
+ * Re-inserts a previously deleted item under its original key. Used to
+ * support "undo" right after a delete/"Usado"/"Tirado" action.
+ * @param {Item} item
+ * @returns {ServiceReturn<Item>}
+ */
+async function restoreItem(item) {
+  if (!item._key) { return { errorMsg: 'Ítem sin llave' }; }
+  await putOne('items', item, item._key);
+  dbStore.items.push(item);
+  return { data: item };
+}
+
+/**
  * Fetch all items for the given location, sorted by how soon they're due
  * (most overdue/closest to expiring first), then name. Stores them in dbStore.
  * @param {IDBValidKey} locationKey
@@ -130,5 +143,26 @@ async function fetchItems(locationKey, currentDate) {
   return items;
 }
 
+/**
+ * Counts expired/expiring-soon items for the given location, independent of
+ * dbStore's cache (which only holds the currently active location's items).
+ * Used for the location switcher's badges.
+ * @param {IDBValidKey} locationKey
+ * @param {Date} currentDate
+ * @returns {Promise<{expired: number, expiringSoon: number}>}
+ */
+async function countItemsByStatus(locationKey, currentDate) {
+  /** @type {Item[]} */ // @ts-ignore
+  const items = await getAllWithIndex('items', 'locationKey', locationKey);
+  let expired = 0;
+  let expiringSoon = 0;
+  items.forEach(item => {
+    const { status } = computeStatus(item, currentDate);
+    if (status === 'expired') { expired++; }
+    else if (status === 'expiring-soon') { expiringSoon++; }
+  });
+  return { expired, expiringSoon };
+}
 
-export { createItem, updateItem, deleteItem, fetchItems };
+
+export { createItem, updateItem, deleteItem, restoreItem, fetchItems, countItemsByStatus };
