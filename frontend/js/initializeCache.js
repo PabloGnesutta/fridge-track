@@ -10,7 +10,7 @@ function initializeCache() {
   const installedCache = localStorage.getItem('installedCache');
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('cacheServiceWorker.js')
+    navigator.serviceWorker.register('/cacheServiceWorker.js')
       .then(registration => {
         _info(' - service worker registered');
 

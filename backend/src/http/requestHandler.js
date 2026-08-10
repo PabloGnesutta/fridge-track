@@ -47,6 +47,15 @@ export async function handleRequest(req, res) {
       return sendAssetFile(res, ['static', pathBase], 'image/x-icon');
     }
 
+    // TODO: Can't this be checked against then plain ´_url´ string?
+    // Client-side routes (e.g. /item/42): the last path segment has no file
+    // extension, so it isn't a static asset request - serve the app shell
+    // and let the frontend router resolve the URL.
+    const lastSegment = fileRoute[fileRoute.length - 1] || '';
+    if (!lastSegment.includes('.')) {
+      return sendAssetFile(res, ['index.html'], 'text/html');
+    }
+
     // 404
     return errorResponse(res, 'Resource not found ' + _url, 404);
   } catch (_err) {

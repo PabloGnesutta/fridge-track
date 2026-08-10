@@ -3,6 +3,7 @@ import { _error } from "../lib/logger.js";
 import { matches, normalize } from "../lib/string.js";
 import { $, $form, $getInner, $new, $queryOne, $queryOneInput } from "../lib/dom.js";
 import { showUndoToast } from "../lib/toast.js";
+import { syncUrl } from "../common/router.js";
 import { appState, dataState, dbStore, setCurrentView, setStateField } from "../common/state.js";
 import { createItem, deleteItem, fetchItems, restoreItem, updateItem } from "../local-db/item-db.js";
 import { computeStatus, formatDueDetail } from "../lib/freshnessStatus.js";
@@ -80,6 +81,7 @@ async function fetchAndRenderItems(location) {
 function openItemList() {
   setCurrentView('ItemList');
   pageTitle.innerText = 'Alimentos';
+  syncUrl('/', { replace: true });
 }
 
 /**
@@ -207,6 +209,7 @@ async function openSingleItem(itemKey) {
   dataState.currentItem = item;
 
   renderItemDetail(item);
+  syncUrl(`/item/${item._key}`);
 }
 
 /**

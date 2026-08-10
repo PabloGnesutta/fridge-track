@@ -8,9 +8,16 @@ import { $ } from "./lib/dom.js";
 import { fetchLocations, resolveCurrentLocation } from "./local-db/location-db.js";
 import { activateLocation, openLocationForm } from "./ui/location-ui.js";
 import { seedDb } from "./local-db/seed.js";
+import { initRouter, renderSpecificRoute, captureInitialRoute } from "./common/router.js";
 
 
 _info(' (!) App started');
+
+/**
+ * Captured before anything (e.g. activateLocation's default list render)
+ * touches history and clobbers the URL the page actually loaded with.
+ */ 
+const initialRoute = captureInitialRoute();
 
 initializeCache();
 
@@ -31,9 +38,15 @@ eventBus.on('IndexedDbInited', async ({ version }) => {
         openLocationForm(true);
     } else {
         await activateLocation(currentLocation);
+        // Re-applies the URL the page actually loaded with (e.g. a deep
+        // link or a refresh on /item/42), now that items are loaded and
+        // can be found - activateLocation's default list render already
+        // reset the address bar to '/'.
+        renderSpecificRoute(initialRoute);
     }
 });
 
 initAppState();
 initUi();
+initRouter();
 dbugBtns();
