@@ -231,7 +231,7 @@ svg {
 
 #singleItemView .name {
   font-size: 26px;
-  padding: 1rem 0.75rem;
+  padding: 10px;
 }
 
 #singleItemView .right-side {
@@ -271,6 +271,12 @@ svg {
 #singleItemView .status-summary .expiry-detail:empty,
 #singleItemView .status-summary .notes-detail:empty {
   display: none;
+}
+
+.status-summary .flex-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 #singleItemView .btns {

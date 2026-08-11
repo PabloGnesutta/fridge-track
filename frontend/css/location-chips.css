@@ -3,7 +3,7 @@
   flex-wrap: wrap;
   gap: 8px;
   padding: 0.75rem;
-  background-color: var(--bg-canvas);
+  background-color: var(--bg-app);
 }
 
 .location-chip {
