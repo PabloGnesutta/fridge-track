@@ -16,7 +16,7 @@ import { _log } from "../lib/logger.js";
  * @property {boolean} showItemForm
  * @property {Views} currentView
  *
- * @typedef {'ItemList'|'SingleItem'} Views
+ * @typedef {'ItemList'|'SingleItem'|'FoodHistory'} Views
  *
  * @typedef {object} DataState
  * @property {Location|null} currentLocation
@@ -28,6 +28,7 @@ import { _log } from "../lib/logger.js";
  * @typedef {object} DBStore
  * @property {Location[]} locations
  * @property {Item[]} items
+ * @property {import("../local-db/food-name-db.js").FoodNameHistory[]} foodNameHistory
  */
 
 /**
@@ -58,6 +59,7 @@ const dataState = {
 const dbStore = {
     locations: [],
     items: [],
+    foodNameHistory: [],
 };
 
 const $app = $('app');

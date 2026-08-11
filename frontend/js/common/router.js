@@ -1,4 +1,5 @@
 import { openItemList, openSingleItem } from "../ui/item-ui.js";
+import { openFoodHistory } from "../ui/food-history-ui.js";
 import { parseRoute } from "./routeMatch.js";
 
 
@@ -30,6 +31,8 @@ function syncUrl(path, { replace = false } = {}) {
 function renderSpecificRoute(route) {
   if (route.view === 'SingleItem') {
     openSingleItem(route.itemKey);
+  } else if (route.view === 'FoodHistory') {
+    openFoodHistory();
   } else {
     openItemList();
   }

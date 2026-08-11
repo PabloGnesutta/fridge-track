@@ -40,14 +40,17 @@
   background-color: rgba(255, 255, 255, 0.4);
 }
 
-.go-back {
+.go-back,
+.history-nav {
   color: white;
 }
-.go-back .btn {
+.go-back .btn,
+.history-nav .btn {
   padding: 0.75rem;
 }
 
-.go-back .btn .icon {
+.go-back .btn .icon,
+.history-nav .btn .icon {
   width: 22px;
   height: 22px;
 }

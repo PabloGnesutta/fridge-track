@@ -4,7 +4,7 @@ import { eventBus } from './utils.js';
 
 /**
  * Enums
- * @typedef {'locations'|'items'} ObjectStores
+ * @typedef {'locations'|'items'|'foodNameHistory'} ObjectStores
  * @typedef {'locationKey'} Indexes
  *
  * @typedef {IDBValidKey | IDBKeyRange} StoreKey
@@ -12,13 +12,14 @@ import { eventBus } from './utils.js';
  */
 
 const dbName = 'FridgeTrack';
-const dbVersion = 1;
+const dbVersion = 2;
 
 
 /** @type {Record<ObjectStores, ObjectStores>} */
 const _stores = {
   locations: 'locations',
   items: 'items',
+  foodNameHistory: 'foodNameHistory',
 };
 
 /** @type {IDBOpenDBRequest} */
@@ -52,6 +53,15 @@ function onDbUpgradeNeeded() {
       { autoIncrement: true }
     );
     store.createIndex('locationKey', 'locationKey', { unique: false });
+  }
+
+  if (!db.objectStoreNames.contains(_stores.foodNameHistory)) {
+    /**
+     * Keyed by normalizedName (passed explicitly to putOne/getOne/deleteOne)
+     * instead of autoIncrement, since there's exactly one record per unique
+     * food name and we always look it up by name, never by an opaque id.
+     */
+    db.createObjectStore(_stores.foodNameHistory);
   }
 
   _info(db.objectStoreNames);

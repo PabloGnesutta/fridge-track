@@ -119,13 +119,6 @@ svg {
   background: var(--bg-surface);
 }
 
-#itemListView .list .row .left-side {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
 #itemListView .list .row .itemName {
   font-size: 22px;
   background-color: #ffffff29;
@@ -144,13 +137,6 @@ svg {
   line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-}
-
-#itemListView .list .empty-state {
-  color: var(--text-muted);
-  text-align: center;
-  padding: 3rem 1.5rem;
-  font-size: 16px;
 }
 
 #itemListView .btns {
@@ -335,12 +321,49 @@ svg {
   border-color: rgba(255, 255, 255, 0.5);
 }
 
+.list .row .left-side {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
 .list .row .right-side {
   display: flex;
   flex-direction: column;
   align-items: end;
   text-align: right;
   gap: 4px;
+}
+
+.list .empty-state {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 3rem 1.5rem;
+  font-size: 16px;
+}
+
+#foodHistoryView {
+  padding: 0.5rem 0.25rem;
+}
+
+#foodHistoryView .list .row {
+  background: var(--bg-surface);
+}
+
+#foodHistoryView .list .itemName {
+  font-size: 18px;
+}
+
+#foodHistoryView .list .itemMeta {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+#foodHistoryView .list .discard-count {
+  font-size: 13px;
+  color: var(--status-expired-text);
+  white-space: nowrap;
 }
 
 .modal {
@@ -402,11 +425,22 @@ svg {
 
 /* Views state */
 #app:not([data-current-view='ItemList']) #itemListView,
-#app:not([data-current-view='SingleItem']) #singleItemView {
+#app:not([data-current-view='SingleItem']) #singleItemView,
+#app:not([data-current-view='FoodHistory']) #foodHistoryView {
   display: none;
 }
 
-/* Go Back button visibility */
-#app[data-current-view='ItemList'] .go-back {
-  visibility: hidden;
+/* Header nav buttons: go-back everywhere except the list, the food-history
+   shortcut only on the list - they share the header's right-hand slot. */
+.go-back,
+.history-nav {
+  display: none;
+}
+
+#app:not([data-current-view='ItemList']) .go-back {
+  display: block;
+}
+
+#app[data-current-view='ItemList'] .history-nav {
+  display: block;
 }

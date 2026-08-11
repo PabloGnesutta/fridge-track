@@ -54,6 +54,41 @@ input {
   padding: 0 0 6px;
 }
 
+.name-field {
+  position: relative;
+}
+
+.name-suggestions:empty {
+  display: none;
+}
+
+.name-suggestions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
+  background-color: var(--bg-surface-active);
+  border-radius: 6px;
+  overflow: hidden;
+  z-index: 5;
+}
+
+.name-suggestions .suggestion {
+  padding: 10px 12px;
+  font-size: 15px;
+  color: var(--text-primary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.name-suggestions .suggestion:last-child {
+  border-bottom: none;
+}
+
+.name-suggestions .suggestion:active {
+  background-color: var(--bg-surface);
+}
+
 .due-inputs {
   display: flex;
   align-items: center;

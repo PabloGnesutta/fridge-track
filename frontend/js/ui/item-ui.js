@@ -5,6 +5,7 @@ import { showUndoToast, showErrorToast } from "../lib/toast.js";
 import { syncUrl } from "../common/router.js";
 import { appState, dataState, dbStore, setCurrentView, setStateField } from "../common/state.js";
 import { createItem, deleteItem, fetchItems, restoreItem, updateItem } from "../local-db/item-db.js";
+import { adjustDiscardCount, recordItemCreated } from "../local-db/food-name-db.js";
 import { computeStatus, formatDueDetail } from "../lib/freshnessStatus.js";
 import { pageTitle } from "./ui.js";
 import { renderLocationChips } from "./location-ui.js";
@@ -35,10 +36,58 @@ const useByDateInput = $queryOneInput('#itemForm input[name="useByDate"]');
 const shelfLifeDaysInput = $queryOneInput('#itemForm input[name="shelfLifeDays"]');
 const itemNotesInput = $queryOneInput('#itemForm textarea[name="itemNotes"]');
 const submitItemBtn = $queryOne('#itemForm .submit');
+const nameSuggestionsEl = $queryOne('#itemForm .name-suggestions');
 
 // Intercept native form submission (e.g. pressing Enter in a field) so it
 // doesn't navigate the browser away with the field as a GET query string.
 itemForm.addEventListener('submit', submitItemForm);
+
+/** Name autocomplete, sourced from previously-created items' names */
+itemNameInput.addEventListener('input', () => {
+  const query = itemNameInput.value.trim();
+  if (!query) { return hideNameSuggestions(); }
+  const normalizedQuery = normalize(query);
+  const suggestions = dbStore.foodNameHistory
+    .filter(entry => matches(entry.normalizedName, normalizedQuery))
+    .slice(0, 6);
+  renderNameSuggestions(suggestions);
+});
+
+// Delayed so a click/tap on a suggestion (which also fires mousedown first,
+// see below) has a chance to run before the dropdown disappears.
+itemNameInput.addEventListener('blur', () => setTimeout(hideNameSuggestions, 150));
+
+/**
+ * @param {import("../local-db/food-name-db.js").FoodNameHistory[]} suggestions
+ */
+function renderNameSuggestions(suggestions) {
+  nameSuggestionsEl.innerHTML = '';
+  suggestions.forEach(entry => {
+    nameSuggestionsEl.append($new({
+      class: 'suggestion',
+      text: entry.name,
+      listener: {
+        event: 'mousedown', // fires before the input's blur, unlike click
+        fn: () => selectNameSuggestion(entry),
+      },
+    }));
+  });
+}
+
+function hideNameSuggestions() {
+  nameSuggestionsEl.innerHTML = '';
+}
+
+/**
+ * @param {import("../local-db/food-name-db.js").FoodNameHistory} entry
+ */
+function selectNameSuggestion(entry) {
+  itemNameInput.value = entry.name;
+  if (entry.shelfLifeDays != null) {
+    shelfLifeDaysInput.value = String(entry.shelfLifeDays);
+  }
+  hideNameSuggestions();
+}
 
 /** Search */
 const searchInput = $queryOneInput('#searchItem');
@@ -148,6 +197,7 @@ function openItemForm(isEdit) {
     formTitle.innerText = 'Nuevo Alimento';
   }
 
+  hideNameSuggestions();
   setStateField('showItemForm', true);
   itemNameInput.focus();
   itemNameInput.select();
@@ -181,9 +231,11 @@ async function submitItemForm(e) {
   } else {
     const result = await createItem(location._key || '', name, { quantity, addedDate, useByDate, shelfLifeDays, notes });
     if (!result.data) { return showErrorToast(result.errorMsg); }
+    await recordItemCreated(result.data.name, shelfLifeDays, addedDate);
   }
 
   itemForm.reset();
+  hideNameSuggestions();
   setStateField('showItemForm', false);
 
   await fetchAndRenderItems(location);
@@ -242,8 +294,11 @@ function closeSingleItem() {
  * "Tirado" alike — there's no history to distinguish them, just the toast
  * wording) and offers a few seconds to undo instead of a blocking confirm.
  * @param {string} toastMessage
+ * @param {{ discarded?: boolean }} [opts] When true, adjusts that food
+ *   name's discard count (and undoes the adjustment if the removal itself
+ *   is undone).
  */
-async function removeItem(toastMessage) {
+async function removeItem(toastMessage, { discarded = false } = {}) {
   const item = dataState.currentItem;
   const location = dataState.currentLocation;
   if (!item || !location) { return; }
@@ -251,6 +306,7 @@ async function removeItem(toastMessage) {
   if (!itemKey) { return; }
 
   await deleteItem(itemKey);
+  if (discarded) { await adjustDiscardCount(item.name, 1); }
 
   closeSingleItem();
 
@@ -262,6 +318,7 @@ async function removeItem(toastMessage) {
 
   showUndoToast(toastMessage, async () => {
     await restoreItem(item);
+    if (discarded) { await adjustDiscardCount(item.name, -1); }
     await fetchAndRenderItems(location);
   });
 }
@@ -281,7 +338,7 @@ function markItemUsed() {
 function markItemDiscarded() {
   const item = dataState.currentItem;
   if (!item) { return; }
-  return removeItem(`"${item.name}" tirado`);
+  return removeItem(`"${item.name}" tirado`, { discarded: true });
 }
 
 

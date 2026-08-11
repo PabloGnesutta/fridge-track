@@ -1,0 +1,102 @@
+import { dbStore } from "../common/state.js";
+import { normalize } from "../lib/string.js";
+import { clearArray } from "../lib/utils.js";
+import { getAll, getOne, putOne } from "../lib/indexedDb.js";
+
+
+/**
+ * Per-food-name knowledge, learned across every location (not scoped to a
+ * single fridge/freezer) so autocomplete suggestions and stats stay useful
+ * regardless of where an item is being added.
+ * @typedef {object} FoodNameHistory
+ * @property {string} name
+ * @property {string} normalizedName
+ * @property {Date} firstCreatedAt
+ * @property {number|null} shelfLifeDays Most recently used "days to expire"
+ *   value for this name. Only ever set from shelfLifeDays-based items - a
+ *   due-date-based item never touches this field, positive or negative.
+ * @property {number} timesDiscarded
+ */
+
+/**
+ * Records that a food item with this name was just created, upserting its
+ * history entry: first use creates the record, later uses only refresh
+ * shelfLifeDays (and only when one was actually provided this time).
+ * @param {string} name
+ * @param {number|null|undefined} shelfLifeDays
+ * @param {Date} date
+ * @returns {Promise<FoodNameHistory>}
+ */
+async function recordItemCreated(name, shelfLifeDays, date) {
+  const normalizedName = normalize(name);
+  /** @type {FoodNameHistory|null} */ // @ts-ignore
+  const existing = await getOne('foodNameHistory', normalizedName);
+
+  if (!existing) {
+    /** @type {FoodNameHistory} */
+    const record = {
+      name,
+      normalizedName,
+      firstCreatedAt: date,
+      shelfLifeDays: shelfLifeDays ?? null,
+      timesDiscarded: 0,
+    };
+    await putOne('foodNameHistory', record, normalizedName);
+    upsertCache(record);
+    return record;
+  }
+
+  if (shelfLifeDays != null) { existing.shelfLifeDays = shelfLifeDays; }
+  await putOne('foodNameHistory', existing, normalizedName);
+  upsertCache(existing);
+  return existing;
+}
+
+/**
+ * Adjusts the discard count for a name (+1 when marked "Tirado", -1 if that
+ * action is undone). No-ops if the name has no history entry.
+ * @param {string} name
+ * @param {number} delta
+ */
+async function adjustDiscardCount(name, delta) {
+  const normalizedName = normalize(name);
+  /** @type {FoodNameHistory|null} */ // @ts-ignore
+  const existing = await getOne('foodNameHistory', normalizedName);
+  if (!existing) { return; }
+
+  existing.timesDiscarded = Math.max(0, existing.timesDiscarded + delta);
+  await putOne('foodNameHistory', existing, normalizedName);
+  upsertCache(existing);
+}
+
+/**
+ * Fetch all food name history entries, sorted alphabetically. Stores them
+ * in dbStore.
+ * @returns {Promise<FoodNameHistory[]>}
+ */
+async function fetchFoodNameHistory() {
+  /** @type {FoodNameHistory[]} */ // @ts-ignore
+  const entries = await getAll('foodNameHistory');
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+
+  clearArray(dbStore.foodNameHistory);
+  dbStore.foodNameHistory.push(...entries);
+  return entries;
+}
+
+/**
+ * Keeps the in-memory cache consistent with a single record we just wrote,
+ * without a full re-fetch.
+ * @param {FoodNameHistory} record
+ */
+function upsertCache(record) {
+  const idx = dbStore.foodNameHistory.findIndex(e => e.normalizedName === record.normalizedName);
+  if (idx === -1) {
+    dbStore.foodNameHistory.push(record);
+  } else {
+    dbStore.foodNameHistory[idx] = record;
+  }
+}
+
+
+export { recordItemCreated, adjustDiscardCount, fetchFoodNameHistory };

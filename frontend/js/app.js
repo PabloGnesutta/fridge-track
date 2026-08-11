@@ -6,6 +6,7 @@ import { initAppState } from "./common/state.js";
 import { eventBus } from "./lib/utils.js";
 import { $ } from "./lib/dom.js";
 import { fetchLocations, resolveCurrentLocation } from "./local-db/location-db.js";
+import { fetchFoodNameHistory } from "./local-db/food-name-db.js";
 import { activateLocation, openLocationForm } from "./ui/location-ui.js";
 import { seedDb } from "./local-db/seed.js";
 import { initRouter, renderSpecificRoute, captureInitialRoute } from "./common/router.js";
@@ -33,6 +34,7 @@ eventBus.on('IndexedDbInited', async ({ version }) => {
     $('indexedDbVersion').innerText = version;
 
     const locations = await fetchLocations();
+    await fetchFoodNameHistory();
     const currentLocation = resolveCurrentLocation(locations);
 
     if (!currentLocation) {

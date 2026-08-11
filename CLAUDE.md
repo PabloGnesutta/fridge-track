@@ -79,4 +79,14 @@ isn't masked by stale cached responses; it needs to be flipped to `true`, with t
 constants bumped, before any release. While it's `false` the app has no real offline support despite
 the manifest/install-prompt scaffolding being in place.
 
+**Food name history (`js/local-db/food-name-db.js`) is global, not per-location**, unlike items. It's a
+third IndexedDB store, keyed directly by `normalizedName` (not autoIncrement — see
+`indexedDb.js#onDbUpgradeNeeded`), that back-fills name autocomplete (`item-ui.js`'s
+`.name-suggestions` dropdown) and the `/historial` view (`food-history-ui.js`). It's written to in two
+places only: `recordItemCreated()` on item *creation* (not edit) upserts the name + refreshes
+`shelfLifeDays` (only ever set from shelfLifeDays-based items, never touched by due-date-based ones),
+and `adjustDiscardCount()` on `markItemDiscarded` (±1, reversed on undo) — "Usado" and the trash-icon
+delete don't count as a discard. Adding a new IndexedDB store means bumping `dbVersion` in
+`indexedDb.js` and creating it in `onDbUpgradeNeeded`, guarded by `objectStoreNames.contains`.
+
 All user-facing strings are Spanish (e.g. "Ingresar nombre", "Alimentos").

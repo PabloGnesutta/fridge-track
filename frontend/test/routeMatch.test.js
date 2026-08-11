@@ -19,3 +19,11 @@ test('parseRoute: unknown or malformed paths fall back to the item list', () => 
   assert.deepEqual(parseRoute('/settings'), { view: 'ItemList' });
   assert.deepEqual(parseRoute('/item/'), { view: 'ItemList' });
 });
+
+test('parseRoute: /historial maps to the food name history view', () => {
+  assert.deepEqual(parseRoute('/historial'), { view: 'FoodHistory' });
+});
+
+test('parseRoute: trailing slash on /historial is tolerated', () => {
+  assert.deepEqual(parseRoute('/historial/'), { view: 'FoodHistory' });
+});
