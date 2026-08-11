@@ -115,18 +115,16 @@
               <input type="text" name="quantity" placeholder="ej. 1 litro" />
             </div>
             <div class="form-control">
+              <label for="useByDate">Vencimiento</label>
+              <div class="due-inputs">
+                <input type="date" name="useByDate" />
+                <span class="due-divider">o en</span>
+                <input type="number" step="1" min="0" name="shelfLifeDays" placeholder="días" />
+              </div>
+            </div>
+            <div class="form-control">
               <label for="addedDate">Fecha agregado</label>
               <input type="date" name="addedDate" />
-            </div>
-            <div class="numeric-inputs">
-              <div class="form-control">
-                <label for="useByDate">Vence el (fecha)</label>
-                <input type="date" name="useByDate" />
-              </div>
-              <div class="form-control">
-                <label for="shelfLifeDays">Dura (días desde agregado)</label>
-                <input type="number" step="1" min="0" name="shelfLifeDays" />
-              </div>
             </div>
             <div class="form-control">
               <label for="itemNotes">Notas</label>
@@ -138,9 +136,9 @@
       </div>
     </div>
 
-    <div id="mainFooter">
-      <div id="cacheMajorVersion"></div>
+    <div id="mainFooter" class="display-none">
       <div id="indexedDbVersion"></div>
+      <div id="cacheMajorVersion"></div>
     </div>
   </div>
 

@@ -7,8 +7,8 @@
   align-items: center;
   flex-direction: column;
   z-index: 1001;
-  background-color: white;
-  color: black;
+  background-color: var(--bg-surface-raised);
+  color: var(--text-primary);
   transition: all 500ms ease-out;
 }
 
@@ -28,6 +28,6 @@
   outline: none;
   font-size: 18px;
   border-radius: 6px;
-  background: #009b1b;
-  color: #ffffff;
+  background: var(--accent);
+  color: var(--text-primary);
 }

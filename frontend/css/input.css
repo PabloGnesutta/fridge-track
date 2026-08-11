@@ -4,18 +4,16 @@ input {
   outline: none;
   border: 2px solid transparent;
   border-radius: 6px;
-  font-size: 24px;
-  padding: 4px;
+  font-size: 17px;
+  padding: 10px 12px;
 }
 
 .base-form {
-  --title-bg: #1e2c47;
-  --title-color: #ffffff;
-  --content-bg: #ed143d;
-  --control-bg: rgba(0, 0, 0, 0.5);
+  --title-bg: var(--bg-surface-raised);
+  --title-color: var(--text-primary);
+  --content-bg: var(--bg-surface);
+  --control-bg: var(--bg-control);
 }
-
-.base-form {}
 
 .form-title {
   display: flex;
@@ -43,49 +41,47 @@ input {
 
 .form-control {
   background-color: var(--control-bg);
-  padding: 0.75rem;
+  padding: 0.65rem 0.75rem;
   border-radius: 6px;
   /* custom: */
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.6rem;
 }
 
 .form-control label {
-  color: white;
+  color: var(--text-secondary);
   display: block;
-  font-size: 20px;
-  padding: 4px 0;
+  font-size: 13px;
+  padding: 0 0 6px;
 }
 
-.numeric-inputs {
+.due-inputs {
   display: flex;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.numeric-inputs .form-control {
-  flex: 1;
+.due-inputs input[type="date"] {
+  flex: 3;
+  min-width: 0;
 }
 
-textarea {
-  background-color: rgb(50, 50, 50);
-  color: white;
+.due-inputs input[type="number"] {
+  flex: 2;
+  min-width: 0;
 }
 
-/* custom */
-#locationForm {
-  --title-bg: #4e004e;
-  --content-bg: #711942;
+.due-divider {
+  color: var(--text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 #locationForm .submit .btn,
 #itemForm .submit .btn {
-  background-color: #d0276e;
+  background-color: var(--accent);
   padding: 2rem;
   font-size: 22px;
-  border: 1px solid wheat;
-}
-
-#itemForm {
-  --content-bg: #1e2c47;
+  border: 1px solid var(--accent-border);
 }
 
 .search-container {
@@ -94,11 +90,11 @@ textarea {
 
 .search-container input {
   background-color: black;
-  color: #e7e7e7;
-  border-bottom: 1px solid #717171;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--text-muted);
 }
 
 .search-container input::placeholder {
-  color: rgb(100, 100, 100);
+  color: var(--text-muted);
   padding: 0 2px;
 }

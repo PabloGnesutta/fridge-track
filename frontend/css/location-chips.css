@@ -3,7 +3,7 @@
   flex-wrap: wrap;
   gap: 8px;
   padding: 0.75rem;
-  background-color: #000e1c;
+  background-color: var(--bg-canvas);
 }
 
 .location-chip {
@@ -12,19 +12,19 @@
   gap: 6px;
   padding: 6px 10px;
   border-radius: 999px;
-  background-color: #1e2c47;
+  background-color: var(--bg-surface);
   border: 1px solid transparent;
-  color: #ccc;
+  color: var(--text-secondary);
 }
 
 .location-chip:active {
-  background-color: #26385c;
+  background-color: var(--bg-surface-active);
 }
 
 .location-chip.active {
-  background-color: #2c4066;
-  border-color: white;
-  color: white;
+  background-color: var(--bg-surface-active);
+  border-color: var(--accent);
+  color: var(--text-primary);
 }
 
 .location-chip .locationName {
@@ -55,8 +55,8 @@
   padding: 6px;
   font-size: 18px;
   line-height: 1;
-  color: #999;
-  border: 1px dashed #555;
+  color: var(--text-muted);
+  border: 1px dashed var(--text-muted);
   background-color: transparent;
 }
 

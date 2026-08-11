@@ -144,7 +144,7 @@ function openItemForm(isEdit) {
     setStateField('editingItem', false);
     itemForm.reset();
     addedDateInput.value = toYYYYMMDD(new Date());
-    submitLabel.innerText = 'Crear Alimento';
+    submitLabel.innerText = 'Ingresar Alimento';
     formTitle.innerText = 'Nuevo Alimento';
   }
 

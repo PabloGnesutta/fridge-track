@@ -5,21 +5,45 @@
 }
 
 :root {
-  --app-bg: #111;
-  --header-bg: black;
-  --header-heigt: 64px;
-  --footer-heigt: 48px;
+  /* Surfaces - one dark-navy hue family, used everywhere instead of the
+     mix of near-black grays/navies/purples that used to be scattered
+     across files (modals, toasts, chips, header/footer). */
+  --bg-app: #001116;
+  --bg-canvas: #001a22;
+  --bg-header: #000000;
+  --bg-surface: #1e2c47;
+  --bg-surface-raised: #142845;
+  --bg-surface-active: #2c4066;
+  --bg-control: rgba(0, 0, 0, 0.5);
+  --bg-overlay: rgba(0, 0, 0, 0.7);
+
+  /* Brand accent - the one non-navy hue, reserved for primary actions
+     and "this is interactive/selected" affordances. */
+  --accent: #d0276e;
+  --accent-text: #ff6fa3;
+  --accent-border: #f5deb3;
+
+  /* Status - semantically distinct from the brand accent; do not reuse
+     these for decorative purposes, only for actual freshness state. */
   --status-fresh: #1c8a3f;
   --status-expiring-soon: #b8860b;
   --status-expired: #b0132f;
   --status-fresh-text: #6fcf8f;
   --status-expiring-soon-text: #e0b34d;
   --status-expired-text: #ff8a8a;
+
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: #9fb0c9;
+  --text-muted: #7c8ba3;
+
+  --header-heigt: 64px;
+  --footer-heigt: 48px;
 }
 
 body {
   font-family: Arial, Helvetica, sans-serif;
-  background-color: #222;
+  background-color: var(--bg-app);
 }
 
 div {
@@ -32,26 +56,22 @@ svg {
 }
 
 #app {
-  background-color: var(--app-bg);
-  color: white;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
 }
 
 #cacheMajorVersion,
 #indexedDbVersion {
-  background-color: white;
-  color: black;
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
   padding: 4px;
   border-radius: 4px;
   font-size: 16px;
 }
 
-#indexedDbVersion {
-  background-color: cyan;
-}
-
 #mainHeader {
   min-height: var(--header-heigt);
-  background-color: var(--header-bg);
+  background-color: var(--bg-header);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -62,11 +82,11 @@ svg {
 .page-title {
   font-size: 34px;
   padding-left: 1rem;
-  color: white;
+  color: var(--text-primary);
 }
 
 .views {
-  background-color: #001a22;
+  background-color: var(--bg-canvas);
 }
 
 .views .page {
@@ -74,7 +94,7 @@ svg {
 }
 
 #mainFooter {
-  background-color: var(--header-bg);
+  background-color: var(--bg-header);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -84,11 +104,10 @@ svg {
 
 #mainFooter .btn {
   padding: 3dvw;
-  color: white;
+  color: var(--text-primary);
 }
 
 #itemListView {
-  --list-row-bg: #1e2c47;
   padding-bottom: 4.5rem;
 }
 
@@ -97,7 +116,7 @@ svg {
 }
 
 #itemListView .list .row {
-  background: var(--list-row-bg);
+  background: var(--bg-surface);
 }
 
 #itemListView .list .row .left-side {
@@ -117,7 +136,7 @@ svg {
 
 #itemListView .list .row .itemMeta {
   font-size: 13px;
-  color: #999;
+  color: var(--text-muted);
   padding: 0 0.25rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -128,7 +147,7 @@ svg {
 }
 
 #itemListView .list .empty-state {
-  color: #777;
+  color: var(--text-muted);
   text-align: center;
   padding: 3rem 1.5rem;
   font-size: 16px;
@@ -150,13 +169,13 @@ svg {
   z-index: 1;
   border: 1px solid white;
   border-radius: 50%;
-  background-color: var(--list-row-bg);
-  color: white;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
   font-size: 40px;
 }
 
 #newItemBtn:active {
-  background-color: #2c4066;
+  background-color: var(--bg-surface-active);
 }
 
 .status-badge {
@@ -220,7 +239,7 @@ svg {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: #142845;
+  background-color: var(--bg-surface-raised);
 }
 
 #singleItemView .name {
@@ -254,7 +273,7 @@ svg {
 #singleItemView .status-summary .expiry-detail,
 #singleItemView .status-summary .notes-detail {
   font-size: 14px;
-  color: #bbb;
+  color: var(--text-secondary);
   background-color: rgba(255, 255, 255, 0.05);
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
@@ -278,9 +297,9 @@ svg {
 #usedBtn .btn,
 #discardedBtn .btn {
   padding: 1rem 1.5rem;
-  background-color: #1e2c47;
-  color: white;
-  border: 1px solid wheat;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--accent-border);
 }
 
 #discardedBtn .btn {
@@ -343,7 +362,7 @@ svg {
   position: absolute;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--bg-overlay);
 }
 
 .modal .close-modal {

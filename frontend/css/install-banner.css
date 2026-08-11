@@ -11,8 +11,8 @@
   gap: 0.75rem;
   padding: 14px 16px;
   border-radius: 8px;
-  background-color: #2c2c2c;
-  color: white;
+  background-color: var(--bg-surface-raised);
+  color: var(--text-primary);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   z-index: 999;
   transition: transform 300ms ease-out;
@@ -28,7 +28,7 @@
 }
 
 #installBanner .install-btn {
-  color: #6fcf8f;
+  color: var(--accent-text);
   font-weight: bold;
   font-size: 15px;
   white-space: nowrap;
@@ -43,7 +43,7 @@
   font-size: 20px;
   line-height: 1;
   padding: 4px 6px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 #installBanner .dismiss-btn:active {
