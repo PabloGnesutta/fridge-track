@@ -14,6 +14,7 @@ import { _log } from "../lib/logger.js";
  * @property {boolean} editingItem
  * @property {boolean} showLocationForm
  * @property {boolean} showItemForm
+ * @property {boolean} showSearch
  * @property {Views} currentView
  *
  * @typedef {'ItemList'|'SingleItem'|'FoodHistory'} Views
@@ -40,6 +41,7 @@ const appState = {
     editingItem: false,
     showLocationForm: false,
     showItemForm: false,
+    showSearch: false,
     currentView: 'ItemList',
 };
 
@@ -87,6 +89,7 @@ function initAppState() {
     setStateField('editingItem', false);
     setStateField('showLocationForm', false);
     setStateField('showItemForm', false);
+    setStateField('showSearch', false);
     setCurrentView('ItemList');
 }
 

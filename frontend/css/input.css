@@ -120,13 +120,30 @@ input {
 }
 
 .search-container {
-  padding: 4px;
+  /* display: flex; */
+  display: none;
+  align-items: center;
+  padding: 4px 0.75rem;
+}
+
+.search-toggle .btn {
+  padding: 8px;
+}
+
+.search-toggle .btn .icon {
+  width: 18px;
+  height: 18px;
 }
 
 .search-container input {
   background-color: black;
   color: var(--text-primary);
   border-bottom: 1px solid var(--text-muted);
+  min-width: 0;
+  max-width: 500px;
+  opacity: 1;
+  margin-left: 8px;
+  transition: max-width 200ms ease-out, opacity 150ms ease-out, margin-left 200ms ease-out, padding 200ms ease-out;
 }
 
 .search-container input::placeholder {

@@ -91,10 +91,9 @@ function selectNameSuggestion(entry) {
 
 /** Search */
 const searchInput = $queryOneInput('#searchItem');
-searchInput.addEventListener('input', e => {
-  if (!e.target) { return; }
-  /** @type {string} */ // @ts-ignore
-  const value = e.target.value;
+
+/** @param {string} value */
+function filterItemList(value) {
   dbStore.items.forEach(item => {
     const row = $queryOne(`[data-item-key="${item._key}"]`);
     if (!row) { return; }
@@ -104,7 +103,26 @@ searchInput.addEventListener('input', e => {
       row.classList.add('display-none');
     }
   });
+}
+
+searchInput.addEventListener('input', e => {
+  if (!e.target) { return; }
+  /** @type {string} */ // @ts-ignore
+  const value = e.target.value;
+  filterItemList(value);
 });
+
+/** Toggles the collapsed search bar; closing it also clears the filter. */
+function toggleSearch() {
+  const opening = !appState.showSearch;
+  setStateField('showSearch', opening);
+  if (opening) {
+    searchInput.focus();
+  } else {
+    searchInput.value = '';
+    filterItemList('');
+  }
+}
 
 
 /**
@@ -345,4 +363,5 @@ function markItemDiscarded() {
 export {
   fetchAndRenderItems, openItemList, openItemForm, submitItemForm,
   openSingleItem, closeSingleItem, tryDeleteItem, markItemUsed, markItemDiscarded, submitItemBtn,
+  toggleSearch,
 };

@@ -1,12 +1,13 @@
 import { appState, dataState, dbStore, setStateField } from "../common/state.js";
 import { $, $button, $getInner, $queryOne } from "../lib/dom.js";
 import { _info, _log, _warn, openLogs } from "../lib/logger.js";
-import { arrow_left, pen_solid, svg_check, svg_notes, svg_trash } from "../svg/svgFn.js";
+import { arrow_left, pen_solid, svg_check, svg_notes, svg_search, svg_trash } from "../svg/svgFn.js";
 import {
   deleteLocationFromForm, editLocation, openAddLocation, submitLocationForm, switchLocation,
 } from "./location-ui.js";
 import {
-  closeSingleItem, markItemDiscarded, markItemUsed, openItemForm, openSingleItem, submitItemBtn, submitItemForm, tryDeleteItem,
+  closeSingleItem, markItemDiscarded, markItemUsed, openItemForm, openSingleItem, submitItemBtn, submitItemForm,
+  toggleSearch, tryDeleteItem,
 } from "./item-ui.js";
 import { closeFoodHistory, openFoodHistory } from "./food-history-ui.js";
 
@@ -43,6 +44,12 @@ function initUi() {
   });
 
   $('newItemBtn').addEventListener('click', () => { openItemForm(false); });
+
+  $button({
+    appendTo: $('searchToggleBtn'),
+    svgFn: svg_search,
+    listener: { fn: toggleSearch },
+  });
 
   $button({
     label: 'Usado',

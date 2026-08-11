@@ -423,6 +423,17 @@ svg {
   visibility: hidden;
 }
 
+/* Search: collapsed to just the toggle icon until opened */
+#app[data-show-search='false'] .search-container input {
+  max-width: 0;
+  opacity: 0;
+  margin-left: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-bottom-color: transparent;
+  pointer-events: none;
+}
+
 /* Views state */
 #app:not([data-current-view='ItemList']) #itemListView,
 #app:not([data-current-view='SingleItem']) #singleItemView,
