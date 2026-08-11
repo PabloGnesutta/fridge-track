@@ -9,6 +9,7 @@ import { fetchLocations, resolveCurrentLocation } from "./local-db/location-db.j
 import { activateLocation, openLocationForm } from "./ui/location-ui.js";
 import { seedDb } from "./local-db/seed.js";
 import { initRouter, renderSpecificRoute, captureInitialRoute } from "./common/router.js";
+import { initInstallPrompt } from "./installPrompt.js";
 
 
 _info(' (!) App started');
@@ -49,4 +50,5 @@ eventBus.on('IndexedDbInited', async ({ version }) => {
 initAppState();
 initUi();
 initRouter();
+initInstallPrompt();
 dbugBtns();
