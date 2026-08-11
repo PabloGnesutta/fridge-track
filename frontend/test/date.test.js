@@ -1,0 +1,25 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { toYYYYMMDD, fromYYYYMMDD } from '../js/lib/date.js';
+
+
+test('toYYYYMMDD pads single-digit month and day', () => {
+  assert.equal(toYYYYMMDD(new Date(2026, 0, 5)), '2026-01-05');
+});
+
+test('toYYYYMMDD leaves double-digit month and day unpadded', () => {
+  assert.equal(toYYYYMMDD(new Date(2026, 10, 23)), '2026-11-23');
+});
+
+test('fromYYYYMMDD parses as local midnight, not UTC', () => {
+  const date = fromYYYYMMDD('2026-03-15');
+  assert.equal(date.getFullYear(), 2026);
+  assert.equal(date.getMonth(), 2); // 0-indexed: March
+  assert.equal(date.getDate(), 15);
+  assert.equal(date.getHours(), 0);
+});
+
+test('toYYYYMMDD and fromYYYYMMDD round-trip', () => {
+  const str = '2026-12-01';
+  assert.equal(toYYYYMMDD(fromYYYYMMDD(str)), str);
+});

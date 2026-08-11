@@ -1,5 +1,5 @@
 import { $, $form, $getInner, $new, $queryOne, $queryOneInput } from "../lib/dom.js";
-import { _error } from "../lib/logger.js";
+import { showErrorToast } from "../lib/toast.js";
 import { pen_solid, svg_trash } from "../svg/svgFn.js";
 import { dataState, dbStore, setStateField } from "../common/state.js";
 import {
@@ -73,7 +73,7 @@ async function submitLocationForm(e) {
 
   if (locationBeingEdited) {
     const result = await updateLocation(locationBeingEdited, name);
-    if (!result.data) { return _error(result.errorMsg); }
+    if (!result.data) { return showErrorToast(result.errorMsg); }
     locationBeingEdited = null;
     locationForm.reset();
     setStateField('showLocationForm', false);
@@ -83,7 +83,7 @@ async function submitLocationForm(e) {
 
   const result = await createLocation(name);
   if (!result.data) {
-    return _error(result.errorMsg);
+    return showErrorToast(result.errorMsg);
   }
 
   locationForm.reset();

@@ -1,19 +1,10 @@
 import { openItemList, openSingleItem } from "../ui/item-ui.js";
+import { parseRoute } from "./routeMatch.js";
 
 
 /**
- * @typedef {{ view: 'ItemList' } | { view: 'SingleItem', itemKey: string }} Route
+ * @typedef {import("./routeMatch.js").Route} Route
  */
-
-/**
- * @param {string} pathname
- * @returns {Route}
- */
-function parseRoute(pathname) {
-  const match = pathname.match(/^\/item\/([^/]+)\/?$/);
-  if (match) { return { view: 'SingleItem', itemKey: match[1] }; }
-  return { view: 'ItemList' };
-}
 
 /**
  * Pushes (or replaces) `path` onto the history stack if it isn't already the

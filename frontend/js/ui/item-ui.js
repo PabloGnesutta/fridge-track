@@ -1,8 +1,7 @@
 import { fromYYYYMMDD, toYYYYMMDD } from "../lib/date.js";
-import { _error } from "../lib/logger.js";
 import { matches, normalize } from "../lib/string.js";
 import { $, $form, $getInner, $new, $queryOne, $queryOneInput } from "../lib/dom.js";
-import { showUndoToast } from "../lib/toast.js";
+import { showUndoToast, showErrorToast } from "../lib/toast.js";
 import { syncUrl } from "../common/router.js";
 import { appState, dataState, dbStore, setCurrentView, setStateField } from "../common/state.js";
 import { createItem, deleteItem, fetchItems, restoreItem, updateItem } from "../local-db/item-db.js";
@@ -176,12 +175,12 @@ async function submitItemForm(e) {
 
   if (appState.editingItem === true && dataState.currentItem) {
     const result = await updateItem(dataState.currentItem, { name, quantity, useByDate, shelfLifeDays, notes });
-    if (!result.data) { return _error(result.errorMsg); }
+    if (!result.data) { return showErrorToast(result.errorMsg); }
     dataState.currentItem.addedDate = addedDate;
     setStateField('editingItem', false);
   } else {
     const result = await createItem(location._key || '', name, { quantity, addedDate, useByDate, shelfLifeDays, notes });
-    if (!result.data) { return _error(result.errorMsg); }
+    if (!result.data) { return showErrorToast(result.errorMsg); }
   }
 
   itemForm.reset();
@@ -202,7 +201,7 @@ async function openSingleItem(itemKey) {
   if (key !== item?._key) {
     item = dbStore.items.find(i => i._key === key);
   }
-  if (!item) { return _error('Alimento no encontrado'); }
+  if (!item) { return showErrorToast('Alimento no encontrado'); }
 
   setCurrentView('SingleItem');
   pageTitle.innerText = 'Alimentos';

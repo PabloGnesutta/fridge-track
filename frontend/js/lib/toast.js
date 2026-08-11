@@ -5,6 +5,9 @@ const toastEl = $('undoToast');
 const messageEl = $getInner(toastEl, '.message');
 const undoBtn = $getInner(toastEl, '.undo-btn');
 
+const errorToastEl = $('errorToast');
+const errorMessageEl = $getInner(errorToastEl, '.message');
+
 /** @type {ReturnType<typeof setTimeout>|undefined} */
 let hideTimeout;
 /** @type {(() => void)|null} */
@@ -44,4 +47,22 @@ function showUndoToast(message, onUndo, durationMs = 5000) {
 }
 
 
-export { showUndoToast };
+/** @type {ReturnType<typeof setTimeout>|undefined} */
+let errorHideTimeout;
+
+/**
+ * Shows a short-lived toast for a user-facing, actionable message (e.g.
+ * "Ingresar nombre") - as opposed to unexpected/internal errors, which
+ * still go through the dev-facing logger (_error) instead.
+ * @param {string} message
+ * @param {number} [durationMs]
+ */
+function showErrorToast(message, durationMs = 4000) {
+  clearTimeout(errorHideTimeout);
+  errorMessageEl.innerText = message;
+  unfold(errorToastEl);
+  errorHideTimeout = setTimeout(() => fold(errorToastEl), durationMs);
+}
+
+
+export { showUndoToast, showErrorToast };
