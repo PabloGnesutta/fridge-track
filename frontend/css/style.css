@@ -37,8 +37,8 @@
   --text-secondary: #9fb0c9;
   --text-muted: #7c8ba3;
 
-  --header-heigt: 64px;
-  --footer-heigt: 48px;
+  --header-heigt: 58px;
+  --footer-heigt: 0px;
 }
 
 body {
@@ -80,7 +80,7 @@ svg {
 }
 
 .page-title {
-  font-size: 34px;
+  font-size: 30px;
   padding-left: 1rem;
   color: var(--text-primary);
 }
@@ -122,7 +122,7 @@ svg {
 #itemListView .list .row .itemName {
   font-size: 22px;
   background-color: #ffffff29;
-  padding: .5rem 1rem;
+  padding: 0.5rem 1rem;
   border-radius: 6px;
   align-self: flex-start;
 }
@@ -148,8 +148,8 @@ svg {
 
 #newItemBtn {
   position: fixed;
-  bottom: calc(var(--footer-heigt) + 1dvh);
-  right: 2.5dvw;
+  bottom: 4dvh;
+  right: 3dvw;
   width: 60px;
   height: 60px;
   z-index: 1;
@@ -172,18 +172,18 @@ svg {
   display: inline-block;
 }
 
-[data-status="fresh"] .status-badge,
-.status-badge[data-status="fresh"] {
+[data-status='fresh'] .status-badge,
+.status-badge[data-status='fresh'] {
   background-color: var(--status-fresh);
 }
 
-[data-status="expiring-soon"] .status-badge,
-.status-badge[data-status="expiring-soon"] {
+[data-status='expiring-soon'] .status-badge,
+.status-badge[data-status='expiring-soon'] {
   background-color: var(--status-expiring-soon);
 }
 
-[data-status="expired"] .status-badge,
-.status-badge[data-status="expired"] {
+[data-status='expired'] .status-badge,
+.status-badge[data-status='expired'] {
   background-color: var(--status-expired);
 }
 
@@ -191,35 +191,36 @@ svg {
   font-size: 14px;
 }
 
-.due-detail[data-status="fresh"],
-.row[data-status="fresh"] .due-detail {
+.due-detail[data-status='fresh'],
+.row[data-status='fresh'] .due-detail {
   color: var(--status-fresh-text);
 }
 
-.due-detail[data-status="expiring-soon"],
-.row[data-status="expiring-soon"] .due-detail {
+.due-detail[data-status='expiring-soon'],
+.row[data-status='expiring-soon'] .due-detail {
   color: var(--status-expiring-soon-text);
 }
 
-.due-detail[data-status="expired"],
-.row[data-status="expired"] .due-detail {
+.due-detail[data-status='expired'],
+.row[data-status='expired'] .due-detail {
   color: var(--status-expired-text);
 }
 
 /* Left-border accent so urgency reads at a glance, before the text does */
-.list .row[data-status="fresh"] {
+.list .row[data-status='fresh'] {
   border-left: 4px solid var(--status-fresh);
 }
 
-.list .row[data-status="expiring-soon"] {
+.list .row[data-status='expiring-soon'] {
   border-left: 4px solid var(--status-expiring-soon);
 }
 
-.list .row[data-status="expired"] {
+.list .row[data-status='expired'] {
   border-left: 4px solid var(--status-expired);
 }
 
-#singleItemView {}
+#singleItemView {
+}
 
 #singleItemView .heading {
   display: flex;
