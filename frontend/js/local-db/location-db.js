@@ -1,5 +1,6 @@
 import { dbStore } from "../common/state.js";
 import { clearArray } from "../lib/utils.js";
+import { generateId } from "../lib/id.js";
 import { deleteMany, deleteOne, getAllWithIndex, putOne } from "../lib/indexedDb.js";
 
 
@@ -12,7 +13,7 @@ import { deleteMany, deleteOne, getAllWithIndex, putOne } from "../lib/indexedDb
  * @typedef {object} Location
  * @property {string} name
  * @property {number} homeId
- * @property {IDBValidKey} [_key]
+ * @property {string} [_key]
  * @property {Date} [createdAt]
  * @property {Date} [updatedAt]
  */
@@ -33,7 +34,9 @@ async function createLocation(name, homeId, date = new Date()) {
 
   /** @type {Location} */
   const location = { name, homeId, createdAt: date, updatedAt: date };
-  location._key = await putOne('locations', location);
+  const key = generateId();
+  location._key = key;
+  await putOne('locations', location, key);
 
   dbStore.locations.push(location);
   setLastUsedLocationKey(homeId, location._key);
@@ -60,7 +63,7 @@ async function updateLocation(location, name, date = new Date()) {
 
 /**
  * Deletes a location and all of its items.
- * @param {IDBValidKey} locationKey
+ * @param {string} locationKey
  * @returns {Promise<void>}
  */
 async function deleteLocationAndItems(locationKey) {
@@ -83,7 +86,7 @@ async function fetchLocations(homeId) {
 
 /**
  * @param {number} homeId
- * @param {IDBValidKey} key
+ * @param {string} key
  */
 function setLastUsedLocationKey(homeId, key) {
   localStorage.setItem(LAST_USED_LOCATION_KEY_PREFIX + homeId, String(key));

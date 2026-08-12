@@ -12,7 +12,7 @@ import { eventBus } from './utils.js';
  */
 
 const dbName = 'FridgeTrack';
-const dbVersion = 3;
+const dbVersion = 4;
 
 
 /** @type {Record<ObjectStores, ObjectStores>} */
@@ -45,23 +45,22 @@ function onDbUpgradeNeeded() {
   _info(' __ Updating IndexedDB');
   db = openDbRequest.result;
 
-  // Adding an index to a store that already exists (from a prior version)
-  // can't go through createObjectStore again - it has to be pulled off the
-  // in-flight versionchange transaction instead.
-  const locationsStore = db.objectStoreNames.contains(_stores.locations)
-    ? openDbRequest.transaction.objectStore(_stores.locations)
-    : db.createObjectStore(_stores.locations, { autoIncrement: true });
-  if (!locationsStore.indexNames.contains('homeId')) {
-    locationsStore.createIndex('homeId', 'homeId', { unique: false });
+  // Switching locations/items to client-generated UUID keys (needed before
+  // sync, so two devices can't mint colliding local ids) - old
+  // autoIncrement-keyed data can't be reused as-is, so drop it and start
+  // fresh rather than migrating it record by record.
+  if (db.objectStoreNames.contains(_stores.locations)) {
+    db.deleteObjectStore(_stores.locations);
+  }
+  if (db.objectStoreNames.contains(_stores.items)) {
+    db.deleteObjectStore(_stores.items);
   }
 
-  if (!db.objectStoreNames.contains(_stores.items)) {
-    const store = db.createObjectStore(
-      _stores.items,
-      { autoIncrement: true }
-    );
-    store.createIndex('locationKey', 'locationKey', { unique: false });
-  }
+  const locationsStore = db.createObjectStore(_stores.locations);
+  locationsStore.createIndex('homeId', 'homeId', { unique: false });
+
+  const itemsStore = db.createObjectStore(_stores.items);
+  itemsStore.createIndex('locationKey', 'locationKey', { unique: false });
 
   /**
    * Keyed by [homeId, normalizedName] (passed explicitly to

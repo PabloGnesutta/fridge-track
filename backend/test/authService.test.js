@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { SCHEMA_SQL } from '../src/db/schema.js';
+import { addAllowedEmail } from '../src/db/allowedEmails.js';
 import { createAuthService } from '../src/services/authService.js';
 import { ServiceError } from '../src/services/ServiceError.js';
 
@@ -9,11 +10,34 @@ import { ServiceError } from '../src/services/ServiceError.js';
 function makeAuthService() {
   const db = new DatabaseSync(':memory:');
   db.exec(SCHEMA_SQL);
-  return createAuthService(db);
+  return { authService: createAuthService(db), db };
 }
 
+test('createUser rejects an email that has not been allow-listed', () => {
+  const { authService } = makeAuthService();
+  assert.throws(
+    () => authService.createUser('a@test.local', 'password123'),
+    ServiceError
+  );
+});
+
+test('createUser succeeds once the email has been allow-listed', () => {
+  const { authService, db } = makeAuthService();
+  addAllowedEmail(db, 'a@test.local');
+  const user = authService.createUser('a@test.local', 'password123');
+  assert.equal(user.email, 'a@test.local');
+});
+
+test('createUser allow-list check is case-insensitive', () => {
+  const { authService, db } = makeAuthService();
+  addAllowedEmail(db, 'A@Test.Local');
+  const user = authService.createUser('a@test.local', 'password123');
+  assert.equal(user.email, 'a@test.local');
+});
+
 test('createUser rejects a duplicate email', () => {
-  const authService = makeAuthService();
+  const { authService, db } = makeAuthService();
+  addAllowedEmail(db, 'a@test.local');
   authService.createUser('a@test.local', 'password123');
   assert.throws(
     () => authService.createUser('a@test.local', 'other-password'),
@@ -22,7 +46,8 @@ test('createUser rejects a duplicate email', () => {
 });
 
 test('verifyLogin rejects a wrong password', () => {
-  const authService = makeAuthService();
+  const { authService, db } = makeAuthService();
+  addAllowedEmail(db, 'a@test.local');
   authService.createUser('a@test.local', 'password123');
   assert.throws(
     () => authService.verifyLogin('a@test.local', 'wrong-password'),
@@ -31,14 +56,16 @@ test('verifyLogin rejects a wrong password', () => {
 });
 
 test('verifyLogin accepts the right password', () => {
-  const authService = makeAuthService();
+  const { authService, db } = makeAuthService();
+  addAllowedEmail(db, 'a@test.local');
   const user = authService.createUser('a@test.local', 'password123');
   const loggedIn = authService.verifyLogin('a@test.local', 'password123');
   assert.equal(loggedIn.id, user.id);
 });
 
 test('createSession then getUserBySessionToken resolves the same user', () => {
-  const authService = makeAuthService();
+  const { authService, db } = makeAuthService();
+  addAllowedEmail(db, 'a@test.local');
   const user = authService.createUser('a@test.local', 'password123');
   const token = authService.createSession(user.id);
   const resolved = authService.getUserBySessionToken(token);
@@ -47,7 +74,8 @@ test('createSession then getUserBySessionToken resolves the same user', () => {
 });
 
 test('deleteSession makes the token stop resolving', () => {
-  const authService = makeAuthService();
+  const { authService, db } = makeAuthService();
+  addAllowedEmail(db, 'a@test.local');
   const user = authService.createUser('a@test.local', 'password123');
   const token = authService.createSession(user.id);
   authService.deleteSession(token);
@@ -55,6 +83,6 @@ test('deleteSession makes the token stop resolving', () => {
 });
 
 test('getUserBySessionToken returns null for an unknown token', () => {
-  const authService = makeAuthService();
+  const { authService } = makeAuthService();
   assert.equal(authService.getUserBySessionToken('not-a-real-token'), null);
 });

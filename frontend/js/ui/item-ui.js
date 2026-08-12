@@ -266,10 +266,9 @@ async function submitItemForm(e) {
  * @param {string} itemKey
  */
 async function openSingleItem(itemKey) {
-  const key = +itemKey;
   let item = dataState.currentItem || undefined;
-  if (key !== item?._key) {
-    item = dbStore.items.find(i => i._key === key);
+  if (itemKey !== item?._key) {
+    item = dbStore.items.find(i => i._key === itemKey);
   }
   if (!item) { return showErrorToast('Alimento no encontrado'); }
 

@@ -1,5 +1,6 @@
-import { isLoggedIn } from "./api-caller/apiCaller.js";
-import { dataState, setAuthStage } from "./common/state.js";
+import { apiLogout, isLoggedIn } from "./api-caller/apiCaller.js";
+import { dataState, dbStore, setAuthStage } from "./common/state.js";
+import { clearArray } from "./lib/utils.js";
 import {
   fetchHomes, resolveCurrentHome, setCurrentHomeId, syncHomesFromServer,
 } from "./local-db/home-db.js";
@@ -91,4 +92,24 @@ async function afterHome(home) {
   }
 }
 
-export { bootApp, afterLogin, afterHome };
+/**
+ * Logs out and drops back to the login screen. Only the in-memory
+ * dataState/dbStore caches are cleared - IndexedDB itself is left alone
+ * since its records are already scoped by homeId, so a different user
+ * logging in on the same device just won't query into them.
+ */
+async function logout() {
+  await apiLogout();
+
+  dataState.currentHome = null;
+  dataState.currentLocation = null;
+  dataState.currentItem = null;
+  clearArray(dbStore.homes);
+  clearArray(dbStore.locations);
+  clearArray(dbStore.items);
+  clearArray(dbStore.foodNameHistory);
+
+  setAuthStage('login');
+}
+
+export { bootApp, afterLogin, afterHome, logout };

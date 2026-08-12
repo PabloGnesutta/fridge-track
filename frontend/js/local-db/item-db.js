@@ -1,6 +1,7 @@
 import { dbStore } from "../common/state.js";
 import { normalize } from "../lib/string.js";
 import { clearArray } from "../lib/utils.js";
+import { generateId } from "../lib/id.js";
 import { computeStatus, getSoonestDays } from "../lib/freshnessStatus.js";
 import { deleteOne, getAllWithIndex, putOne } from "../lib/indexedDb.js";
 
@@ -16,7 +17,7 @@ import { deleteOne, getAllWithIndex, putOne } from "../lib/indexedDb.js";
 
 /**
  * @typedef {object} Item
- * @property {IDBValidKey} locationKey
+ * @property {string} locationKey
  * @property {string} name
  * @property {string} [normalizedName]
  * @property {string} [quantity]
@@ -24,7 +25,7 @@ import { deleteOne, getAllWithIndex, putOne } from "../lib/indexedDb.js";
  * @property {Date|null} useByDate
  * @property {number|null} shelfLifeDays
  * @property {string} [notes]
- * @property {IDBValidKey} [_key]
+ * @property {string} [_key]
  * @property {Date} [createdAt]
  * @property {Date} [updatedAt]
  */
@@ -41,7 +42,7 @@ import { deleteOne, getAllWithIndex, putOne } from "../lib/indexedDb.js";
 
 /**
  * Creates a food item for the given storage location.
- * @param {IDBValidKey} locationKey
+ * @param {string} locationKey
  * @param {string} name
  * @param {ItemInput} data
  * @param {Date} [date]
@@ -67,7 +68,9 @@ async function createItem(locationKey, name, data, date = new Date()) {
     createdAt: date,
     updatedAt: date,
   };
-  item._key = await putOne('items', item);
+  const key = generateId();
+  item._key = key;
+  await putOne('items', item, key);
 
   dbStore.items.push(item);
   return { data: item };
@@ -123,7 +126,7 @@ async function restoreItem(item) {
 /**
  * Fetch all items for the given location, sorted by how soon they're due
  * (most overdue/closest to expiring first), then name. Stores them in dbStore.
- * @param {IDBValidKey} locationKey
+ * @param {string} locationKey
  * @param {Date} currentDate
  * @returns {Promise<Item[]>}
  */
@@ -147,7 +150,7 @@ async function fetchItems(locationKey, currentDate) {
  * Counts expired/expiring-soon items for the given location, independent of
  * dbStore's cache (which only holds the currently active location's items).
  * Used for the location switcher's badges.
- * @param {IDBValidKey} locationKey
+ * @param {string} locationKey
  * @param {Date} currentDate
  * @returns {Promise<{expired: number, expiringSoon: number}>}
  */

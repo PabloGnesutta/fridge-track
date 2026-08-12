@@ -8,7 +8,7 @@ test('opening an item updates the URL, and browser back returns to the list', as
   await addItem(page, { name: 'Leche de prueba', shelfLifeDays: 5 });
 
   await page.click('.list .row');
-  await expect(page).toHaveURL(/\/item\/\d+$/);
+  await expect(page).toHaveURL(/\/item\/[^/]+$/);
   await expect(page.locator('#singleItemView .name')).toHaveText('Leche de prueba');
 
   await page.goBack();
@@ -22,7 +22,7 @@ test('a hard refresh on /item/:key re-renders the same item, not a 404', async (
   await addItem(page, { name: 'Leche de prueba', shelfLifeDays: 5 });
 
   await page.click('.list .row');
-  await expect(page).toHaveURL(/\/item\/\d+$/);
+  await expect(page).toHaveURL(/\/item\/[^/]+$/);
   const itemUrl = page.url();
 
   const consoleErrors = [];

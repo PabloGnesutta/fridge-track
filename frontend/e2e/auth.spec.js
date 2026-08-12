@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { allowTestEmail } from './helpers.js';
 
 
 test('signup requires email and password', async ({ page }) => {
@@ -13,6 +14,7 @@ test('signup requires email and password', async ({ page }) => {
 test('signing up with a new account lands on the Home selection screen', async ({ page }) => {
   await page.goto('/');
   const uniqueEmail = `e2e+${Date.now()}-${Math.random().toString(36).slice(2)}@test.local`;
+  allowTestEmail(uniqueEmail);
 
   await page.click('#authModeToggle');
   await page.fill('#authForm input[name="authEmail"]', uniqueEmail);
@@ -26,6 +28,7 @@ test('signing up with a new account lands on the Home selection screen', async (
 test('logging back in with a wrong password shows a toast', async ({ page }) => {
   await page.goto('/');
   const uniqueEmail = `e2e+${Date.now()}-${Math.random().toString(36).slice(2)}@test.local`;
+  allowTestEmail(uniqueEmail);
 
   await page.click('#authModeToggle');
   await page.fill('#authForm input[name="authEmail"]', uniqueEmail);

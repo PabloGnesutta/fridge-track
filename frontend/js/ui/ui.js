@@ -1,7 +1,8 @@
 import { appState, dataState, dbStore, setStateField } from "../common/state.js";
 import { $, $button, $getInner, $queryOne } from "../lib/dom.js";
 import { _info, _log, _warn, openLogs } from "../lib/logger.js";
-import { arrow_left, pen_solid, svg_check, svg_notes, svg_search, svg_trash } from "../svg/svgFn.js";
+import { arrow_left, pen_solid, svg_check, svg_logout, svg_notes, svg_search, svg_trash } from "../svg/svgFn.js";
+import { logout } from "../appBoot.js";
 import {
   deleteLocationFromForm, editLocation, openAddLocation, submitLocationForm, switchLocation,
 } from "./location-ui.js";
@@ -42,6 +43,12 @@ function initUi() {
     appendTo: $('historyNavBtn'),
     svgFn: svg_notes,
     listener: { fn: () => openFoodHistory() },
+  });
+
+  $button({
+    appendTo: $('logoutBtn'),
+    svgFn: svg_logout,
+    listener: { fn: logout },
   });
 
   $('newItemBtn').addEventListener('click', () => { openItemForm(false); });

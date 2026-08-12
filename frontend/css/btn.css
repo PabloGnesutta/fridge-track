@@ -45,12 +45,14 @@
   color: white;
 }
 .go-back .btn,
-.history-nav .btn {
+.history-nav .btn,
+#logoutBtn .btn {
   padding: 0.75rem;
 }
 
 .go-back .btn .icon,
-.history-nav .btn .icon {
+.history-nav .btn .icon,
+#logoutBtn .btn .icon {
   width: 22px;
   height: 22px;
 }

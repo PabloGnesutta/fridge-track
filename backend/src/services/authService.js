@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { hashPassword, verifyPassword } from '../auth/passwordHash.js';
+import { isEmailAllowed } from '../db/allowedEmails.js';
 import { ServiceError } from './ServiceError.js';
 
 
@@ -15,6 +16,7 @@ function createAuthService(db) {
   function createUser(email, password, name = '') {
     email = String(email || '').trim().toLowerCase();
     if (!email || !password) { throw new ServiceError('Email y contraseña requeridos'); }
+    if (!isEmailAllowed(db, email)) { throw new ServiceError('Este email no está autorizado para crear una cuenta'); }
 
     const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
     if (existing) { throw new ServiceError('Ya existe una cuenta con ese email'); }

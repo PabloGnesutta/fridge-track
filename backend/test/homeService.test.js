@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { SCHEMA_SQL } from '../src/db/schema.js';
+import { addAllowedEmail } from '../src/db/allowedEmails.js';
 import { createAuthService } from '../src/services/authService.js';
 import { createHomeService } from '../src/services/homeService.js';
 import { ServiceError } from '../src/services/ServiceError.js';
@@ -10,11 +11,12 @@ import { ServiceError } from '../src/services/ServiceError.js';
 function makeServices() {
   const db = new DatabaseSync(':memory:');
   db.exec(SCHEMA_SQL);
-  return { authService: createAuthService(db), homeService: createHomeService(db) };
+  return { authService: createAuthService(db), homeService: createHomeService(db), db };
 }
 
 test('createHome returns a 6-char join code and adds the creator as a member', () => {
-  const { authService, homeService } = makeServices();
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'a@test.local');
   const user = authService.createUser('a@test.local', 'password123');
   const home = homeService.createHome(user.id, 'Casa de Prueba');
 
@@ -28,7 +30,9 @@ test('createHome returns a 6-char join code and adds the creator as a member', (
 });
 
 test('joinHome with a valid code adds membership', () => {
-  const { authService, homeService } = makeServices();
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'owner@test.local');
+  addAllowedEmail(db, 'joiner@test.local');
   const owner = authService.createUser('owner@test.local', 'password123');
   const joiner = authService.createUser('joiner@test.local', 'password123');
   const home = homeService.createHome(owner.id, 'Casa Compartida');
@@ -41,7 +45,9 @@ test('joinHome with a valid code adds membership', () => {
 });
 
 test('joinHome is idempotent - joining twice does not duplicate membership', () => {
-  const { authService, homeService } = makeServices();
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'owner@test.local');
+  addAllowedEmail(db, 'joiner@test.local');
   const owner = authService.createUser('owner@test.local', 'password123');
   const joiner = authService.createUser('joiner@test.local', 'password123');
   const home = homeService.createHome(owner.id, 'Casa Compartida');
@@ -53,13 +59,16 @@ test('joinHome is idempotent - joining twice does not duplicate membership', () 
 });
 
 test('joinHome with a bogus code throws', () => {
-  const { authService, homeService } = makeServices();
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'a@test.local');
   const user = authService.createUser('a@test.local', 'password123');
   assert.throws(() => homeService.joinHome(user.id, 'ZZZZZZ'), ServiceError);
 });
 
 test('joinHome is case-insensitive', () => {
-  const { authService, homeService } = makeServices();
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'owner@test.local');
+  addAllowedEmail(db, 'joiner@test.local');
   const owner = authService.createUser('owner@test.local', 'password123');
   const joiner = authService.createUser('joiner@test.local', 'password123');
   const home = homeService.createHome(owner.id, 'Casa Compartida');

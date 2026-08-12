@@ -1,3 +1,27 @@
+import { DatabaseSync } from 'node:sqlite';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import { addAllowedEmail } from '../../backend/src/db/allowedEmails.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DB_PATH = join(__dirname, '../../backend/data/fridgetrack.db');
+
+/**
+ * Whitelists a test email so the backend's signup allow-list doesn't reject
+ * it. Opens its own short-lived connection rather than the backend's
+ * src/db/db.js singleton, since that module is meant to live for the
+ * server process's lifetime, not the test runner's.
+ * @param {string} email
+ */
+export function allowTestEmail(email) {
+  const db = new DatabaseSync(DB_PATH);
+  try {
+    addAllowedEmail(db, email);
+  } finally {
+    db.close();
+  }
+}
+
 /**
  * Signs up (never logs in) if the app is showing the auth screen. Every test
  * starts from a fresh browser context (empty IndexedDB, no cached session),
@@ -5,6 +29,8 @@
  * new account with a unique email - the backend's sqlite file is NOT reset
  * between test runs the way a fresh context resets IndexedDB, so test
  * isolation has to come from the email being unique, not from a clean DB.
+ * (globalTeardown.js sweeps every e2e+...@test.local account out again once
+ * the whole suite finishes.)
  * @param {import('@playwright/test').Page} page
  * @param {{ email?: string, password?: string }} [opts]
  */
@@ -13,6 +39,7 @@ export async function ensureAuth(page, { email, password = 'e2e-test-password' }
   if (!(await emailInput.isVisible().catch(() => false))) { return; }
 
   const uniqueEmail = email || `e2e+${Date.now()}-${Math.random().toString(36).slice(2)}@test.local`;
+  allowTestEmail(uniqueEmail);
 
   // The form opens in login mode (no name field) - switch to signup first.
   await page.click('#authModeToggle');

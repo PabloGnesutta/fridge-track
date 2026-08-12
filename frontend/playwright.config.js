@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  globalTeardown: './e2e/globalTeardown.js',
   // Parallel workers each launch their own Chromium instance; running more
   // than one at a time overwhelms this dev machine and causes spurious
   // navigation timeouts. The full suite runs in under 10s serially anyway.

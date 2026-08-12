@@ -28,6 +28,11 @@ CREATE TABLE IF NOT EXISTS sessions (
   user_id INTEGER NOT NULL REFERENCES users(id),
   created_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS allowed_emails (
+  email TEXT PRIMARY KEY,
+  added_at INTEGER NOT NULL
+);
 `;
 
 export { SCHEMA_SQL };

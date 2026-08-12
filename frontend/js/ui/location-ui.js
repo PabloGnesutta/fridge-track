@@ -176,9 +176,8 @@ async function renderLocationChips() {
  * @param {string} locationKey
  */
 async function switchLocation(locationKey) {
-  const key = +locationKey;
-  if (key === dataState.currentLocation?._key) { return; }
-  const location = dbStore.locations.find(l => l._key === key);
+  if (locationKey === dataState.currentLocation?._key) { return; }
+  const location = dbStore.locations.find(l => l._key === locationKey);
   if (!location) { return; }
 
   await activateLocation(location);
@@ -192,7 +191,7 @@ function openAddLocation() {
  * @param {string} locationKey
  */
 function editLocation(locationKey) {
-  const location = dbStore.locations.find(l => l._key === +locationKey);
+  const location = dbStore.locations.find(l => l._key === locationKey);
   if (!location) { return; }
   openLocationForm(false, location);
 }
