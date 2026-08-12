@@ -1,16 +1,18 @@
 import { dbStore } from "../common/state.js";
 import { normalize } from "../lib/string.js";
 import { clearArray } from "../lib/utils.js";
-import { getAll, getOne, putOne } from "../lib/indexedDb.js";
+import { getAllWithIndex, getOne, putOne } from "../lib/indexedDb.js";
 
 
 /**
- * Per-food-name knowledge, learned across every location (not scoped to a
- * single fridge/freezer) so autocomplete suggestions and stats stay useful
- * regardless of where an item is being added.
+ * Per-food-name knowledge, learned across every location within a Home (not
+ * scoped to a single fridge/freezer, but scoped to the Home) so autocomplete
+ * suggestions and stats stay useful regardless of where an item is being
+ * added, while staying separate between households.
  * @typedef {object} FoodNameHistory
  * @property {string} name
  * @property {string} normalizedName
+ * @property {number} homeId
  * @property {Date} firstCreatedAt
  * @property {number|null} shelfLifeDays Most recently used "days to expire"
  *   value for this name. Only ever set from shelfLifeDays-based items - a
@@ -22,32 +24,35 @@ import { getAll, getOne, putOne } from "../lib/indexedDb.js";
  * Records that a food item with this name was just created, upserting its
  * history entry: first use creates the record, later uses only refresh
  * shelfLifeDays (and only when one was actually provided this time).
+ * @param {number} homeId
  * @param {string} name
  * @param {number|null|undefined} shelfLifeDays
  * @param {Date} date
  * @returns {Promise<FoodNameHistory>}
  */
-async function recordItemCreated(name, shelfLifeDays, date) {
+async function recordItemCreated(homeId, name, shelfLifeDays, date) {
   const normalizedName = normalize(name);
+  const key = [homeId, normalizedName];
   /** @type {FoodNameHistory|null} */ // @ts-ignore
-  const existing = await getOne('foodNameHistory', normalizedName);
+  const existing = await getOne('foodNameHistory', key);
 
   if (!existing) {
     /** @type {FoodNameHistory} */
     const record = {
       name,
       normalizedName,
+      homeId,
       firstCreatedAt: date,
       shelfLifeDays: shelfLifeDays ?? null,
       timesDiscarded: 0,
     };
-    await putOne('foodNameHistory', record, normalizedName);
+    await putOne('foodNameHistory', record, key);
     upsertCache(record);
     return record;
   }
 
   if (shelfLifeDays != null) { existing.shelfLifeDays = shelfLifeDays; }
-  await putOne('foodNameHistory', existing, normalizedName);
+  await putOne('foodNameHistory', existing, key);
   upsertCache(existing);
   return existing;
 }
@@ -55,28 +60,31 @@ async function recordItemCreated(name, shelfLifeDays, date) {
 /**
  * Adjusts the discard count for a name (+1 when marked "Tirado", -1 if that
  * action is undone). No-ops if the name has no history entry.
+ * @param {number} homeId
  * @param {string} name
  * @param {number} delta
  */
-async function adjustDiscardCount(name, delta) {
+async function adjustDiscardCount(homeId, name, delta) {
   const normalizedName = normalize(name);
+  const key = [homeId, normalizedName];
   /** @type {FoodNameHistory|null} */ // @ts-ignore
-  const existing = await getOne('foodNameHistory', normalizedName);
+  const existing = await getOne('foodNameHistory', key);
   if (!existing) { return; }
 
   existing.timesDiscarded = Math.max(0, existing.timesDiscarded + delta);
-  await putOne('foodNameHistory', existing, normalizedName);
+  await putOne('foodNameHistory', existing, key);
   upsertCache(existing);
 }
 
 /**
- * Fetch all food name history entries, sorted alphabetically. Stores them
- * in dbStore.
+ * Fetch all food name history entries for the given Home, sorted
+ * alphabetically. Stores them in dbStore.
+ * @param {number} homeId
  * @returns {Promise<FoodNameHistory[]>}
  */
-async function fetchFoodNameHistory() {
+async function fetchFoodNameHistory(homeId) {
   /** @type {FoodNameHistory[]} */ // @ts-ignore
-  const entries = await getAll('foodNameHistory');
+  const entries = await getAllWithIndex('foodNameHistory', 'homeId', homeId);
   entries.sort((a, b) => a.name.localeCompare(b.name));
 
   clearArray(dbStore.foodNameHistory);
@@ -90,7 +98,9 @@ async function fetchFoodNameHistory() {
  * @param {FoodNameHistory} record
  */
 function upsertCache(record) {
-  const idx = dbStore.foodNameHistory.findIndex(e => e.normalizedName === record.normalizedName);
+  const idx = dbStore.foodNameHistory.findIndex(
+    e => e.normalizedName === record.normalizedName && e.homeId === record.homeId
+  );
   if (idx === -1) {
     dbStore.foodNameHistory.push(record);
   } else {

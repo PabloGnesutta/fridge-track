@@ -249,7 +249,7 @@ async function submitItemForm(e) {
   } else {
     const result = await createItem(location._key || '', name, { quantity, addedDate, useByDate, shelfLifeDays, notes });
     if (!result.data) { return showErrorToast(result.errorMsg); }
-    await recordItemCreated(result.data.name, shelfLifeDays, addedDate);
+    await recordItemCreated(location.homeId, result.data.name, shelfLifeDays, addedDate);
   }
 
   itemForm.reset();
@@ -324,7 +324,7 @@ async function removeItem(toastMessage, { discarded = false } = {}) {
   if (!itemKey) { return; }
 
   await deleteItem(itemKey);
-  if (discarded) { await adjustDiscardCount(item.name, 1); }
+  if (discarded) { await adjustDiscardCount(location.homeId, item.name, 1); }
 
   closeSingleItem();
 
@@ -336,7 +336,7 @@ async function removeItem(toastMessage, { discarded = false } = {}) {
 
   showUndoToast(toastMessage, async () => {
     await restoreItem(item);
-    if (discarded) { await adjustDiscardCount(item.name, -1); }
+    if (discarded) { await adjustDiscardCount(location.homeId, item.name, -1); }
     await fetchAndRenderItems(location);
   });
 }

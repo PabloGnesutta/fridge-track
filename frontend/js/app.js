@@ -5,12 +5,12 @@ import { dbugBtns, initUi } from "./ui/ui.js";
 import { initAppState } from "./common/state.js";
 import { eventBus } from "./lib/utils.js";
 import { $ } from "./lib/dom.js";
-import { fetchLocations, resolveCurrentLocation } from "./local-db/location-db.js";
-import { fetchFoodNameHistory } from "./local-db/food-name-db.js";
-import { activateLocation, openLocationForm } from "./ui/location-ui.js";
 import { seedDb } from "./local-db/seed.js";
-import { initRouter, renderSpecificRoute, captureInitialRoute } from "./common/router.js";
+import { initRouter, captureInitialRoute } from "./common/router.js";
 import { initInstallPrompt } from "./installPrompt.js";
+import { bootApp } from "./appBoot.js";
+import { initAuthUi } from "./ui/auth-ui.js";
+import { initHomeUi } from "./ui/home-ui.js";
 
 
 _info(' (!) App started');
@@ -18,7 +18,7 @@ _info(' (!) App started');
 /**
  * Captured before anything (e.g. activateLocation's default list render)
  * touches history and clobbers the URL the page actually loaded with.
- */ 
+ */
 const initialRoute = captureInitialRoute();
 
 initializeCache();
@@ -33,24 +33,13 @@ eventBus.on('IndexedDbInited', async ({ version }) => {
     $('cacheMajorVersion').innerText = localStorage.getItem('cacheMajorVersion') || '';
     $('indexedDbVersion').innerText = version;
 
-    const locations = await fetchLocations();
-    await fetchFoodNameHistory();
-    const currentLocation = resolveCurrentLocation(locations);
-
-    if (!currentLocation) {
-        openLocationForm(true);
-    } else {
-        await activateLocation(currentLocation);
-        // Re-applies the URL the page actually loaded with (e.g. a deep
-        // link or a refresh on /item/42), now that items are loaded and
-        // can be found - activateLocation's default list render already
-        // reset the address bar to '/'.
-        renderSpecificRoute(initialRoute);
-    }
+    await bootApp(initialRoute);
 });
 
 initAppState();
 initUi();
+initAuthUi();
+initHomeUi();
 initRouter();
 initInstallPrompt();
 dbugBtns();

@@ -39,8 +39,67 @@
     </header>
 
     <div class="views">
+      <!-- Auth (login/signup) -->
+      <div id="authView" class="page">
+        <form id="authForm" class="base-form">
+          <h3 class="form-title">
+            <span class="form-title-text">Iniciar Sesión</span>
+          </h3>
+          <div class="form-content">
+            <div id="authNameField" class="form-control display-none">
+              <label for="authName">Nombre</label>
+              <input type="text" name="authName" placeholder="Tu nombre" autocomplete="name" />
+            </div>
+            <div class="form-control">
+              <label for="authEmail">Email</label>
+              <input type="email" name="authEmail" placeholder="tu@email.com" autocomplete="email" />
+            </div>
+            <div class="form-control">
+              <label for="authPassword">Contraseña</label>
+              <input type="password" name="authPassword" placeholder="Contraseña" autocomplete="current-password" />
+            </div>
+            <div class="submit"><!--  --></div>
+            <div id="authModeToggle" class="mode-toggle" role="button">¿No tenés cuenta? Creá una</div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Home (create/join) -->
+      <div id="homeView" class="page">
+        <div class="home-chips"><!--  --></div>
+
+        <form id="homeCreateForm" class="base-form">
+          <h3 class="form-title">
+            <span class="form-title-text">Crear Hogar</span>
+          </h3>
+          <div class="form-content">
+            <div class="form-control">
+              <label for="homeName">Nombre</label>
+              <input type="text" name="homeName" placeholder="ej. Casa" />
+            </div>
+            <div class="submit"><!--  --></div>
+          </div>
+        </form>
+
+        <form id="homeJoinForm" class="base-form">
+          <h3 class="form-title">
+            <span class="form-title-text">Unirse a un Hogar</span>
+          </h3>
+          <div class="form-content">
+            <div class="form-control">
+              <label for="joinCode">Código de invitación</label>
+              <input type="text" name="joinCode" placeholder="ej. AB12CD" autocomplete="off" />
+            </div>
+            <div class="submit"><!--  --></div>
+          </div>
+        </form>
+      </div>
+
       <!-- Item List -->
       <div id="itemListView" class="page">
+        <div class="home-switcher" data-click-action="openHomeSwitcher">
+          <span class="home-switcher-name"></span>
+        </div>
         <div class="location-chips"><!--  --></div>
 
         <div class="search-container" class="display-none">

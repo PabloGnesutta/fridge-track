@@ -448,6 +448,46 @@ svg {
   display: none;
 }
 
+/* Auth/Home gating: blocks the whole app behind login + home selection */
+#authView,
+#homeView {
+  display: none;
+}
+
+#app[data-auth-stage='login'] #authView {
+  display: block;
+}
+
+#app[data-auth-stage='chooseHome'] #homeView {
+  display: block;
+}
+
+#app:not([data-auth-stage='ready']) #mainHeader,
+#app:not([data-auth-stage='ready']) #itemListView,
+#app:not([data-auth-stage='ready']) #singleItemView,
+#app:not([data-auth-stage='ready']) #foodHistoryView,
+#app:not([data-auth-stage='ready']) #mainFooter {
+  display: none;
+}
+
+.mode-toggle {
+  text-align: center;
+  padding: 0.75rem 0 0.25rem;
+  color: var(--accent-text);
+  font-size: 14px;
+}
+
+.home-switcher {
+  padding: 0.5rem 0.75rem 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.home-switcher .home-switcher-name {
+  color: var(--text-secondary);
+  text-decoration: underline;
+}
+
 /* Header nav buttons: go-back everywhere except the list, the food-history
    shortcut only on the list - they share the header's right-hand slot. */
 .go-back,

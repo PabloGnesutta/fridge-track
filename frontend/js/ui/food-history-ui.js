@@ -1,6 +1,6 @@
 import { $new, $queryOne } from "../lib/dom.js";
 import { toYYYYMMDD, timeAgo } from "../lib/date.js";
-import { appState, setCurrentView } from "../common/state.js";
+import { appState, dataState, setCurrentView } from "../common/state.js";
 import { syncUrl } from "../common/router.js";
 import { fetchFoodNameHistory } from "../local-db/food-name-db.js";
 import { pageTitle } from "./ui.js";
@@ -19,7 +19,8 @@ async function openFoodHistory() {
   pageTitle.innerText = 'Historial';
   syncUrl('/historial');
 
-  const entries = await fetchFoodNameHistory();
+  const homeId = dataState.currentHome?.id;
+  const entries = homeId ? await fetchFoodNameHistory(homeId) : [];
   renderFoodHistoryList(entries);
 }
 

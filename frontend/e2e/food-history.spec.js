@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { ensureLocation, addItem } from './helpers.js';
+import { ensureOnboarded, addItem } from './helpers.js';
 
 
 test('typing a previously-used name suggests it and autofills the shelf life', async ({ page }) => {
   await page.goto('/');
-  await ensureLocation(page);
+  await ensureOnboarded(page);
   await addItem(page, { name: 'Leche', shelfLifeDays: 5 });
 
   // Mark the item used so the list is empty again, then create a second
@@ -28,7 +28,7 @@ test('typing a previously-used name suggests it and autofills the shelf life', a
 
 test('discarding an item increments its discard count in the history view, undo decrements it back', async ({ page }) => {
   await page.goto('/');
-  await ensureLocation(page);
+  await ensureOnboarded(page);
   await addItem(page, { name: 'Yogur', shelfLifeDays: 3 });
 
   await page.click('.list .row');
@@ -50,7 +50,7 @@ test('discarding an item increments its discard count in the history view, undo 
 
 test('the history nav button opens /historial and the back button returns to the list', async ({ page }) => {
   await page.goto('/');
-  await ensureLocation(page);
+  await ensureOnboarded(page);
 
   await page.click('#historyNavBtn .btn');
   await expect(page).toHaveURL('/historial');

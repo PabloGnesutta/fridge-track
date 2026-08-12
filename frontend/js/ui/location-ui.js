@@ -81,7 +81,9 @@ async function submitLocationForm(e) {
     return;
   }
 
-  const result = await createLocation(name);
+  const homeId = dataState.currentHome?.id;
+  if (!homeId) { return; }
+  const result = await createLocation(name, homeId);
   if (!result.data) {
     return showErrorToast(result.errorMsg);
   }
@@ -115,7 +117,7 @@ async function deleteLocationFromForm() {
  */
 async function activateLocation(location) {
   dataState.currentLocation = location;
-  setLastUsedLocationKey(location._key || '');
+  setLastUsedLocationKey(location.homeId, location._key || '');
 
   await fetchAndRenderItems(location);
   openItemList();
@@ -208,7 +210,8 @@ async function deleteLocation(locationKey) {
   if (idx !== -1) { dbStore.locations.splice(idx, 1); }
 
   if (dataState.currentLocation?._key === locationKey) {
-    const next = resolveCurrentLocation(dbStore.locations);
+    const homeId = dataState.currentHome?.id;
+    const next = homeId ? resolveCurrentLocation(dbStore.locations, homeId) : null;
     if (next) {
       await activateLocation(next);
     } else {

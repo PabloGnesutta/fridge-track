@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { ensureLocation, addItem } from './helpers.js';
+import { ensureOnboarded, addItem } from './helpers.js';
 
 
 test('opening an item updates the URL, and browser back returns to the list', async ({ page }) => {
   await page.goto('/');
-  await ensureLocation(page);
+  await ensureOnboarded(page);
   await addItem(page, { name: 'Leche de prueba', shelfLifeDays: 5 });
 
   await page.click('.list .row');
@@ -18,7 +18,7 @@ test('opening an item updates the URL, and browser back returns to the list', as
 
 test('a hard refresh on /item/:key re-renders the same item, not a 404', async ({ page }) => {
   await page.goto('/');
-  await ensureLocation(page);
+  await ensureOnboarded(page);
   await addItem(page, { name: 'Leche de prueba', shelfLifeDays: 5 });
 
   await page.click('.list .row');

@@ -1,0 +1,33 @@
+const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  name TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS homes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  join_code TEXT NOT NULL UNIQUE,
+  created_by INTEGER NOT NULL REFERENCES users(id),
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS home_members (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  home_id INTEGER NOT NULL REFERENCES homes(id),
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  joined_at INTEGER NOT NULL,
+  UNIQUE(home_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  token TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  created_at INTEGER NOT NULL
+);
+`;
+
+export { SCHEMA_SQL };

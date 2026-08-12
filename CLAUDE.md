@@ -6,9 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The repo has two independent npm projects; there is no root-level package.json or build step.
 
-**Backend (`backend/`)** — serves the frontend and holds no other logic:
+**Requires Node ≥24** (`backend/package.json`'s `engines`) — the backend's auth/Home API is built on the
+built-in `node:sqlite` module, unflagged from Node 24 on. Use `nvm install 24 && nvm use 24` (this repo
+was built against 24.19.0 via `nvm4w` on Windows) if your global Node is older.
+
+**Backend (`backend/`)** — serves the frontend and hosts the accounts/Home API (see Architecture below):
 ```
 npm run serve          # nodemon on src/index.js, reads PORT from backend/.env (currently 3001)
+npm test                # unit tests: node --test (backend/test/*.test.js) - service-layer logic only
 ```
 
 **Frontend (`frontend/`)** — no bundler/build step. Every file is loaded exactly as written, either
@@ -30,14 +35,47 @@ There is no lint or typecheck CLI command. Type checking is JSDoc annotations + 
 
 ## Architecture
 
-**The backend has no data API.** `backend/src/http/requestHandler.js` only serves static files
-(`/`, `css/*`, `js/*`, `static/*`, `cacheServiceWorker.js`) plus an SPA fallback: any request whose
-last path segment has no `.` in it (i.e. not an asset request) is served `index.html`, so client-side
-routes like `/item/42` survive a hard refresh. `frontend/js/api-caller/apiCaller.js` (a `/api/*` +
-bearer-token client) exists but is unused scaffolding — nothing imports it, and there is no matching
-`/api` route on the backend. **All app data lives client-side in IndexedDB**, via the generic wrapper
-in `js/lib/indexedDb.js` and per-entity CRUD in `js/local-db/item-db.js` / `location-db.js`. There is
-no sync between devices/browsers.
+**The backend hosts a small accounts/Home API; everything else is still static file serving.**
+`backend/src/http/requestHandler.js` routes `/api/*` to `backend/src/http/apiRouter.js` (see below),
+and otherwise serves static files (`/`, `css/*`, `js/*`, `static/*`, `cacheServiceWorker.js`) plus an SPA
+fallback: any request whose last path segment has no `.` in it is served `index.html`, so client-side
+routes like `/item/42` survive a hard refresh. Data (`users`/`homes`/`home_members`/`sessions`) lives in
+a `node:sqlite` file at `backend/data/fridgetrack.db` (gitignored, created on first run) via
+`backend/src/db/db.js`; `backend/src/services/authService.js` and `homeService.js` hold the actual logic
+(password hashing via `node:crypto` `scrypt`, opaque bearer session tokens, join-code generation/lookup)
+and are structured as `create*Service(db)` factories specifically so tests can inject an isolated
+`:memory:` database instead of touching the real data file. **Locations, items, and food-name history
+still live entirely client-side in IndexedDB** (`js/lib/indexedDb.js` + `js/local-db/*.js`) — the backend
+API only handles *who you are* and *which Home you belong to*; there is still no sync of the actual
+fridge data between devices/browsers. `frontend/js/api-caller/apiCaller.js` is the real client for the
+API above (`apiSignup`/`apiLogin`/`apiCreateHome`/`apiJoinHome`/`apiListHomes`), always POSTs to
+`api/<path>` with a `Bearer` token from `localStorage`, and always resolves `{data}` or `{error}` —
+network failures resolve `{error}` rather than throwing, so callers can fall back to the local cache
+instead of crashing when offline.
+
+**The app is gated behind login + an active Home before any fridge data loads.** `frontend/js/appBoot.js`
+owns this: `bootApp()` (called from `app.js`'s `IndexedDbInited` handler, replacing what used to be
+direct location-resolution logic there) checks `isLoggedIn()` and stops at the login screen
+(`appState.authStage = 'login'`, driving `#authView` via the same CSS-attribute pattern described below)
+if there's no cached session; `afterLogin()` resolves which Home is active (syncing from the server when
+reachable, falling back to the IndexedDB `homes` cache otherwise) and stops at `#homeView`
+(`authStage = 'chooseHome'`) if none can be resolved; `afterHome(home)` is the point where the *old*
+boot sequence picks back up — fetch that Home's locations/food-name-history, resolve/open the current
+location, re-apply the captured deep link. `afterHome` is also the reentry point for creating/joining/
+switching Homes later, not just cold boot: `appBoot.js` imports `refreshHomeUi` from `js/ui/home-ui.js`
+(to keep the Home chip list/label in sync after every activation) while `home-ui.js` imports `afterHome`
+back from `appBoot.js` — a deliberate circular import between the two, safe here only because neither
+module touches the other's export at module top level, just inside function bodies called later. Worth
+knowing about before "fixing" it.
+
+**Locations and food-name history are now scoped per-Home, not just per-browser.** Every `locations`
+record carries a `homeId` field and the store has a `homeId` index (`getAllWithIndex('locations',
+'homeId', ...)`); `items` need no such change since they're already scoped via `locationKey` and
+locations are home-scoped. `foodNameHistory` is keyed by the compound array `[homeId, normalizedName]`
+instead of `normalizedName` alone, so two Homes can each have their own "Leche" history. A user who
+belongs to more than one Home (join via a 6-character join-code, no email invites) can switch between
+them via the `.home-switcher` label in `#itemListView` (`openHomeSwitcher()` in `home-ui.js`), which
+re-enters the Home-selection screen without logging out.
 
 **View state drives the DOM through CSS attribute selectors, not JS show/hide calls.**
 `js/common/state.js` holds `appState`/`dataState`/`dbStore` in memory and mirrors fields (e.g.
@@ -51,20 +89,28 @@ classes/display directly.
 wires it to `history.pushState`/`popstate` and to the actual view functions (`openItemList`,
 `openSingleItem` in `js/ui/item-ui.js`), which call `syncUrl()` themselves so every way of reaching a
 view (click, deep link, browser back) keeps the URL in sync. Boot order matters: `app.js` calls
-`captureInitialRoute()` *before* `initializeIndexedDb()`/`activateLocation()` run, because
+`captureInitialRoute()` *before* `initializeIndexedDb()`/`appBoot.js#bootApp()` run, because
 `activateLocation`'s default list render calls `openItemList()`, which resets the URL to `/` — capturing
-the route first is what lets a deep link to `/item/42` survive that reset. Because of this, static
-asset references (`<script src>`, `<link href>`, `serviceWorker.register(...)`) must be root-relative
-(`/js/app.js`), not relative (`js/app.js`) — relative paths resolve incorrectly from a nested URL like
-`/item/42`.
+the route first is what lets a deep link to `/item/42` survive that reset. Since boot may now pause for
+an arbitrarily long login/Home-selection step (see below), the captured route is held as module state in
+`appBoot.js` (not a local `const` in `app.js` as before) and only re-applied once on the very first
+`afterHome()` resolution — a later Home switch calling `afterHome()` again must *not* re-apply a stale
+initial route from a different Home. Because of this route-capture requirement, static asset references
+(`<script src>`, `<link href>`, `serviceWorker.register(...)`) must be root-relative (`/js/app.js`), not
+relative (`js/app.js`) — relative paths resolve incorrectly from a nested URL like `/item/42`.
 
 **Unit tests only cover DOM-free modules.** `js/lib/dom.js` and `js/lib/logger.js` run DOM queries
 (`document.getElementById`, etc.) at module top level, so importing anything that transitively pulls
 them in crashes under plain Node. `frontend/test/` therefore only targets modules with no such
 dependency (`lib/date.js`, `lib/string.js`, `lib/freshnessStatus.js`, `common/routeMatch.js`) — this is
 why `routeMatch.js` was split out of `router.js` in the first place. UI-level behavior is covered by
-the Playwright e2e suite instead, where every test gets a fresh browser context (empty IndexedDB), so
-specs start from onboarding via the `ensureLocation()` helper in `e2e/helpers.js`.
+the Playwright e2e suite instead, where every test gets a fresh browser context (empty IndexedDB, no
+cached session) but **not** a fresh backend — the sqlite file persists across test runs, so
+`e2e/helpers.js`'s `ensureAuth()` always signs up a freshly-generated unique email rather than relying on
+a clean DB for isolation, and `ensureHome()` always creates a new Home (the real isolation boundary for
+locations/items now). `ensureOnboarded()` chains `ensureAuth` + `ensureHome` + `ensureLocation` for specs
+that don't care about the auth/Home screens themselves; `auth.spec.js`/`home.spec.js` exercise those
+screens directly, including a multi-Home data-isolation regression test.
 
 **Two error-reporting paths, used deliberately for different cases.** `_error()`
 (`js/lib/logger.js`) opens the in-app dev-facing debug log panel (`#logger`) — for unexpected/internal
@@ -79,14 +125,31 @@ isn't masked by stale cached responses; it needs to be flipped to `true`, with t
 constants bumped, before any release. While it's `false` the app has no real offline support despite
 the manifest/install-prompt scaffolding being in place.
 
-**Food name history (`js/local-db/food-name-db.js`) is global, not per-location**, unlike items. It's a
-third IndexedDB store, keyed directly by `normalizedName` (not autoIncrement — see
-`indexedDb.js#onDbUpgradeNeeded`), that back-fills name autocomplete (`item-ui.js`'s
-`.name-suggestions` dropdown) and the `/historial` view (`food-history-ui.js`). It's written to in two
-places only: `recordItemCreated()` on item *creation* (not edit) upserts the name + refreshes
-`shelfLifeDays` (only ever set from shelfLifeDays-based items, never touched by due-date-based ones),
-and `adjustDiscardCount()` on `markItemDiscarded` (±1, reversed on undo) — "Usado" and the trash-icon
-delete don't count as a discard. Adding a new IndexedDB store means bumping `dbVersion` in
-`indexedDb.js` and creating it in `onDbUpgradeNeeded`, guarded by `objectStoreNames.contains`.
+**Food name history (`js/local-db/food-name-db.js`) is scoped per-Home, shared across that Home's
+locations** (see the compound-key note above). It's a third IndexedDB store that back-fills name
+autocomplete (`item-ui.js`'s `.name-suggestions` dropdown) and the `/historial` view
+(`food-history-ui.js`). It's written to in two places only: `recordItemCreated()` on item *creation*
+(not edit) upserts the name + refreshes `shelfLifeDays` (only ever set from shelfLifeDays-based items,
+never touched by due-date-based ones), and `adjustDiscardCount()` on `markItemDiscarded` (±1, reversed
+on undo) — "Usado" and the trash-icon delete don't count as a discard. Adding a new IndexedDB store, or
+a new index on an existing one, means bumping `dbVersion` in `indexedDb.js` and creating/altering it in
+`onDbUpgradeNeeded`; adding an index to a store that *already exists* (as opposed to a brand-new store)
+can't go through `createObjectStore` again — pull the store off the in-flight versionchange transaction
+instead (`openDbRequest.transaction.objectStore(name)`), guarded by `indexNames.contains`, the same way
+new stores are guarded by `objectStoreNames.contains`.
 
 All user-facing strings are Spanish (e.g. "Ingresar nombre", "Alimentos").
+
+## Roadmap: online persistence
+
+Accounts + Homes (this file's Architecture section above) is Phase 1 of a larger online-persistence
+effort — see `git log` on `feat/online-phase-1` for the full implementation. **Locations, items, and
+food-name history still only live in IndexedDB** — nothing about them syncs to the server yet, and there
+is no offline/online mode toggle. Deliberately deferred to a follow-up phase:
+- Syncing locations/items/food-name-history to the backend (new API endpoints + a sync engine).
+- Switching IndexedDB primary keys from `autoIncrement` integers to client-generated UUIDs — required
+  before sync, since two devices creating records offline would otherwise mint colliding local keys.
+- An outbox/queue for offline mutations, pushed on reconnect, with last-write-wins-by-`updatedAt`
+  conflict resolution (items already carry `createdAt`/`updatedAt`).
+- A user-facing offline/online mode toggle, and finally flipping `INTERCEPT_FETCH_REQUESTS` to `true`
+  for real service-worker offline support (see above).

@@ -5,6 +5,7 @@ import { arrow_left, pen_solid, svg_check, svg_notes, svg_search, svg_trash } fr
 import {
   deleteLocationFromForm, editLocation, openAddLocation, submitLocationForm, switchLocation,
 } from "./location-ui.js";
+import { openHomeSwitcher, switchHome } from "./home-ui.js";
 import {
   closeSingleItem, markItemDiscarded, markItemUsed, openItemForm, openSingleItem, submitItemBtn, submitItemForm,
   toggleSearch, tryDeleteItem,
@@ -128,6 +129,12 @@ function initUi() {
         break;
       case 'openAddLocation':
         openAddLocation();
+        break;
+      case 'switchHome':
+        switchHome(dataset.homeId || '');
+        break;
+      case 'openHomeSwitcher':
+        openHomeSwitcher();
         break;
       default:
         return _warn(' :: clickAction not defined: ' + dataset.clickAction);

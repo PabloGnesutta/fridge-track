@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { ensureLocation } from './helpers.js';
+import { ensureOnboarded } from './helpers.js';
 
 
 test('missing name shows a toast, not the debug log panel', async ({ page }) => {
   await page.goto('/');
-  await ensureLocation(page);
+  await ensureOnboarded(page);
 
   await page.click('#newItemBtn');
   await page.waitForSelector('#itemForm', { state: 'visible' });
@@ -17,7 +17,7 @@ test('missing name shows a toast, not the debug log panel', async ({ page }) => 
 
 test('missing due date/shelf-life shows the matching message', async ({ page }) => {
   await page.goto('/');
-  await ensureLocation(page);
+  await ensureOnboarded(page);
 
   await page.click('#newItemBtn');
   await page.waitForSelector('#itemForm', { state: 'visible' });
@@ -30,7 +30,7 @@ test('missing due date/shelf-life shows the matching message', async ({ page }) 
 
 test('a valid submission creates the item and closes the form', async ({ page }) => {
   await page.goto('/');
-  await ensureLocation(page);
+  await ensureOnboarded(page);
 
   await page.click('#newItemBtn');
   await page.waitForSelector('#itemForm', { state: 'visible' });

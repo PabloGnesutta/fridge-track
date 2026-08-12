@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { ensureLocation } from './helpers.js';
+import { ensureOnboarded } from './helpers.js';
 
 
 test('Chrome/Android: beforeinstallprompt shows a one-tap Instalar button', async ({ page }) => {
   await page.goto('/');
-  await ensureLocation(page);
+  await ensureOnboarded(page);
 
   await expect(page.locator('#installBanner')).toHaveClass(/folded/);
 
@@ -36,7 +36,7 @@ test.describe('iOS Safari', () => {
 
   test('shows manual Share-sheet instructions instead of an install button', async ({ page }) => {
     await page.goto('/');
-    await ensureLocation(page);
+    await ensureOnboarded(page);
 
     await expect(page.locator('#installBanner')).not.toHaveClass(/folded/);
     await expect(page.locator('#installBanner .message'))

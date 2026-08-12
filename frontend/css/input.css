@@ -112,7 +112,10 @@ input {
 }
 
 #locationForm .submit .btn,
-#itemForm .submit .btn {
+#itemForm .submit .btn,
+#authForm .submit .btn,
+#homeCreateForm .submit .btn,
+#homeJoinForm .submit .btn {
   background-color: var(--accent);
   padding: 2rem;
   font-size: 22px;

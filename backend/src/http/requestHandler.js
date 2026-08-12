@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { debug, log } from '../logger/logger.js';
 import { errorResponse } from './httpResponses.js';
+import { handleApiRequest } from './apiRouter.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -28,6 +29,10 @@ export async function handleRequest(req, res) {
     const pathBase = urlArray[1];
     const fileRoute = urlArray.slice(1, urlArray.length);
     debug('urlArray', urlArray)
+
+    if (pathBase === 'api') {
+      return handleApiRequest(req, res, fileRoute.slice(1));
+    }
 
     if (pathBase === 'css') return sendAssetFile(res, fileRoute, 'text/css');
     else if (pathBase === 'js') return sendAssetFile(res, fileRoute, 'application/javascript');

@@ -5,6 +5,7 @@ import { _log } from "../lib/logger.js";
 /**
  * @typedef {import("../local-db/location-db.js").Location} Location
  * @typedef {import("../local-db/item-db.js").Item} Item
+ * @typedef {import("../local-db/home-db.js").Home} Home
  */
 
 /**
@@ -16,10 +17,13 @@ import { _log } from "../lib/logger.js";
  * @property {boolean} showItemForm
  * @property {boolean} showSearch
  * @property {Views} currentView
+ * @property {AuthStage} authStage
  *
  * @typedef {'ItemList'|'SingleItem'|'FoodHistory'} Views
+ * @typedef {'checking'|'login'|'chooseHome'|'ready'} AuthStage
  *
  * @typedef {object} DataState
+ * @property {Home|null} currentHome
  * @property {Location|null} currentLocation
  * @property {Item|null} currentItem
  */
@@ -27,6 +31,7 @@ import { _log } from "../lib/logger.js";
 /**
  * Cached records from the db
  * @typedef {object} DBStore
+ * @property {Home[]} homes
  * @property {Location[]} locations
  * @property {Item[]} items
  * @property {import("../local-db/food-name-db.js").FoodNameHistory[]} foodNameHistory
@@ -43,6 +48,7 @@ const appState = {
     showItemForm: false,
     showSearch: false,
     currentView: 'ItemList',
+    authStage: 'checking',
 };
 
 /**
@@ -50,6 +56,7 @@ const appState = {
  * @type {DataState}
  */
 const dataState = {
+    currentHome: null,
     currentLocation: null,
     currentItem: null,
 };
@@ -59,6 +66,7 @@ const dataState = {
  * @type {DBStore}
  */
 const dbStore = {
+    homes: [],
     locations: [],
     items: [],
     foodNameHistory: [],
@@ -84,6 +92,14 @@ function setCurrentView(view) {
     $app.dataset.currentView = view;
 }
 
+/**
+ * @param {AuthStage} stage
+ */
+function setAuthStage(stage) {
+    appState.authStage = stage;
+    $app.dataset.authStage = stage;
+}
+
 function initAppState() {
     setStateField('onboarding', false);
     setStateField('editingItem', false);
@@ -91,6 +107,7 @@ function initAppState() {
     setStateField('showItemForm', false);
     setStateField('showSearch', false);
     setCurrentView('ItemList');
+    setAuthStage('checking');
 }
 
-export { appState, dataState, dbStore, initAppState, setStateField, setCurrentView };
+export { appState, dataState, dbStore, initAppState, setStateField, setCurrentView, setAuthStage };

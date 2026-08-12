@@ -4,15 +4,15 @@ import { eventBus } from './utils.js';
 
 /**
  * Enums
- * @typedef {'locations'|'items'|'foodNameHistory'} ObjectStores
- * @typedef {'locationKey'} Indexes
+ * @typedef {'locations'|'items'|'foodNameHistory'|'homes'} ObjectStores
+ * @typedef {'locationKey'|'homeId'} Indexes
  *
  * @typedef {IDBValidKey | IDBKeyRange} StoreKey
  * @typedef {{ _key: StoreKey, [field: string]: * }}  DbRecord
  */
 
 const dbName = 'FridgeTrack';
-const dbVersion = 2;
+const dbVersion = 3;
 
 
 /** @type {Record<ObjectStores, ObjectStores>} */
@@ -20,6 +20,7 @@ const _stores = {
   locations: 'locations',
   items: 'items',
   foodNameHistory: 'foodNameHistory',
+  homes: 'homes',
 };
 
 /** @type {IDBOpenDBRequest} */
@@ -43,8 +44,15 @@ function initializeIndexedDb() {
 function onDbUpgradeNeeded() {
   _info(' __ Updating IndexedDB');
   db = openDbRequest.result;
-  if (!db.objectStoreNames.contains(_stores.locations)) {
-    db.createObjectStore(_stores.locations, { autoIncrement: true });
+
+  // Adding an index to a store that already exists (from a prior version)
+  // can't go through createObjectStore again - it has to be pulled off the
+  // in-flight versionchange transaction instead.
+  const locationsStore = db.objectStoreNames.contains(_stores.locations)
+    ? openDbRequest.transaction.objectStore(_stores.locations)
+    : db.createObjectStore(_stores.locations, { autoIncrement: true });
+  if (!locationsStore.indexNames.contains('homeId')) {
+    locationsStore.createIndex('homeId', 'homeId', { unique: false });
   }
 
   if (!db.objectStoreNames.contains(_stores.items)) {
@@ -55,13 +63,23 @@ function onDbUpgradeNeeded() {
     store.createIndex('locationKey', 'locationKey', { unique: false });
   }
 
-  if (!db.objectStoreNames.contains(_stores.foodNameHistory)) {
-    /**
-     * Keyed by normalizedName (passed explicitly to putOne/getOne/deleteOne)
-     * instead of autoIncrement, since there's exactly one record per unique
-     * food name and we always look it up by name, never by an opaque id.
-     */
-    db.createObjectStore(_stores.foodNameHistory);
+  /**
+   * Keyed by [homeId, normalizedName] (passed explicitly to
+   * putOne/getOne/deleteOne) instead of autoIncrement, since there's exactly
+   * one record per unique food name per home and we always look it up by
+   * that pair, never by an opaque id.
+   */
+  const foodNameHistoryStore = db.objectStoreNames.contains(_stores.foodNameHistory)
+    ? openDbRequest.transaction.objectStore(_stores.foodNameHistory)
+    : db.createObjectStore(_stores.foodNameHistory);
+  if (!foodNameHistoryStore.indexNames.contains('homeId')) {
+    foodNameHistoryStore.createIndex('homeId', 'homeId', { unique: false });
+  }
+
+  if (!db.objectStoreNames.contains(_stores.homes)) {
+    // Keyed explicitly by the server-issued home id, same style as
+    // foodNameHistory above.
+    db.createObjectStore(_stores.homes);
   }
 
   _info(db.objectStoreNames);

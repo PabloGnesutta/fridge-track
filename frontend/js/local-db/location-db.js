@@ -1,6 +1,6 @@
 import { dbStore } from "../common/state.js";
 import { clearArray } from "../lib/utils.js";
-import { deleteMany, deleteOne, getAll, putOne } from "../lib/indexedDb.js";
+import { deleteMany, deleteOne, getAllWithIndex, putOne } from "../lib/indexedDb.js";
 
 
 /**
@@ -11,30 +11,32 @@ import { deleteMany, deleteOne, getAll, putOne } from "../lib/indexedDb.js";
 /**
  * @typedef {object} Location
  * @property {string} name
+ * @property {number} homeId
  * @property {IDBValidKey} [_key]
  * @property {Date} [createdAt]
  * @property {Date} [updatedAt]
  */
 
-const LAST_USED_LOCATION_KEY = 'lastUsedLocationKey';
+const LAST_USED_LOCATION_KEY_PREFIX = 'lastUsedLocationKey:';
 
 
 /**
- * Creates a new storage location (e.g. "Heladera", "Freezer").
+ * Creates a new storage location (e.g. "Heladera", "Freezer") within a Home.
  * @param {string} name
+ * @param {number} homeId
  * @param {Date} [date]
  * @returns {ServiceReturn<Location>}
  */
-async function createLocation(name, date = new Date()) {
+async function createLocation(name, homeId, date = new Date()) {
   name = name.trim();
   if (!name) { return { errorMsg: 'Ingresar nombre' }; }
 
   /** @type {Location} */
-  const location = { name, createdAt: date, updatedAt: date };
+  const location = { name, homeId, createdAt: date, updatedAt: date };
   location._key = await putOne('locations', location);
 
   dbStore.locations.push(location);
-  setLastUsedLocationKey(location._key);
+  setLastUsedLocationKey(homeId, location._key);
   return { data: location };
 }
 
@@ -67,36 +69,44 @@ async function deleteLocationAndItems(locationKey) {
 }
 
 /**
- * Fetch all locations. Stores them in dbStore.
+ * Fetch all locations belonging to the given Home. Stores them in dbStore.
+ * @param {number} homeId
  * @returns {Promise<Location[]>}
  */
-async function fetchLocations() {
+async function fetchLocations(homeId) {
   /** @type {Location[]} */ // @ts-ignore
-  const locations = await getAll('locations');
+  const locations = await getAllWithIndex('locations', 'homeId', homeId);
   clearArray(dbStore.locations);
   dbStore.locations.push(...locations);
   return locations;
 }
 
-/** @param {IDBValidKey} key */
-function setLastUsedLocationKey(key) {
-  localStorage.setItem(LAST_USED_LOCATION_KEY, String(key));
-}
-
-/** @returns {string|null} */
-function getLastUsedLocationKey() {
-  return localStorage.getItem(LAST_USED_LOCATION_KEY);
+/**
+ * @param {number} homeId
+ * @param {IDBValidKey} key
+ */
+function setLastUsedLocationKey(homeId, key) {
+  localStorage.setItem(LAST_USED_LOCATION_KEY_PREFIX + homeId, String(key));
 }
 
 /**
- * Resolves which location should be active on boot: the last-used one if it
- * still exists, otherwise the most recently updated one.
+ * @param {number} homeId
+ * @returns {string|null}
+ */
+function getLastUsedLocationKey(homeId) {
+  return localStorage.getItem(LAST_USED_LOCATION_KEY_PREFIX + homeId);
+}
+
+/**
+ * Resolves which location should be active on boot: the last-used one (for
+ * this Home) if it still exists, otherwise the most recently updated one.
  * @param {Location[]} locations
+ * @param {number} homeId
  * @returns {Location|null}
  */
-function resolveCurrentLocation(locations) {
+function resolveCurrentLocation(locations, homeId) {
   if (!locations.length) { return null; }
-  const lastUsedKey = getLastUsedLocationKey();
+  const lastUsedKey = getLastUsedLocationKey(homeId);
   const lastUsed = locations.find(l => String(l._key) === lastUsedKey);
   if (lastUsed) { return lastUsed; }
 

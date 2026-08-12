@@ -1,4 +1,5 @@
-.location-chips {
+.location-chips,
+.home-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -6,7 +7,8 @@
   background-color: var(--bg-app);
 }
 
-.location-chip {
+.location-chip,
+.home-chip {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -17,17 +19,20 @@
   color: var(--text-secondary);
 }
 
-.location-chip:active {
+.location-chip:active,
+.home-chip:active {
   background-color: var(--bg-surface-active);
 }
 
-.location-chip.active {
+.location-chip.active,
+.home-chip.active {
   background-color: var(--bg-surface-active);
   border-color: var(--accent);
   color: var(--text-primary);
 }
 
-.location-chip .locationName {
+.location-chip .locationName,
+.home-chip .homeName {
   font-size: 16px;
   max-width: 40vw;
   overflow: hidden;

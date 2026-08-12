@@ -1,0 +1,57 @@
+import { test, expect } from '@playwright/test';
+import { ensureAuth, ensureHome, ensureLocation, addItem } from './helpers.js';
+
+
+test('joining with an invalid code shows an error', async ({ page }) => {
+  await page.goto('/');
+  await ensureAuth(page);
+  await expect(page.locator('#homeView')).toBeVisible();
+
+  await page.fill('#homeJoinForm input[name="joinCode"]', 'ZZZZZZ');
+  await page.click('#homeJoinForm .submit');
+
+  await expect(page.locator('#errorToast .message')).toHaveText('Código inválido');
+  await expect(page.locator('#homeView')).toBeVisible();
+});
+
+test('creating a Home lands on the item list, ready to onboard a location', async ({ page }) => {
+  await page.goto('/');
+  await ensureAuth(page);
+  await ensureHome(page);
+
+  await expect(page.locator('#homeView')).toBeHidden();
+  await expect(page.locator('#locationForm')).toBeVisible();
+});
+
+test('two Homes in one browser context keep their locations separate', async ({ page }) => {
+  await page.goto('/');
+  await ensureAuth(page);
+
+  // First Home: "Casa A", with a location only it should see.
+  await ensureHome(page, 'Casa A');
+  await ensureLocation(page, 'Cocina A');
+  await addItem(page, { name: 'Solo en A', shelfLifeDays: 5 });
+  await expect(page.locator('.location-chip .locationName', { hasText: 'Cocina A' })).toBeVisible();
+
+  // Switch to a brand new "Casa B" via the home switcher, with its own
+  // differently-named location.
+  await page.click('.home-switcher');
+  await expect(page.locator('#homeView')).toBeVisible();
+  await ensureHome(page, 'Casa B');
+  await ensureLocation(page, 'Cocina B');
+  await addItem(page, { name: 'Solo en B', shelfLifeDays: 5 });
+
+  await expect(page.locator('.location-chip .locationName', { hasText: 'Cocina B' })).toBeVisible();
+  await expect(page.locator('.location-chip .locationName', { hasText: 'Cocina A' })).toHaveCount(0);
+  await expect(page.locator('.list .row', { hasText: 'Solo en A' })).toHaveCount(0);
+
+  // Switch back to Casa A via its chip in the Home switcher and confirm its
+  // data is intact and Casa B's doesn't leak into it.
+  await page.click('.home-switcher');
+  await page.locator('.home-chip', { hasText: 'Casa A' }).click();
+
+  await expect(page.locator('.location-chip .locationName', { hasText: 'Cocina A' })).toBeVisible();
+  await expect(page.locator('.location-chip .locationName', { hasText: 'Cocina B' })).toHaveCount(0);
+  await expect(page.locator('.list .row', { hasText: 'Solo en A' })).toBeVisible();
+  await expect(page.locator('.list .row', { hasText: 'Solo en B' })).toHaveCount(0);
+});
