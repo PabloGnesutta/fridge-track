@@ -36,7 +36,6 @@
       <div class="page-title"></div>
       <div class="header-icons">
         <div id="goBack2" class="go-back"></div>
-        <div id="historyNavBtn" class="history-nav"></div>
         <div id="logoutBtn"></div>
       </div>
     </header>
@@ -62,7 +61,7 @@
               <input type="password" name="authPassword" placeholder="Contraseña" autocomplete="current-password" />
             </div>
             <div class="submit"><!--  --></div>
-            <div id="authModeToggle" class="mode-toggle" role="button">¿No tenés cuenta? Creá una</div>
+            <div id="authModeToggle" class="mode-toggle" role="button" tabindex="0">¿No tenés cuenta? Creá una</div>
           </div>
         </form>
       </div>
@@ -85,7 +84,7 @@
               <input type="text" name="joinCode" placeholder="ej. AB12CD" autocomplete="off" />
             </div>
             <div class="submit"><!--  --></div>
-            <div id="homeModeToggle" class="mode-toggle" role="button">¿Tenés un código? Unite a un Hogar existente</div>
+            <div id="homeModeToggle" class="mode-toggle" role="button" tabindex="0">¿Tenés un código? Unite a un Hogar existente</div>
           </div>
         </form>
       </div>
@@ -96,6 +95,7 @@
           <span class="home-switcher-name"></span>
           <span class="home-switcher-code"></span>
         </div>
+        <div id="homeSummary" class="home-summary display-none" data-click-action="openMostUrgentItem"></div>
         <div class="location-chips"><!--  --></div>
 
         <div class="search-container" class="display-none">
@@ -108,7 +108,7 @@
           <!--  -->
         </div>
         <div class="btns">
-          <div id="newItemBtn" role="button" class="base-button">&plus;</div>
+          <div id="newItemBtn" role="button" tabindex="0" aria-label="Agregar alimento" class="base-button">&plus;</div>
         </div>
       </div>
 
@@ -201,9 +201,10 @@
       </div>
     </div>
 
-    <div id="mainFooter" class="display-none">
-      <div id="indexedDbVersion"></div>
-      <div id="cacheMajorVersion"></div>
+    <div id="mainFooter">
+      <div id="tabListBtn"></div>
+      <div id="tabHistoryBtn"></div>
+      <div id="tabHomeBtn"></div>
     </div>
   </div>
 
@@ -241,6 +242,8 @@
     <div id="closeLogsBtn">
       <h4>Cerrar logs</h4>
     </div>
+    <div id="indexedDbVersion"></div>
+    <div id="cacheMajorVersion"></div>
     <div id="logs"></div>
   </div>
 </body>

@@ -159,8 +159,23 @@ function setCssVar(key, value) {
   document.documentElement.style.setProperty(key, value);
 }
 
-/** 
- * Toggles full screen 
+/**
+ * Makes a non-native clickable element (a div with role="button") keyboard-
+ * activatable - browsers only auto-fire a click on Enter/Space for real
+ * interactive elements (button/a), not for role="button" divs.
+ * @param {HTMLElement} el
+ */
+function makeKeyboardActivatable(el) {
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      el.click();
+    }
+  });
+}
+
+/**
+ * Toggles full screen
  */
 function toggleFullScreen() {
   if (!document.fullscreenElement) {
@@ -183,6 +198,7 @@ function toggleFullScreen() {
  *  iconId?: string
  *  label?: string
  *  labelId?: string
+ *  ariaLabel?: string
  *  appendTo?: HTMLElement
  *  prependTo?: HTMLElement
  * }} args
@@ -216,6 +232,11 @@ function $button(args) {
 
   button.role = 'button';
   button.tabIndex = 0;
+  makeKeyboardActivatable(button);
+  // Icon-only buttons have no visible text for screen readers to announce -
+  // args.label (when present) already does that job, so ariaLabel is mainly
+  // needed for svgFn-only buttons.
+  if (args.ariaLabel) { button.setAttribute('aria-label', args.ariaLabel); }
 
   if (args.appendTo) {
     args.appendTo.append(button);
@@ -251,5 +272,6 @@ function unfold(el) { el.classList.remove('folded'); }
 export {
   $, $form, $input, $queryAll, $queryOne, $new, $newInput, $getChild, getCssVar, setCssVar,
   toggleFullScreen, show, hide, display, undisplay, $display, $undisplay,
-  $button, $getInner, select, unselect, fold, unfold, $getInnerInput, $queryOneInput
+  $button, $getInner, select, unselect, fold, unfold, $getInnerInput, $queryOneInput,
+  makeKeyboardActivatable,
 };

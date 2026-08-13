@@ -5,6 +5,7 @@ import { generateId } from "../lib/id.js";
 import { computeStatus, getSoonestDays } from "../lib/freshnessStatus.js";
 import { getAllWithIndex, getOne, putOne } from "../lib/indexedDb.js";
 import { syncHome } from "../sync/syncEngine.js";
+import { fetchLocations } from "./location-db.js";
 
 
 /**
@@ -200,4 +201,31 @@ async function countItemsByStatus(locationKey, currentDate) {
 }
 
 
-export { createItem, updateItem, deleteItem, restoreItem, fetchItems, countItemsByStatus };
+/**
+ * Fetches every non-deleted item across every location in the Home, each
+ * paired with its owning location (needed for tap-through: activating the
+ * right location before opening the item). Does NOT touch dbStore.items -
+ * that's reserved for the single active location's list (see fetchItems).
+ * Mirrors the loop-over-locations pattern already established in
+ * sync/syncEngine.js's buildLocalSnapshot.
+ * @param {number} homeId
+ * @returns {Promise<{item: Item, location: import("./location-db.js").Location}[]>}
+ */
+async function fetchAllItemsForHome(homeId) {
+  const locations = await fetchLocations(homeId);
+
+  /** @type {{item: Item, location: import("./location-db.js").Location}[]} */
+  const itemsWithLocation = [];
+  for (const location of locations) {
+    /** @type {Item[]} */ // @ts-ignore
+    const items = (await getAllWithIndex('items', 'locationKey', location._key || ''))
+      .filter(item => item.deletedAt == null);
+    itemsWithLocation.push(...items.map(item => ({ item, location })));
+  }
+  return itemsWithLocation;
+}
+
+
+export {
+  createItem, updateItem, deleteItem, restoreItem, fetchItems, countItemsByStatus, fetchAllItemsForHome,
+};

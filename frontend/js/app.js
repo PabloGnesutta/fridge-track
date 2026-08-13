@@ -1,7 +1,7 @@
 import { initializeCache } from "./initializeCache.js";
 import { _info, _log } from "./lib/logger.js";
 import { initializeIndexedDb } from "./lib/indexedDb.js";
-import { dbugBtns, initUi } from "./ui/ui.js";
+import { initUi } from "./ui/ui.js";
 import { initAppState } from "./common/state.js";
 import { eventBus } from "./lib/utils.js";
 import { $ } from "./lib/dom.js";
@@ -42,4 +42,3 @@ initAuthUi();
 initHomeUi();
 initRouter();
 initInstallPrompt();
-dbugBtns();

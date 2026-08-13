@@ -12,5 +12,11 @@ const svg_search = () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6
 
 const svg_logout = () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="currentColor" d="M377.9 105.9c-9.5-9.9-25.1-10.2-35-.7s-10.2 25.1-.7 35L446.1 240H208c-13.3 0-24 10.7-24 24s10.7 24 24 24H446.1L342.1 391.7c-9.9 9.5-10.2 25.1-.7 35s25.1 10.2 35 .7l128-123.4c5-4.8 7.9-11.5 7.9-18.5s-2.9-13.6-7.9-18.5l-128-123.4zM160 96c17.7 0 32-14.3 32-32s-14.3-32-32-32H96C43 32 0 75 0 128V384c0 53 43 96 96 96h64c17.7 0 32-14.3 32-32s-14.3-32-32-32H96c-17.7 0-32-14.3-32-32V128c0-17.7 14.3-32 32-32h64z"/></svg>`;
 
+// Bottom-tab icons - kept as simple primitives (rects/polygon) rather than
+// hand-derived path data, since those are easy to get subtly wrong and hard
+// to eyeball-verify; simple shapes read fine at the small tab-icon size.
+const svg_list = () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><rect x="96" y="144" width="448" height="64" rx="16" fill="currentColor"/><rect x="96" y="288" width="448" height="64" rx="16" fill="currentColor"/><rect x="96" y="432" width="448" height="64" rx="16" fill="currentColor"/></svg>`;
+const svg_home = () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><polygon points="320,90 100,270 540,270" fill="currentColor"/><rect x="140" y="270" width="360" height="270" fill="currentColor"/></svg>`;
 
-export { arrow_left, pen_solid, svg_trash, svg_notes, svg_check, svg_search, svg_logout };
+
+export { arrow_left, pen_solid, svg_trash, svg_notes, svg_check, svg_search, svg_logout, svg_list, svg_home };

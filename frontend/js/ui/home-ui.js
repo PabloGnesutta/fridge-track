@@ -1,4 +1,6 @@
-import { $, $button, $form, $getInner, $new, $queryOne, $queryOneInput, display, undisplay } from "../lib/dom.js";
+import {
+  $, $button, $form, $getInner, $new, $queryOne, $queryOneInput, display, undisplay, makeKeyboardActivatable,
+} from "../lib/dom.js";
 import { showErrorToast, showInfoToast } from "../lib/toast.js";
 import { dataState, dbStore, setAuthStage } from "../common/state.js";
 import { createHome, joinHome, setCurrentHomeId } from "../local-db/home-db.js";
@@ -25,6 +27,7 @@ let mode = 'create';
 // doesn't navigate the browser away with the field as a GET query string.
 homeForm.addEventListener('submit', submitHomeForm);
 modeToggle.addEventListener('click', toggleMode);
+makeKeyboardActivatable(modeToggle);
 // Attached directly (not via the #app click-delegation used for
 // data-click-action elements) so stopPropagation() here reliably runs
 // before the click ever reaches .home-switcher's own openHomeSwitcher

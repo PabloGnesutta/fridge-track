@@ -1,14 +1,18 @@
 import { fromYYYYMMDD, toYYYYMMDD } from "../lib/date.js";
 import { matches, normalize } from "../lib/string.js";
-import { $, $form, $getInner, $new, $queryOne, $queryOneInput } from "../lib/dom.js";
+import { $, $form, $getInner, $new, $queryOne, $queryOneInput, makeKeyboardActivatable } from "../lib/dom.js";
 import { showUndoToast, showErrorToast } from "../lib/toast.js";
+import { attachSwipe } from "../lib/swipe.js";
+import { svg_check, svg_trash } from "../svg/svgFn.js";
 import { syncUrl } from "../common/router.js";
 import { appState, dataState, dbStore, setCurrentView, setStateField } from "../common/state.js";
-import { createItem, deleteItem, fetchItems, restoreItem, updateItem } from "../local-db/item-db.js";
+import {
+  createItem, deleteItem, fetchAllItemsForHome, fetchItems, restoreItem, updateItem,
+} from "../local-db/item-db.js";
 import { adjustDiscardCount, recordItemCreated } from "../local-db/food-name-db.js";
-import { computeStatus, formatDueDetail } from "../lib/freshnessStatus.js";
+import { computeStatus, formatDueDetail, getSoonestDays } from "../lib/freshnessStatus.js";
 import { pageTitle } from "./ui.js";
-import { renderLocationChips } from "./location-ui.js";
+import { activateLocation, renderLocationChips } from "./location-ui.js";
 
 
 /**
@@ -19,6 +23,19 @@ import { renderLocationChips } from "./location-ui.js";
 const STATUS_LABELS = { fresh: 'Fresco', 'expiring-soon': 'Por vencer', expired: 'Vencido' };
 
 const itemList = $queryOne('#itemListView .list');
+const homeSummary = $('homeSummary');
+homeSummary.role = 'button';
+homeSummary.tabIndex = 0;
+makeKeyboardActivatable(homeSummary);
+
+/**
+ * The Home-wide most urgent item found by the last renderHomeSummary() call
+ * (if any) - what tapping #homeSummary jumps to. Module-level like
+ * dataState.currentItem/currentLocation, since there's nowhere else to hang
+ * "the thing the summary strip currently points at".
+ * @type {{item: Item, location: Location}|null}
+ */
+let mostUrgentEntry = null;
 
 const singleItemView = $('singleItemView');
 const itemName = $getInner(singleItemView, '.name');
@@ -97,11 +114,11 @@ function filterItemList(value) {
   dbStore.items.forEach(item => {
     const row = $queryOne(`[data-item-key="${item._key}"]`);
     if (!row) { return; }
-    if (matches(item.normalizedName || '', value)) {
-      row.classList.remove('display-none');
-    } else {
-      row.classList.add('display-none');
-    }
+    // The filter target is .row-wrapper (the swipe-action strips live
+    // alongside .row inside it) so a filtered-out row doesn't leave its
+    // action labels visibly exposed behind nothing.
+    const wrapper = row.closest('.row-wrapper') || row;
+    wrapper.classList.toggle('display-none', !matches(item.normalizedName || '', value));
   });
 }
 
@@ -141,6 +158,61 @@ async function fetchAndRenderItems(location) {
     items.forEach(item => appendItemRow(item));
   }
   await renderLocationChips();
+  await renderHomeSummary(location.homeId);
+}
+
+/**
+ * Renders (or hides) the Home-wide "what's expiring" summary strip above
+ * the location chips - counts expired/expiring-soon items across every
+ * location in the Home, not just the currently active one, so urgency is
+ * visible without picking a location first. Tapping it jumps to the single
+ * most urgent item (see openMostUrgentItem).
+ * @param {number} homeId
+ */
+async function renderHomeSummary(homeId) {
+  const currentDate = new Date();
+  const itemsWithLocation = await fetchAllItemsForHome(homeId);
+
+  /** @type {{item: Item, location: Location, soonest: number|null}[]} */
+  const expired = [];
+  /** @type {{item: Item, location: Location, soonest: number|null}[]} */
+  const expiringSoon = [];
+  for (const entry of itemsWithLocation) {
+    const result = computeStatus(entry.item, currentDate);
+    const bucket = result.status === 'expired' ? expired : result.status === 'expiring-soon' ? expiringSoon : null;
+    if (bucket) { bucket.push({ ...entry, soonest: getSoonestDays(result) }); }
+  }
+
+  if (!expired.length && !expiringSoon.length) {
+    mostUrgentEntry = null;
+    homeSummary.classList.add('display-none');
+    return;
+  }
+
+  const mostUrgent = (expired.length ? expired : expiringSoon)
+    .sort((a, b) => (a.soonest ?? 0) - (b.soonest ?? 0))[0];
+  mostUrgentEntry = { item: mostUrgent.item, location: mostUrgent.location };
+
+  const parts = [];
+  if (expired.length) { parts.push(`${expired.length} vencido${expired.length === 1 ? '' : 's'}`); }
+  if (expiringSoon.length) { parts.push(`${expiringSoon.length} por vencer`); }
+  homeSummary.innerText = `⚠ ${parts.join(', ')}`;
+  homeSummary.dataset.status = expired.length ? 'expired' : 'expiring-soon';
+  homeSummary.classList.remove('display-none');
+}
+
+/**
+ * Jumps to the single most urgent item across the whole Home (see
+ * renderHomeSummary), activating its location first if it isn't already the
+ * current one.
+ */
+async function openMostUrgentItem() {
+  if (!mostUrgentEntry) { return; }
+  const { item, location } = mostUrgentEntry;
+  if (dataState.currentLocation?._key !== location._key) {
+    await activateLocation(location);
+  }
+  openSingleItem(item._key || '');
 }
 
 /** Open the item list view */
@@ -156,6 +228,7 @@ function openItemList() {
 function appendItemRow(item) {
   const key = (item._key || '').toString();
   const { status, daysUntilUseBy, daysUntilShelfLifeEnd } = computeStatus(item, new Date());
+  const dueText = formatDueDetail({ status, daysUntilUseBy, daysUntilShelfLifeEnd });
 
   const nameChildren = [$new({ class: 'itemName', text: item.name })];
   const meta = [item.quantity, item.notes].filter(Boolean).join(' · ');
@@ -172,17 +245,51 @@ function appendItemRow(item) {
     ],
     children: [
       $new({ class: 'left-side', children: nameChildren }),
+      // Just the due-detail text now - it already says everything the
+      // dropped status-badge used to say ("Vencido" + "vencido hace 1 día"
+      // was the same fact twice), the colored left-border still gives the
+      // at-a-glance status cue.
+      $new({ class: 'right-side', children: [$new({ class: 'due-detail', text: dueText })] }),
+    ],
+  });
+
+  row.role = 'button';
+  row.tabIndex = 0;
+  row.setAttribute('aria-label', `${item.name}, ${dueText}`);
+  makeKeyboardActivatable(row);
+
+  // Swipe-to-act: two edge-pinned labels (only one visible at a time,
+  // toggled by drag direction) sit behind .row, revealed as .row itself
+  // translates - see attachSwipe() below and swipe-action CSS in style.css.
+  const swipeAction = $new({
+    class: 'swipe-action',
+    children: [
       $new({
-        class: 'right-side',
-        children: [
-          $new({ class: 'status-badge', text: STATUS_LABELS[status] }),
-          $new({ class: 'due-detail', text: formatDueDetail({ status, daysUntilUseBy, daysUntilShelfLifeEnd }) }),
-        ],
+        class: 'swipe-action-used',
+        children: [$new({ class: 'icon', html: svg_check() }), $new({ class: 'label', text: 'Usado' })],
+      }),
+      $new({
+        class: 'swipe-action-discarded',
+        children: [$new({ class: 'icon', html: svg_trash() }), $new({ class: 'label', text: 'Tirado' })],
       }),
     ],
   });
 
-  itemList.append(row);
+  const rowWrapper = $new({ class: 'row-wrapper', children: [swipeAction, row] });
+
+  attachSwipe(row, {
+    onDragStart: () => row.classList.add('dragging'),
+    onDrag: dx => {
+      row.style.transform = `translateX(${dx}px)`;
+      swipeAction.classList.toggle('used', dx > 0);
+      swipeAction.classList.toggle('discarded', dx < 0);
+    },
+    onDragEnd: () => row.classList.remove('dragging'),
+    onCommitRight: () => markItemUsed(item),
+    onCommitLeft: () => markItemDiscarded(item),
+  });
+
+  itemList.append(rowWrapper);
 }
 
 /**
@@ -310,13 +417,16 @@ function closeSingleItem() {
  * Removes an item from the list immediately (used for delete, "Usado" and
  * "Tirado" alike — there's no history to distinguish them, just the toast
  * wording) and offers a few seconds to undo instead of a blocking confirm.
+ * Takes the item explicitly (rather than always reading
+ * dataState.currentItem) so a row swipe in the list can act on that row's
+ * item directly, without first navigating into the single-item view.
+ * @param {Item} item
  * @param {string} toastMessage
  * @param {{ discarded?: boolean }} [opts] When true, adjusts that food
  *   name's discard count (and undoes the adjustment if the removal itself
  *   is undone).
  */
-async function removeItem(toastMessage, { discarded = false } = {}) {
-  const item = dataState.currentItem;
+async function removeItem(item, toastMessage, { discarded = false } = {}) {
   const location = dataState.currentLocation;
   if (!item || !location) { return; }
   const itemKey = item._key;
@@ -330,7 +440,7 @@ async function removeItem(toastMessage, { discarded = false } = {}) {
   const idx = dbStore.items.findIndex(i => i._key === itemKey);
   if (idx !== -1) { dbStore.items.splice(idx, 1); }
 
-  dataState.currentItem = null;
+  if (dataState.currentItem?._key === itemKey) { dataState.currentItem = null; }
   await fetchAndRenderItems(location);
 
   showUndoToast(toastMessage, async () => {
@@ -340,27 +450,32 @@ async function removeItem(toastMessage, { discarded = false } = {}) {
   });
 }
 
-function tryDeleteItem() {
-  const item = dataState.currentItem;
+/**
+ * Each of these defaults to dataState.currentItem (the single-item detail
+ * view's buttons call these with no argument) but also accepts an explicit
+ * item so a list-row swipe can act on that specific row.
+ * @param {Item} [item]
+ */
+function tryDeleteItem(item = dataState.currentItem) {
   if (!item) { return; }
-  return removeItem(`"${item.name}" eliminado`);
+  return removeItem(item, `"${item.name}" eliminado`);
 }
 
-function markItemUsed() {
-  const item = dataState.currentItem;
+/** @param {Item} [item] */
+function markItemUsed(item = dataState.currentItem) {
   if (!item) { return; }
-  return removeItem(`"${item.name}" usado`);
+  return removeItem(item, `"${item.name}" usado`);
 }
 
-function markItemDiscarded() {
-  const item = dataState.currentItem;
+/** @param {Item} [item] */
+function markItemDiscarded(item = dataState.currentItem) {
   if (!item) { return; }
-  return removeItem(`"${item.name}" tirado`, { discarded: true });
+  return removeItem(item, `"${item.name}" tirado`, { discarded: true });
 }
 
 
 export {
   fetchAndRenderItems, openItemList, openItemForm, submitItemForm,
   openSingleItem, closeSingleItem, tryDeleteItem, markItemUsed, markItemDiscarded, submitItemBtn,
-  toggleSearch,
+  toggleSearch, openMostUrgentItem,
 };

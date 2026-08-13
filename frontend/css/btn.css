@@ -40,18 +40,25 @@
   background-color: rgba(255, 255, 255, 0.4);
 }
 
-.go-back,
-.history-nav {
+/* Keyboard-only focus ring (not shown on mouse/touch clicks) - the app had
+   zero focus styling before this, only text inputs did (input.css). */
+.base-button:focus-visible,
+.mode-toggle:focus-visible,
+.list .row:focus-visible,
+.home-summary:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.go-back {
   color: white;
 }
 .go-back .btn,
-.history-nav .btn,
 #logoutBtn .btn {
   padding: 0.75rem;
 }
 
 .go-back .btn .icon,
-.history-nav .btn .icon,
 #logoutBtn .btn .icon {
   width: 22px;
   height: 22px;

@@ -1,4 +1,6 @@
-import { $, $button, $form, $getInner, $queryOne, $queryOneInput, display, undisplay } from "../lib/dom.js";
+import {
+  $, $button, $form, $getInner, $queryOne, $queryOneInput, display, undisplay, makeKeyboardActivatable,
+} from "../lib/dom.js";
 import { showErrorToast } from "../lib/toast.js";
 import { apiLogin, apiSignup } from "../api-caller/apiCaller.js";
 import { afterLogin } from "../appBoot.js";
@@ -20,6 +22,7 @@ let mode = 'login';
 // doesn't navigate the browser away with the field as a GET query string.
 authForm.addEventListener('submit', submitAuthForm);
 modeToggle.addEventListener('click', toggleMode);
+makeKeyboardActivatable(modeToggle);
 
 function initAuthUi() {
   $button({

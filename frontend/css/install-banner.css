@@ -1,6 +1,6 @@
 #installBanner {
   position: fixed;
-  bottom: 1rem;
+  bottom: calc(var(--footer-heigt) + 1rem);
   left: 1rem;
   right: 1rem;
   max-width: 420px;
@@ -19,7 +19,8 @@
 }
 
 #installBanner.folded {
-  transform: translateY(150%);
+  transform: translateY(calc(100% + var(--footer-heigt) + 2rem));
+  pointer-events: none;
 }
 
 #installBanner .message {

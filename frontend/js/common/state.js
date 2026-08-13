@@ -74,6 +74,29 @@ const dbStore = {
 
 const $app = $('app');
 
+/** @type {Record<Views, string>} */
+const VIEW_ELEMENT_IDS = {
+    ItemList: 'itemListView',
+    SingleItem: 'singleItemView',
+    FoodHistory: 'foodHistoryView',
+};
+
+/**
+ * Plays the page-enter animation (see style.css's @keyframes pageEnter) on
+ * the view that just became visible. Purely decorative - the element is
+ * already display:block by the time this runs (the data-current-view
+ * attribute selector already flipped), this just adds a one-shot entrance.
+ * @param {Views} view
+ */
+function animatePageEnter(view) {
+    const el = $(VIEW_ELEMENT_IDS[view]);
+    if (!el) { return; }
+    el.classList.remove('page-enter');
+    void el.offsetWidth; // force reflow so re-adding the class restarts the animation
+    el.classList.add('page-enter');
+    el.addEventListener('animationend', () => el.classList.remove('page-enter'), { once: true });
+}
+
 /**
  * @param {keyof AppState} field
  * @param {*} value
@@ -90,6 +113,7 @@ function setStateField(field, value) {
 function setCurrentView(view) {
     appState.currentView = view;
     $app.dataset.currentView = view;
+    animatePageEnter(view);
 }
 
 /**

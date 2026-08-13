@@ -42,7 +42,7 @@
   --text-muted: #7c8ba3;
 
   --header-heigt: 58px;
-  --footer-heigt: 0px;
+  --footer-heigt: 60px;
 }
 
 body {
@@ -102,22 +102,52 @@ svg {
   min-height: calc(100dvh - var(--header-heigt) - var(--footer-heigt));
 }
 
-#mainFooter {
-  background-color: var(--bg-header);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  padding: 1dvw;
+/* Entrance animation for whichever .page setCurrentView() just switched to
+   (see state.js) - display:none can't itself be transitioned, so this is a
+   one-shot @keyframes applied to the page after it's already display:block,
+   purely decorative on top of the existing show/hide mechanism. */
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-#mainFooter .btn {
-  padding: 3dvw;
-  color: var(--text-primary);
+.page-enter {
+  animation: pageEnter 200ms ease-out;
+}
+
+#mainFooter {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--footer-heigt);
+  background-color: var(--bg-header);
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  z-index: 5;
+}
+
+#mainFooter .tab-btn {
+  flex: 1;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 11px;
+  gap: 2px;
+}
+
+#mainFooter .tab-btn .icon {
+  width: 22px;
+  height: 22px;
+}
+
+#app[data-current-view='ItemList'] #mainFooter [data-tab='list'],
+#app[data-current-view='FoodHistory'] #mainFooter [data-tab='history'] {
+  color: var(--accent-text);
 }
 
 #itemListView {
-  padding-bottom: 4.5rem;
+  padding-bottom: calc(var(--footer-heigt) + 4.5rem);
 }
 
 #itemListView .list {
@@ -157,7 +187,7 @@ svg {
 
 #newItemBtn {
   position: fixed;
-  bottom: 4dvh;
+  bottom: calc(var(--footer-heigt) + 1rem);
   right: 3dvw;
   width: 60px;
   height: 60px;
@@ -343,6 +373,81 @@ svg {
   border-color: rgba(255, 255, 255, 0.5);
 }
 
+/* Swipe-to-act (item-list rows only - food-history rows are plain .row
+   with no wrapper, so these selectors never match there). The wrapper owns
+   the shadow/radius/clip; .row's own shadow is switched off inside it so
+   overflow:hidden doesn't cut it in half. */
+.list .row-wrapper {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.list .row-wrapper .row {
+  /* Absolutely-positioned elements (.swipe-action) stack above static ones
+     regardless of DOM order - without this, .swipe-action (behind .row
+     visually, since it's covered at rest) was actually intercepting clicks
+     meant for .row. */
+  position: relative;
+  z-index: 1;
+  box-shadow: none;
+  transition: transform 200ms ease-out;
+  touch-action: pan-y;
+}
+
+.list .row-wrapper .row.dragging {
+  transition: none;
+}
+
+/* The wrapper's overflow:hidden would clip the normal outline-offset:2px
+   focus ring (btn.css) since it extends outside .row's own box - keep it
+   inset here so keyboard focus stays visible. */
+.list .row-wrapper .row:focus-visible {
+  outline-offset: -2px;
+}
+
+.list .row-wrapper .swipe-action {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 1.25rem;
+  font-weight: bold;
+  color: white;
+}
+
+.list .row-wrapper .swipe-action-used,
+.list .row-wrapper .swipe-action-discarded {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.list .row-wrapper .swipe-action-used .icon,
+.list .row-wrapper .swipe-action-discarded .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.list .row-wrapper .swipe-action.used {
+  background-color: var(--status-fresh);
+  justify-content: flex-start;
+}
+
+.list .row-wrapper .swipe-action.used .swipe-action-used {
+  display: flex;
+}
+
+.list .row-wrapper .swipe-action.discarded {
+  background-color: var(--status-expired);
+  justify-content: flex-end;
+}
+
+.list .row-wrapper .swipe-action.discarded .swipe-action-discarded {
+  display: flex;
+}
+
 .list .row .left-side {
   display: flex;
   flex-direction: column;
@@ -366,7 +471,7 @@ svg {
 }
 
 #foodHistoryView {
-  padding: 0.5rem 0.25rem;
+  padding: 0.5rem 0.25rem calc(var(--footer-heigt) + 0.5rem);
 }
 
 #foodHistoryView .list .row {
@@ -397,10 +502,19 @@ svg {
   z-index: 10;
 
   display: flex;
-  display: none;
   justify-content: center;
   align-items: center;
   padding: 1dvw;
+
+  /* Hidden by default via opacity (not display:none) so it can transition -
+     visibility is delayed on the way out (stays visible through the fade)
+     and instant on the way in, which is the standard trick to keep both
+     the fade AND display:none's old side effect of pulling the modal's
+     form fields out of the tab order while hidden. */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 200ms ease-out, visibility 0s linear 200ms;
 }
 
 .modal .backdrop {
@@ -426,6 +540,9 @@ svg {
   max-height: 85dvh;
   overflow-y: auto;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  transform: translateY(20px);
+  transition: transform 200ms ease-out;
 }
 
 /* State Machine */
@@ -433,7 +550,15 @@ svg {
 /* Modal/Forms state */
 #app[data-show-location-form='true'] .modal,
 #app[data-show-item-form='true'] .modal {
-  display: flex;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 200ms ease-out, visibility 0s linear 0s;
+}
+
+#app[data-show-location-form='true'] .modal .content,
+#app[data-show-item-form='true'] .modal .content {
+  transform: translateY(0);
 }
 
 #app[data-show-location-form='false'] #locationForm,
@@ -510,17 +635,12 @@ svg {
   cursor: pointer;
 }
 
-/* Header nav buttons: go-back everywhere except the list, the food-history
-   shortcut only on the list - they share the header's right-hand slot. */
-.go-back,
-.history-nav {
+/* Go-back only shows once you've drilled into a non-list view - the food-
+   history shortcut moved to the bottom tab bar, no longer shares this slot. */
+.go-back {
   display: none;
 }
 
 #app:not([data-current-view='ItemList']) .go-back {
-  display: block;
-}
-
-#app[data-current-view='ItemList'] .history-nav {
   display: block;
 }

@@ -7,6 +7,32 @@
   background-color: var(--bg-app);
 }
 
+/* Home-wide "what's expiring" summary strip - severity color mirrors the
+   existing status-badge/due-detail convention (status-expired vs
+   status-expiring-soon), not a new color of its own. */
+.home-summary {
+  margin: 0.5rem 0.75rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background-color: var(--bg-surface-raised);
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.home-summary:active {
+  background-color: var(--bg-surface-active);
+}
+
+.home-summary[data-status='expired'] {
+  color: var(--status-expired-text);
+}
+
+.home-summary[data-status='expiring-soon'] {
+  color: var(--status-expiring-soon-text);
+}
+
 .location-chip,
 .home-chip {
   display: flex;

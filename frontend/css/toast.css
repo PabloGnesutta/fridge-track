@@ -1,6 +1,6 @@
 #undoToast {
   position: fixed;
-  bottom: 1rem;
+  bottom: calc(var(--footer-heigt) + 1rem);
   left: 1rem;
   right: 1rem;
   max-width: 420px;
@@ -19,7 +19,13 @@
 }
 
 #undoToast.folded {
-  transform: translateY(150%);
+  /* 100% clears the toast's own (variable) height, the rest clears the
+     fixed bottom tab bar underneath it - a plain percentage (the old
+     150%) is relative to the toast's own box, not the page, so it doesn't
+     scale with --footer-heigt and stopped fully clearing the screen once
+     the tab bar was added. */
+  transform: translateY(calc(100% + var(--footer-heigt) + 2rem));
+  pointer-events: none;
 }
 
 #undoToast .message {
@@ -40,7 +46,7 @@
 
 #errorToast {
   position: fixed;
-  bottom: 1rem;
+  bottom: calc(var(--footer-heigt) + 1rem);
   left: 1rem;
   right: 1rem;
   max-width: 420px;
@@ -57,12 +63,18 @@
 }
 
 #errorToast.folded {
-  transform: translateY(150%);
+  /* 100% clears the toast's own (variable) height, the rest clears the
+     fixed bottom tab bar underneath it - a plain percentage (the old
+     150%) is relative to the toast's own box, not the page, so it doesn't
+     scale with --footer-heigt and stopped fully clearing the screen once
+     the tab bar was added. */
+  transform: translateY(calc(100% + var(--footer-heigt) + 2rem));
+  pointer-events: none;
 }
 
 #infoToast {
   position: fixed;
-  bottom: 1rem;
+  bottom: calc(var(--footer-heigt) + 1rem);
   left: 1rem;
   right: 1rem;
   max-width: 420px;
@@ -79,5 +91,11 @@
 }
 
 #infoToast.folded {
-  transform: translateY(150%);
+  /* 100% clears the toast's own (variable) height, the rest clears the
+     fixed bottom tab bar underneath it - a plain percentage (the old
+     150%) is relative to the toast's own box, not the page, so it doesn't
+     scale with --footer-heigt and stopped fully clearing the screen once
+     the tab bar was added. */
+  transform: translateY(calc(100% + var(--footer-heigt) + 2rem));
+  pointer-events: none;
 }

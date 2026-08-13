@@ -35,7 +35,7 @@ test('discarding an item increments its discard count in the history view, undo 
   await page.click('#discardedBtn');
   await page.waitForTimeout(200);
 
-  await page.click('#historyNavBtn .btn');
+  await page.click('#tabHistoryBtn .btn');
   await expect(page).toHaveURL('/historial');
   await expect(page.locator('#foodHistoryView .list .row', { hasText: 'Yogur' })).toContainText('Tirado 1 vez');
 
@@ -44,15 +44,15 @@ test('discarding an item increments its discard count in the history view, undo 
   await page.click('#undoBtn');
   await page.waitForTimeout(200);
   await page.click('#goBack2 .btn');
-  await page.click('#historyNavBtn .btn');
+  await page.click('#tabHistoryBtn .btn');
   await expect(page.locator('#foodHistoryView .list .row', { hasText: 'Yogur' })).not.toContainText('Tirado');
 });
 
-test('the history nav button opens /historial and the back button returns to the list', async ({ page }) => {
+test('the history tab opens /historial and the back button returns to the list', async ({ page }) => {
   await page.goto('/');
   await ensureOnboarded(page);
 
-  await page.click('#historyNavBtn .btn');
+  await page.click('#tabHistoryBtn .btn');
   await expect(page).toHaveURL('/historial');
   await expect(page.locator('#foodHistoryView')).toBeVisible();
 

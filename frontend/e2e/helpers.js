@@ -170,3 +170,28 @@ export async function addItem(page, { name, shelfLifeDays, useByDate }) {
   await page.click('#itemForm .submit');
   await page.waitForSelector('#itemForm', { state: 'hidden' });
 }
+
+/**
+ * Drags the list row for the given item name horizontally via a real
+ * page.mouse sequence - exercises the same Pointer Events attachSwipe()
+ * listens for (js/lib/swipe.js), so this is the actual gesture, not a
+ * simulation of its outcome. Does not release the mouse button - callers
+ * decide whether to release in place (to check the mid-drag reveal) or
+ * continue dragging further first.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} name
+ * @param {number} fraction Signed fraction of the row's own width to drag -
+ *   positive drags right (reveals "Usado"), negative drags left (reveals
+ *   "Tirado"). E.g. 0.5 safely clears the 0.35 commit threshold.
+ */
+export async function dragRow(page, name, fraction) {
+  const row = page.locator('.row', { hasText: name });
+  const box = await row.boundingBox();
+  if (!box) { throw new Error(`Row "${name}" not found`); }
+  const startX = box.x + box.width / 2;
+  const startY = box.y + box.height / 2;
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + box.width * fraction, startY, { steps: 15 });
+}
