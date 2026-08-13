@@ -55,4 +55,28 @@ function computeItemStatus(item, currentDate = new Date()) {
   return expiringSoon ? 'expiring-soon' : 'fresh';
 }
 
-export { computeItemStatus };
+/**
+ * The number of days until the soonest of the two due signals is reached
+ * (negative when already past), or null if the item has neither. Mirrors
+ * frontend/js/lib/freshnessStatus.js's getSoonestDays() - used to rank
+ * items by actual urgency rather than just their status bucket (e.g. for
+ * recipe-suggestion ingredient picking).
+ * @param {{useByDate: number|null, addedDate: number|null, shelfLifeDays: number|null}} item
+ * @param {Date} [currentDate]
+ * @returns {number|null}
+ */
+function getDaysUntilDue(item, currentDate = new Date()) {
+  const daysUntilUseBy = item.useByDate
+    ? daysBetween(currentDate, new Date(item.useByDate))
+    : null;
+
+  const daysUntilShelfLifeEnd = (item.shelfLifeDays != null && item.addedDate)
+    ? daysBetween(currentDate, addDays(new Date(item.addedDate), item.shelfLifeDays))
+    : null;
+
+  const days = [daysUntilUseBy, daysUntilShelfLifeEnd].filter(d => d !== null);
+  if (!days.length) { return null; }
+  return Math.min(...days);
+}
+
+export { computeItemStatus, getDaysUntilDue, EXPIRING_SOON_DAYS };

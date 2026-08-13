@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeItemStatus } from '../src/lib/itemStatus.js';
+import { computeItemStatus, getDaysUntilDue } from '../src/lib/itemStatus.js';
 
 // Mirrors frontend/test/freshnessStatus.test.js's cases - the two are
 // deliberately-duplicated ports of the same logic (see itemStatus.js), so
@@ -50,4 +50,28 @@ test('no due signals at all is treated as fresh', () => {
 test('expiring-soon via shelf life alone', () => {
   const item = { useByDate: null, addedDate: new Date(2026, 7, 8).getTime(), shelfLifeDays: 3 };
   assert.equal(computeItemStatus(item, today), 'expiring-soon');
+});
+
+test('getDaysUntilDue: positive days for a future use-by date', () => {
+  const item = { useByDate: new Date(2026, 7, 20).getTime(), addedDate: null, shelfLifeDays: null };
+  assert.equal(getDaysUntilDue(item, today), 10);
+});
+
+test('getDaysUntilDue: negative days for a past use-by date', () => {
+  const item = { useByDate: new Date(2026, 7, 1).getTime(), addedDate: null, shelfLifeDays: null };
+  assert.equal(getDaysUntilDue(item, today), -9);
+});
+
+test('getDaysUntilDue: picks the soonest of the two signals', () => {
+  const item = {
+    useByDate: new Date(2026, 7, 20).getTime(), // 10 days away
+    addedDate: new Date(2026, 7, 1).getTime(),
+    shelfLifeDays: 5, // ended 4 days ago
+  };
+  assert.equal(getDaysUntilDue(item, today), -4);
+});
+
+test('getDaysUntilDue: null when the item has neither signal', () => {
+  const item = { useByDate: null, addedDate: null, shelfLifeDays: null };
+  assert.equal(getDaysUntilDue(item, today), null);
 });

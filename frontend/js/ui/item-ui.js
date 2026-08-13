@@ -11,6 +11,7 @@ import {
 } from "../local-db/item-db.js";
 import { adjustDiscardCount, adjustUsedCount, recordItemCreated } from "../local-db/food-name-db.js";
 import { computeStatus, formatDueDetail, getSoonestDays } from "../lib/freshnessStatus.js";
+import { apiRecipeSuggestions } from "../api-caller/apiCaller.js";
 import { pageTitle } from "./ui.js";
 import { activateLocation, renderLocationChips } from "./location-ui.js";
 
@@ -27,6 +28,12 @@ const homeSummary = $('homeSummary');
 homeSummary.role = 'button';
 homeSummary.tabIndex = 0;
 makeKeyboardActivatable(homeSummary);
+
+const recipeSuggestions = $('recipeSuggestions');
+recipeSuggestions.role = 'button';
+recipeSuggestions.tabIndex = 0;
+makeKeyboardActivatable(recipeSuggestions);
+const recipeResults = $('recipeResults');
 
 /**
  * The Home-wide most urgent item found by the last renderHomeSummary() call
@@ -159,6 +166,13 @@ async function fetchAndRenderItems(location) {
   }
   await renderLocationChips();
   await renderHomeSummary(location.homeId);
+  // Recipe suggestions (see toggleRecipeSuggestionsVisibility/openRecipeSuggestions
+  // below) are deliberately NOT wired live yet - the only real recipe API found
+  // with native Spanish ingredient search (Edamam) turned out not to have a
+  // genuinely free tier ($9/mo minimum). The backend service/route and this
+  // frontend plumbing are kept ready to re-enable (just re-add the call below
+  // + a 'openRecipeSuggestions' case in ui.js's click switch) once there's a
+  // free recipe source worth wiring up.
 }
 
 /**
@@ -213,6 +227,76 @@ async function openMostUrgentItem() {
     await activateLocation(location);
   }
   openSingleItem(item._key || '');
+}
+
+/**
+ * Shows/hides the recipe-suggestions card based on whether #homeSummary is
+ * currently showing anything - reuses that already-computed signal instead
+ * of a second fetchAllItemsForHome pass. Cheap and automatic, unlike the
+ * actual Edamam API call (see openRecipeSuggestions), which only happens on
+ * tap - Edamam's free tier is quota-limited and third-party HTTP shouldn't
+ * add latency/flakiness to routine list renders.
+ */
+function toggleRecipeSuggestionsVisibility() {
+  const hasUrgentItems = !homeSummary.classList.contains('display-none');
+  recipeSuggestions.classList.toggle('display-none', !hasUrgentItems);
+  if (!hasUrgentItems) {
+    recipeResults.classList.add('display-none');
+    recipeResults.innerHTML = '';
+  }
+}
+
+/**
+ * Fetches (on demand, not automatically) recipe suggestions based on the
+ * Home's most urgently-expiring items and renders up to a few result cards.
+ */
+async function openRecipeSuggestions() {
+  const home = dataState.currentHome;
+  if (!home) { return; }
+
+  recipeResults.innerHTML = '';
+  recipeResults.append($new({ class: 'recipe-empty', text: 'Buscando recetas...' }));
+  recipeResults.classList.remove('display-none');
+
+  const { data, error } = await apiRecipeSuggestions(home.id);
+  recipeResults.innerHTML = '';
+
+  if (error || !data?.items?.length) {
+    recipeResults.append($new({ class: 'recipe-empty', text: 'No se encontraron recetas.' }));
+    return;
+  }
+
+  data.items.forEach(recipe => {
+    const card = $new({
+      tag: 'a',
+      class: 'recipe-result-card',
+      children: [
+        ...(recipe.image ? [$new({ tag: 'img' })] : []),
+        $new({ class: 'recipe-title', text: recipe.title }),
+      ],
+    });
+    /** @type {HTMLAnchorElement} */ // @ts-ignore
+    const link = card;
+    link.href = recipe.url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    if (recipe.image) {
+      /** @type {HTMLImageElement} */ // @ts-ignore
+      const img = card.querySelector('img');
+      img.src = recipe.image;
+      img.alt = '';
+    }
+    recipeResults.append(card);
+  });
+
+  recipeResults.append($new({
+    tag: 'a', class: 'recipe-credit', text: 'Recetas de Edamam',
+  }));
+  /** @type {HTMLAnchorElement} */ // @ts-ignore
+  const credit = recipeResults.querySelector('.recipe-credit');
+  credit.href = 'https://www.edamam.com/';
+  credit.target = '_blank';
+  credit.rel = 'noopener';
 }
 
 /** Open the item list view */

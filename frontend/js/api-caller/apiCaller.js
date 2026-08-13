@@ -138,8 +138,13 @@ async function apiPushUnsubscribe(endpoint) {
   return apiCall('push/unsubscribe', { endpoint });
 }
 
+/** @param {number} homeId */
+async function apiRecipeSuggestions(homeId) {
+  return apiCall('recipes/suggestions', { homeId });
+}
+
 export {
   apiSignup, apiLogin, apiLogout, apiCreateHome, apiJoinHome, apiListHomes,
   apiSyncPull, apiSyncPush, apiPushVapidKey, apiPushSubscribe, apiPushUnsubscribe,
-  isLoggedIn, getAccessToken, clearSession,
+  apiRecipeSuggestions, isLoggedIn, getAccessToken, clearSession,
 };

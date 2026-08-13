@@ -330,15 +330,37 @@ browser itself won't re-prompt, so no separate suppression flag is needed. `cach
 `push`/`notificationclick` listeners — both unaffected by `INTERCEPT_FETCH_REQUESTS` (that flag only gates
 the existing `fetch` listener), so they work even with the service worker otherwise inert in development.
 
+## Recipe suggestions — scaffolded, deliberately NOT wired live (paused)
+
+Backend groundwork exists but is dormant: `backend/src/lib/itemStatus.js`'s `getDaysUntilDue()` (numeric
+urgency, mirrors the frontend's `getSoonestDays()`), `backend/src/services/edamamClient.js` (a wrapper
+around Edamam's Spanish-language recipe search — the one recipe API found with native Spanish ingredient
+matching, so no translation step needed), `backend/src/services/recipeService.js` (picks the Home's top-3
+most urgent item names and asks the client for recipes, injectable client param for test stubbing), and
+the `recipes/suggestions` route in `apiRouter.js`. All of this is safe to leave in place — with no
+`EDAMAM_APP_ID`/`EDAMAM_APP_KEY` set, `edamamClient.searchRecipes()` just returns `[]`, same
+"missing-keys-means-silent-no-op" pattern as the VAPID push keys.
+
+**Why it's paused**: Edamam's Recipe Search API turned out not to have a genuinely free tier ($9/mo
+minimum after a 10-day trial) — this wasn't caught until after the backend was built, so the code stayed
+(it's a reasonable general shape regardless of which recipe API eventually gets wired up) but the
+feature was deliberately **not connected to the UI**. `frontend/js/ui/item-ui.js` has the dormant halves
+(`toggleRecipeSuggestionsVisibility()`, `openRecipeSuggestions()`, the `#recipeSuggestions`/
+`#recipeResults` DOM refs) and `frontend/index.html`/`frontend/css/location-chips.css` have the markup/
+styling — but `fetchAndRenderItems()` does NOT call `toggleRecipeSuggestionsVisibility()` (commented out
+with an explanation) and `ui.js`'s click-delegation switch has no `openRecipeSuggestions` case, so the
+card can never actually become visible or reachable. To re-enable: pick a recipe source (pay for Edamam,
+or swap in a free English-only one like TheMealDB — would need a translation step for Spanish item names
+first), re-add the `toggleRecipeSuggestionsVisibility()` call, and add the missing `ui.js` case.
+
 ## Product feature ideas (not yet scoped)
 
 Raised during a "what would make this more useful/sellable" discussion; expiry push notifications and
-waste stats (both above) were picked to build first. Still just recorded ideas, not designed:
+waste stats (both above) were picked to build first. Recipe suggestions (also above) got as far as a
+paused/scaffolded backend before hitting a cost blocker. Still just a recorded idea, not designed:
 
 - **Shopping list**, seeded from items marked discarded/used-up — closes the loop between "this went bad"
   and "don't over-buy it again," which the app doesn't do anything with today.
 - **Barcode scanning** for quick-add (camera + a barcode→product lookup) — the most "modern app" feeling
   feature, but a real lift (camera API + an external product database) and more differentiating than
   essential.
-- **Recipe suggestions** from what's expiring soon (e.g. "chicken + spinach expiring — here's a recipe"),
-  via a third-party recipe API. High delight, but a stretch feature, not core.

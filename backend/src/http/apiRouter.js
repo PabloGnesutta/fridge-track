@@ -5,6 +5,7 @@ import { createAuthService } from '../services/authService.js';
 import { createHomeService } from '../services/homeService.js';
 import { createSyncService } from '../services/syncService.js';
 import { createPushService } from '../services/pushService.js';
+import { createRecipeService } from '../services/recipeService.js';
 import { ServiceError } from '../services/ServiceError.js';
 import { log } from '../logger/logger.js';
 
@@ -13,6 +14,7 @@ const authService = createAuthService(db);
 const homeService = createHomeService(db);
 const syncService = createSyncService(db);
 const pushService = createPushService(db);
+const recipeService = createRecipeService(db);
 
 /**
  * @param {import('./types').ApiRequest} req
@@ -69,6 +71,9 @@ export async function handleApiRequest(req, res, segments) {
     if (route === 'push/unsubscribe') {
       pushService.removeSubscription(user.id, body.endpoint);
       return successResponse(res, { ok: true });
+    }
+    if (route === 'recipes/suggestions') {
+      return successResponse(res, await recipeService.getSuggestionsForHome(user.id, body.homeId));
     }
 
     return errorResponse(res, 'Ruta de API no encontrada: ' + route, 404);

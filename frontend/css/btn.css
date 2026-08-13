@@ -45,7 +45,8 @@
 .base-button:focus-visible,
 .mode-toggle:focus-visible,
 .list .row:focus-visible,
-.home-summary:focus-visible {
+.home-summary:focus-visible,
+.recipe-suggestions:focus-visible {
   outline: 2px solid var(--accent-text);
   outline-offset: 2px;
 }
