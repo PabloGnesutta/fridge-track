@@ -1,0 +1,92 @@
+/* Replaces the browser's native confirm() with something that matches the
+   rest of the app's styling. Intentionally its own standalone class (not
+   sharing .modal) so its open/close triggers can never cross-fire with the
+   location/item form modal - it needs to be able to layer on top of that
+   modal anyway (deleting a location happens from inside the edit-location
+   form), hence the higher z-index. */
+.confirm-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1dvw;
+
+  /* Same opacity+delayed-visibility fade as .modal (style.css), so a
+     closed dialog is out of the tab order and doesn't intercept clicks. */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 200ms ease-out, visibility 0s linear 200ms;
+}
+
+.confirm-dialog.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 200ms ease-out, visibility 0s linear 0s;
+}
+
+.confirm-dialog .backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-overlay);
+}
+
+.confirm-dialog .content {
+  position: relative;
+  width: 90%;
+  max-width: 420px;
+  border-radius: 8px;
+  background-color: var(--bg-surface-raised);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 1.5rem;
+
+  transform: translateY(20px);
+  transition: transform 200ms ease-out;
+}
+
+.confirm-dialog.open .content {
+  transform: translateY(0);
+}
+
+.confirm-dialog .confirm-message {
+  color: var(--text-primary);
+  font-size: 16px;
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.confirm-dialog .confirm-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.confirm-dialog .confirm-actions > div {
+  flex: 1;
+  text-align: center;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.confirm-dialog .confirm-actions > div:active {
+  opacity: 0.7;
+}
+
+.confirm-dialog .confirm-actions > div:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+#confirmCancelBtn {
+  background-color: var(--bg-surface-active);
+  color: var(--text-primary);
+}
+
+#confirmOkBtn.danger {
+  background-color: var(--status-expired);
+  color: white;
+}

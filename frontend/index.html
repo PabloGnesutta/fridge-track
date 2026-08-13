@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="/css/location-chips.css" />
   <link rel="stylesheet" href="/css/toast.css" />
   <link rel="stylesheet" href="/css/install-banner.css" />
+  <link rel="stylesheet" href="/css/confirm-dialog.css" />
 
   <script src="/js/app.js" type="module" defer></script>
 </head>
@@ -235,6 +236,18 @@
     <span class="message"></span>
     <div id="installBtn" role="button" class="install-btn">Instalar</div>
     <div id="dismissInstallBtn" role="button" class="dismiss-btn">&times;</div>
+  </div>
+
+  <!-- Confirm dialog (replaces the browser's native confirm()) -->
+  <div id="confirmDialog" class="confirm-dialog">
+    <div class="backdrop"></div>
+    <div class="content">
+      <p class="confirm-message"></p>
+      <div class="confirm-actions">
+        <div id="confirmCancelBtn" role="button" tabindex="0">Cancelar</div>
+        <div id="confirmOkBtn" role="button" tabindex="0" class="danger">Borrar</div>
+      </div>
+    </div>
   </div>
 
   <!-- Logger -->

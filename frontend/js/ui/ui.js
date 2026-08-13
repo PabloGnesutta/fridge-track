@@ -1,6 +1,7 @@
 import { appState, dataState, dbStore, setStateField } from "../common/state.js";
 import { $, $button, $getInner, $queryOne } from "../lib/dom.js";
 import { _info, _log, _warn } from "../lib/logger.js";
+import { showConfirmDialog } from "../lib/confirmDialog.js";
 import {
   arrow_left, pen_solid, svg_check, svg_home, svg_list, svg_logout, svg_notes, svg_search, svg_trash,
 } from "../svg/svgFn.js";
@@ -46,7 +47,7 @@ function initUi() {
     appendTo: $('logoutBtn'),
     svgFn: svg_logout,
     ariaLabel: 'Cerrar sesión',
-    listener: { fn: logout },
+    listener: { fn: () => showConfirmDialog('¿Seguro que querés cerrar sesión?', logout) },
   });
 
   $('newItemBtn').addEventListener('click', () => { openItemForm(false); });

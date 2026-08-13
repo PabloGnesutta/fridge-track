@@ -1,5 +1,6 @@
 import { $, $form, $getInner, $new, $queryOne, $queryOneInput } from "../lib/dom.js";
 import { showErrorToast } from "../lib/toast.js";
+import { showConfirmDialog } from "../lib/confirmDialog.js";
 import { pen_solid, svg_trash } from "../svg/svgFn.js";
 import { dataState, dbStore, setStateField } from "../common/state.js";
 import {
@@ -98,16 +99,17 @@ async function submitLocationForm(e) {
 /**
  * Deletes the location currently open in the edit form.
  */
-async function deleteLocationFromForm() {
+function deleteLocationFromForm() {
   const location = locationBeingEdited;
   if (!location) { return; }
-  if (!confirm(`¿Seguro que querés borrar "${location.name}" y todos sus alimentos?`)) { return; }
 
-  locationBeingEdited = null;
-  locationForm.reset();
-  setStateField('showLocationForm', false);
+  showConfirmDialog(`¿Seguro que querés borrar "${location.name}" y todos sus alimentos?`, async () => {
+    locationBeingEdited = null;
+    locationForm.reset();
+    setStateField('showLocationForm', false);
 
-  await deleteLocation(location._key || '');
+    await deleteLocation(location._key || '');
+  });
 }
 
 /**
@@ -215,6 +217,10 @@ async function deleteLocation(locationKey) {
       await activateLocation(next);
     } else {
       dataState.currentLocation = null;
+      // Deleted the last location - re-trigger onboarding, but still
+      // re-render the (now empty) chip row first so the deleted location's
+      // chip doesn't linger behind the onboarding modal.
+      await renderLocationChips();
       openLocationForm(true);
       return;
     }

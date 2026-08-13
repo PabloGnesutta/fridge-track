@@ -46,9 +46,9 @@ test('locations, items, and deletes propagate between two devices sharing a Home
 
     // Device A deletes the location itself; after resync, Device B should
     // lose the location and its chip too (cascade tombstone propagation).
-    pageA.once('dialog', dialog => dialog.accept());
     await pageA.locator('.location-chip', { hasText: 'Heladera Sync' }).locator('.icon-btn').click();
     await pageA.click('#deleteLocationBtn');
+    await pageA.click('#confirmOkBtn');
     await pageA.waitForTimeout(500);
 
     await pageB.reload();
