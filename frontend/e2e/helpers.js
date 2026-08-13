@@ -95,6 +95,43 @@ export async function ensureLocation(page, name = 'Heladera Test') {
 }
 
 /**
+ * Reads the join code of the currently active Home straight out of
+ * IndexedDB's `homes` store. There's no UI locator for this - the app never
+ * displays a created Home's join code anywhere, only a form to paste one in.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<string>}
+ */
+export async function getJoinCode(page) {
+  return page.evaluate(() => new Promise((resolve, reject) => {
+    const request = indexedDB.open('FridgeTrack');
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result;
+      const tx = db.transaction('homes', 'readonly');
+      const currentId = Number(localStorage.getItem('currentHomeId'));
+      const getRequest = tx.objectStore('homes').get(currentId);
+      getRequest.onerror = () => reject(getRequest.error);
+      getRequest.onsuccess = () => resolve(getRequest.result?.joinCode);
+    };
+  }));
+}
+
+/**
+ * Joins an existing Home via its join-code, if the app is showing the Home
+ * selection screen. Mirrors ensureHome().
+ * @param {import('@playwright/test').Page} page
+ * @param {string} joinCode
+ */
+export async function joinHome(page, joinCode) {
+  const joinInput = page.locator('#homeJoinForm input[name="joinCode"]');
+  if (!(await joinInput.isVisible().catch(() => false))) { return; }
+
+  await joinInput.fill(joinCode);
+  await page.click('#homeJoinForm .submit');
+  await page.waitForSelector('#homeView', { state: 'hidden' });
+}
+
+/**
  * Adds an item via the "+" button and item form. `dueBy` must be given as
  * either a shelf-life in days or an ISO use-by date - the form requires one
  * of the two.

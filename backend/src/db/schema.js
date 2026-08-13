@@ -33,6 +33,42 @@ CREATE TABLE IF NOT EXISTS allowed_emails (
   email TEXT PRIMARY KEY,
   added_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS locations (
+  id TEXT PRIMARY KEY,
+  home_id INTEGER NOT NULL REFERENCES homes(id),
+  name TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS items (
+  id TEXT PRIMARY KEY,
+  location_id TEXT NOT NULL REFERENCES locations(id),
+  home_id INTEGER NOT NULL REFERENCES homes(id),
+  name TEXT NOT NULL,
+  normalized_name TEXT NOT NULL,
+  quantity TEXT NOT NULL DEFAULT '',
+  added_date INTEGER NOT NULL,
+  use_by_date INTEGER,
+  shelf_life_days INTEGER,
+  notes TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS food_name_history (
+  home_id INTEGER NOT NULL REFERENCES homes(id),
+  normalized_name TEXT NOT NULL,
+  name TEXT NOT NULL,
+  first_created_at INTEGER NOT NULL,
+  shelf_life_days INTEGER,
+  times_discarded INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (home_id, normalized_name)
+);
 `;
 
 export { SCHEMA_SQL };

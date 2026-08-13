@@ -6,6 +6,7 @@ import {
 } from "./local-db/home-db.js";
 import { fetchLocations, resolveCurrentLocation } from "./local-db/location-db.js";
 import { fetchFoodNameHistory } from "./local-db/food-name-db.js";
+import { syncHome } from "./sync/syncEngine.js";
 import { activateLocation, openLocationForm } from "./ui/location-ui.js";
 import { refreshHomeUi } from "./ui/home-ui.js";
 import { renderSpecificRoute } from "./common/router.js";
@@ -70,6 +71,12 @@ async function afterHome(home) {
   setCurrentHomeId(home.id);
   setAuthStage('ready');
   refreshHomeUi();
+
+  try {
+    await syncHome(home.id);
+  } catch {
+    // Offline or unreachable - fall back to the local cache.
+  }
 
   const locations = await fetchLocations(home.id);
   await fetchFoodNameHistory(home.id);

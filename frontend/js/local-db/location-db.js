@@ -1,7 +1,8 @@
 import { dbStore } from "../common/state.js";
 import { clearArray } from "../lib/utils.js";
 import { generateId } from "../lib/id.js";
-import { deleteMany, deleteOne, getAllWithIndex, putOne } from "../lib/indexedDb.js";
+import { getAllWithIndex, getOne, putOne } from "../lib/indexedDb.js";
+import { syncHome } from "../sync/syncEngine.js";
 
 
 /**
@@ -16,9 +17,23 @@ import { deleteMany, deleteOne, getAllWithIndex, putOne } from "../lib/indexedDb
  * @property {string} [_key]
  * @property {Date} [createdAt]
  * @property {Date} [updatedAt]
+ * @property {Date|null} [deletedAt]
  */
 
 const LAST_USED_LOCATION_KEY_PREFIX = 'lastUsedLocationKey:';
+
+/**
+ * Fires a best-effort push+pull sync in the background (not awaited by
+ * callers) right after a location-level write, so a newly created/renamed/
+ * deleted location doesn't sit unsynced until the next boot/Home-switch -
+ * the scenario that otherwise leaves a Home looking empty to someone who
+ * joins before the creating device happens to reload. Items and food-name-
+ * history still only sync via that boot/Home-switch trigger.
+ * @param {number} homeId
+ */
+function scheduleLocationSync(homeId) {
+  syncHome(homeId);
+}
 
 
 /**
@@ -33,13 +48,14 @@ async function createLocation(name, homeId, date = new Date()) {
   if (!name) { return { errorMsg: 'Ingresar nombre' }; }
 
   /** @type {Location} */
-  const location = { name, homeId, createdAt: date, updatedAt: date };
+  const location = { name, homeId, createdAt: date, updatedAt: date, deletedAt: null };
   const key = generateId();
   location._key = key;
   await putOne('locations', location, key);
 
   dbStore.locations.push(location);
   setLastUsedLocationKey(homeId, location._key);
+  scheduleLocationSync(homeId);
   return { data: location };
 }
 
@@ -58,17 +74,36 @@ async function updateLocation(location, name, date = new Date()) {
   location.name = name;
   location.updatedAt = date;
   await putOne('locations', location, location._key);
+  scheduleLocationSync(location.homeId);
   return { data: location };
 }
 
 /**
- * Deletes a location and all of its items.
+ * Soft-deletes a location and all of its items: marks them deleted instead
+ * of removing the records, so the deletion can propagate to other devices as
+ * a tombstone during sync. Not atomic across the two stores (same as the
+ * prior hard-delete version).
  * @param {string} locationKey
  * @returns {Promise<void>}
  */
 async function deleteLocationAndItems(locationKey) {
-  await deleteOne('locations', locationKey);
-  await deleteMany('items', 'locationKey', locationKey);
+  const date = new Date();
+
+  const location = await getOne('locations', locationKey);
+  if (location) {
+    location.deletedAt = date;
+    location.updatedAt = date;
+    await putOne('locations', location, locationKey);
+  }
+
+  const items = await getAllWithIndex('items', 'locationKey', locationKey);
+  for (const item of items) {
+    item.deletedAt = date;
+    item.updatedAt = date;
+    await putOne('items', item, item._key);
+  }
+
+  if (location) { scheduleLocationSync(location.homeId); }
 }
 
 /**
@@ -78,7 +113,8 @@ async function deleteLocationAndItems(locationKey) {
  */
 async function fetchLocations(homeId) {
   /** @type {Location[]} */ // @ts-ignore
-  const locations = await getAllWithIndex('locations', 'homeId', homeId);
+  const locations = (await getAllWithIndex('locations', 'homeId', homeId))
+    .filter(location => location.deletedAt == null);
   clearArray(dbStore.locations);
   dbStore.locations.push(...locations);
   return locations;

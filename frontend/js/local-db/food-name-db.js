@@ -18,6 +18,8 @@ import { getAllWithIndex, getOne, putOne } from "../lib/indexedDb.js";
  *   value for this name. Only ever set from shelfLifeDays-based items - a
  *   due-date-based item never touches this field, positive or negative.
  * @property {number} timesDiscarded
+ * @property {Date} [updatedAt] Absent on records written before sync existed;
+ *   treated as older than anything for last-write-wins comparisons.
  */
 
 /**
@@ -45,6 +47,7 @@ async function recordItemCreated(homeId, name, shelfLifeDays, date) {
       firstCreatedAt: date,
       shelfLifeDays: shelfLifeDays ?? null,
       timesDiscarded: 0,
+      updatedAt: date,
     };
     await putOne('foodNameHistory', record, key);
     upsertCache(record);
@@ -52,6 +55,7 @@ async function recordItemCreated(homeId, name, shelfLifeDays, date) {
   }
 
   if (shelfLifeDays != null) { existing.shelfLifeDays = shelfLifeDays; }
+  existing.updatedAt = date;
   await putOne('foodNameHistory', existing, key);
   upsertCache(existing);
   return existing;
@@ -63,8 +67,9 @@ async function recordItemCreated(homeId, name, shelfLifeDays, date) {
  * @param {number} homeId
  * @param {string} name
  * @param {number} delta
+ * @param {Date} [date]
  */
-async function adjustDiscardCount(homeId, name, delta) {
+async function adjustDiscardCount(homeId, name, delta, date = new Date()) {
   const normalizedName = normalize(name);
   const key = [homeId, normalizedName];
   /** @type {FoodNameHistory|null} */ // @ts-ignore
@@ -72,6 +77,7 @@ async function adjustDiscardCount(homeId, name, delta) {
   if (!existing) { return; }
 
   existing.timesDiscarded = Math.max(0, existing.timesDiscarded + delta);
+  existing.updatedAt = date;
   await putOne('foodNameHistory', existing, key);
   upsertCache(existing);
 }

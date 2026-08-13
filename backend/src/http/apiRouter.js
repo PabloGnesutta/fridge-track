@@ -3,12 +3,14 @@ import { readJsonBody, INVALID_JSON_MESSAGE } from './bodyParser.js';
 import { errorResponse, successResponse } from './httpResponses.js';
 import { createAuthService } from '../services/authService.js';
 import { createHomeService } from '../services/homeService.js';
+import { createSyncService } from '../services/syncService.js';
 import { ServiceError } from '../services/ServiceError.js';
 import { log } from '../logger/logger.js';
 
 
 const authService = createAuthService(db);
 const homeService = createHomeService(db);
+const syncService = createSyncService(db);
 
 /**
  * @param {import('./types').ApiRequest} req
@@ -55,6 +57,8 @@ export async function handleApiRequest(req, res, segments) {
     if (route === 'homes/create') { return successResponse(res, homeService.createHome(user.id, body.name)); }
     if (route === 'homes/join') { return successResponse(res, homeService.joinHome(user.id, body.joinCode)); }
     if (route === 'homes/list') { return successResponse(res, homeService.listHomesForUser(user.id)); }
+    if (route === 'sync/pull') { return successResponse(res, syncService.pullHomeSnapshot(user.id, body.homeId)); }
+    if (route === 'sync/push') { return successResponse(res, syncService.pushHomeSnapshot(user.id, body.homeId, body.snapshot)); }
 
     return errorResponse(res, 'Ruta de API no encontrada: ' + route, 404);
   } catch (err) {

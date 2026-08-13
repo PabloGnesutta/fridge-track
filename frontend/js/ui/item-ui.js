@@ -322,7 +322,7 @@ async function removeItem(toastMessage, { discarded = false } = {}) {
   const itemKey = item._key;
   if (!itemKey) { return; }
 
-  await deleteItem(itemKey);
+  await deleteItem(item);
   if (discarded) { await adjustDiscardCount(location.homeId, item.name, 1); }
 
   closeSingleItem();

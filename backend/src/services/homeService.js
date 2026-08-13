@@ -19,6 +19,28 @@ function generateJoinCode() {
 
 /**
  * @param {import('node:sqlite').DatabaseSync} db
+ * @param {number} homeId
+ * @param {number} userId
+ */
+function isHomeMember(db, homeId, userId) {
+  return !!db.prepare(
+    'SELECT 1 FROM home_members WHERE home_id = ? AND user_id = ?'
+  ).get(homeId, userId);
+}
+
+/**
+ * @param {import('node:sqlite').DatabaseSync} db
+ * @param {number} homeId
+ * @param {number} userId
+ */
+function assertHomeMembership(db, homeId, userId) {
+  if (!isHomeMember(db, homeId, userId)) {
+    throw new ServiceError('No autorizado para este Hogar');
+  }
+}
+
+/**
+ * @param {import('node:sqlite').DatabaseSync} db
  */
 function createHomeService(db) {
   /**
@@ -58,10 +80,7 @@ function createHomeService(db) {
     const home = db.prepare('SELECT * FROM homes WHERE join_code = ?').get(code);
     if (!home) { throw new ServiceError('Código inválido'); }
 
-    const isMember = db.prepare(
-      'SELECT 1 FROM home_members WHERE home_id = ? AND user_id = ?'
-    ).get(home.id, userId);
-    if (!isMember) {
+    if (!isHomeMember(db, home.id, userId)) {
       db.prepare(
         'INSERT INTO home_members (home_id, user_id, joined_at) VALUES (?, ?, ?)'
       ).run(home.id, userId, Date.now());
@@ -84,4 +103,4 @@ function createHomeService(db) {
   return { createHome, joinHome, listHomesForUser };
 }
 
-export { createHomeService };
+export { createHomeService, assertHomeMembership };

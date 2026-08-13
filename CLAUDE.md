@@ -140,16 +140,45 @@ new stores are guarded by `objectStoreNames.contains`.
 
 All user-facing strings are Spanish (e.g. "Ingresar nombre", "Alimentos").
 
-## Roadmap: online persistence
+## Sync engine (online-persistence Phase 2)
 
-Accounts + Homes (this file's Architecture section above) is Phase 1 of a larger online-persistence
-effort — see `git log` on `feat/online-phase-1` for the full implementation. **Locations, items, and
-food-name history still only live in IndexedDB** — nothing about them syncs to the server yet, and there
-is no offline/online mode toggle. Deliberately deferred to a follow-up phase:
-- Syncing locations/items/food-name-history to the backend (new API endpoints + a sync engine).
-- Switching IndexedDB primary keys from `autoIncrement` integers to client-generated UUIDs — required
-  before sync, since two devices creating records offline would otherwise mint colliding local keys.
-- An outbox/queue for offline mutations, pushed on reconnect, with last-write-wins-by-`updatedAt`
-  conflict resolution (items already carry `createdAt`/`updatedAt`).
+Locations, items, and food-name history now sync between IndexedDB and the backend, on top of the
+Phase-1 accounts/Homes API above and the client-generated-UUID groundwork it laid (`js/lib/id.js`).
+`backend/src/db/schema.js` gained matching `locations`/`items`/`food_name_history` tables — `TEXT PRIMARY
+KEY` UUIDs supplied by the client (a first for this backend; every other table is `INTEGER PRIMARY KEY
+AUTOINCREMENT`), plus an `updated_at` column on every row and a nullable `deleted_at` tombstone column on
+`locations`/`items` (never on `food_name_history`, which is only ever upserted, never deleted).
+`backend/src/services/syncService.js` (`createSyncService(db)`, same factory shape as `homeService.js`,
+reusing its exported `assertHomeMembership` helper) exposes `pullHomeSnapshot`/`pushHomeSnapshot`, wired
+to `sync/pull`/`sync/push` in `apiRouter.js`. Push applies **last-write-wins per record**: an incoming
+row only overwrites the stored one if its `updatedAt` is strictly greater (ties keep the existing row);
+pull always includes tombstoned rows so the client knows what to soft-delete locally.
+
+On the client, `frontend/js/sync/syncEngine.js`'s `syncHome(homeId)` reads a Home's full current
+IndexedDB state (locations/items/foodNameHistory, tombstones included), pushes it, pulls the server's
+current state back, and merges per-record via `frontend/js/sync/lwwMerge.js`'s `pickWinner`/`remoteWins`
+(pure, DOM-free, unit-tested like `lib/date.js`). It never throws — mirroring `syncHomesFromServer()`'s
+contract — and never touches `dbStore` or triggers a re-render itself; that's left to the caller.
+**The only sync trigger is `appBoot.js`'s `afterHome()`**, best-effort (`try {} catch {}`) before the
+existing `fetchLocations`/`fetchFoodNameHistory` calls — since `afterHome` runs on both cold boot and
+every Home switch, this covers both without a second trigger. There is deliberately **no push-after-
+every-mutation**: a change made on one device only becomes visible on another the next time that other
+device reloads or switches Homes.
+
+Because sync needs tombstones to propagate deletes, `deleteItem`/`deleteLocationAndItems` (in
+`js/local-db/item-db.js`/`location-db.js`) no longer hard-delete — they set a `deletedAt`/bump `updatedAt`
+and `putOne` the record back, and every read path that lists records (`fetchItems`,
+`countItemsByStatus`, `fetchLocations`) filters `deletedAt == null` client-side (no IndexedDB index for
+it — cheap enough at household scale, revisit if item counts ever grow large). `restoreItem` (the
+undo-toast path) clears `deletedAt` again rather than re-inserting a removed record. `FoodNameHistory`
+gained an `updatedAt` field for the same LWW purpose (bumped on every `recordItemCreated`/
+`adjustDiscardCount`, not just when a value actually changes) but no tombstone concept, since it's never
+deleted.
+
+**Still deliberately deferred** to a follow-up phase:
+- A true offline mutation outbox/queue with retry-on-reconnect — this sync is best-effort/fire-once, not
+  durable across a failed push (nothing is lost locally, but a failed sync simply waits for the next
+  boot/Home-switch to try again).
 - A user-facing offline/online mode toggle, and finally flipping `INTERCEPT_FETCH_REQUESTS` to `true`
   for real service-worker offline support (see above).
+- Tombstone pruning/GC — deleted rows are kept forever server-side; fine at this scale, not yet an issue.

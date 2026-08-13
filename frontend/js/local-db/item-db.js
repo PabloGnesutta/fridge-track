@@ -3,7 +3,7 @@ import { normalize } from "../lib/string.js";
 import { clearArray } from "../lib/utils.js";
 import { generateId } from "../lib/id.js";
 import { computeStatus, getSoonestDays } from "../lib/freshnessStatus.js";
-import { deleteOne, getAllWithIndex, putOne } from "../lib/indexedDb.js";
+import { getAllWithIndex, putOne } from "../lib/indexedDb.js";
 
 
 /**
@@ -28,6 +28,7 @@ import { deleteOne, getAllWithIndex, putOne } from "../lib/indexedDb.js";
  * @property {string} [_key]
  * @property {Date} [createdAt]
  * @property {Date} [updatedAt]
+ * @property {Date|null} [deletedAt]
  */
 
 /**
@@ -67,6 +68,7 @@ async function createItem(locationKey, name, data, date = new Date()) {
     notes: data.notes || '',
     createdAt: date,
     updatedAt: date,
+    deletedAt: null,
   };
   const key = generateId();
   item._key = key;
@@ -103,21 +105,32 @@ async function updateItem(item, data, date = new Date()) {
 }
 
 /**
- * @param {StoreKey} itemKey
- * @returns {Promise<StoreKey>}
+ * Soft-deletes an item: marks it deleted instead of removing the record, so
+ * the deletion can propagate to other devices as a tombstone during sync.
+ * Mutates the given item.
+ * @param {Item} item
+ * @param {Date} [date]
+ * @returns {ServiceReturn<Item>}
  */
-async function deleteItem(itemKey) {
-  return deleteOne('items', itemKey);
+async function deleteItem(item, date = new Date()) {
+  if (!item._key) { return { errorMsg: 'Ítem sin llave' }; }
+  item.deletedAt = date;
+  item.updatedAt = date;
+  await putOne('items', item, item._key);
+  return { data: item };
 }
 
 /**
  * Re-inserts a previously deleted item under its original key. Used to
  * support "undo" right after a delete/"Usado"/"Tirado" action.
  * @param {Item} item
+ * @param {Date} [date]
  * @returns {ServiceReturn<Item>}
  */
-async function restoreItem(item) {
+async function restoreItem(item, date = new Date()) {
   if (!item._key) { return { errorMsg: 'Ítem sin llave' }; }
+  item.deletedAt = null;
+  item.updatedAt = date;
   await putOne('items', item, item._key);
   dbStore.items.push(item);
   return { data: item };
@@ -132,7 +145,8 @@ async function restoreItem(item) {
  */
 async function fetchItems(locationKey, currentDate) {
   /** @type {Item[]} */ // @ts-ignore
-  const items = await getAllWithIndex('items', 'locationKey', locationKey);
+  const items = (await getAllWithIndex('items', 'locationKey', locationKey))
+    .filter(item => item.deletedAt == null);
 
   items.sort((a, b) => {
     const soonestA = getSoonestDays(computeStatus(a, currentDate));
@@ -156,7 +170,8 @@ async function fetchItems(locationKey, currentDate) {
  */
 async function countItemsByStatus(locationKey, currentDate) {
   /** @type {Item[]} */ // @ts-ignore
-  const items = await getAllWithIndex('items', 'locationKey', locationKey);
+  const items = (await getAllWithIndex('items', 'locationKey', locationKey))
+    .filter(item => item.deletedAt == null);
   let expired = 0;
   let expiringSoon = 0;
   items.forEach(item => {

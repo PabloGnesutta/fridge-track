@@ -26,6 +26,17 @@ export default async function globalTeardown() {
 
     const userIds = testUsers.map(u => u.id);
     const placeholders = userIds.map(() => '?').join(',');
+
+    /** @type {{id: number}[]} */ // @ts-ignore
+    const testHomes = db.prepare(`SELECT id FROM homes WHERE created_by IN (${placeholders})`).all(...userIds);
+    const homeIds = testHomes.map(h => h.id);
+    const homePlaceholders = homeIds.map(() => '?').join(',');
+
+    if (homeIds.length) {
+      db.prepare(`DELETE FROM items WHERE home_id IN (${homePlaceholders})`).run(...homeIds);
+      db.prepare(`DELETE FROM locations WHERE home_id IN (${homePlaceholders})`).run(...homeIds);
+      db.prepare(`DELETE FROM food_name_history WHERE home_id IN (${homePlaceholders})`).run(...homeIds);
+    }
     db.prepare(`DELETE FROM sessions WHERE user_id IN (${placeholders})`).run(...userIds);
     db.prepare(`DELETE FROM home_members WHERE user_id IN (${placeholders})`).run(...userIds);
     db.prepare(`DELETE FROM homes WHERE created_by IN (${placeholders})`).run(...userIds);

@@ -24,17 +24,16 @@ async function apiCall(path, payload) {
     Authorization: 'Bearer ' + (localStorage.getItem(ACCESS_TOKEN_KEY) || ''),
   };
 
-  let response;
+  let json;
   try {
-    response = await fetch(
+    const response = await fetch(
       'api/' + path,
       { headers, method: 'POST', body: JSON.stringify(payload) }
     );
+    json = await response.json();
   } catch {
     return { error: 'No se pudo conectar con el servidor' };
   }
-
-  const json = await response.json();
 
   if (json.error) {
     console.warn('error', json.error);
@@ -112,7 +111,20 @@ async function apiListHomes() {
   return apiCall('homes/list', {});
 }
 
+/** @param {number} homeId */
+async function apiSyncPull(homeId) {
+  return apiCall('sync/pull', { homeId });
+}
+
+/**
+ * @param {number} homeId
+ * @param {{locations: object[], items: object[], foodNameHistory: object[]}} snapshot
+ */
+async function apiSyncPush(homeId, snapshot) {
+  return apiCall('sync/push', { homeId, snapshot });
+}
+
 export {
   apiSignup, apiLogin, apiLogout, apiCreateHome, apiJoinHome, apiListHomes,
-  isLoggedIn, getAccessToken, clearSession,
+  apiSyncPull, apiSyncPush, isLoggedIn, getAccessToken, clearSession,
 };
