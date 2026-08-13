@@ -1,5 +1,5 @@
 import { $, $button, $form, $getInner, $new, $queryOne, $queryOneInput, display, undisplay } from "../lib/dom.js";
-import { showErrorToast } from "../lib/toast.js";
+import { showErrorToast, showInfoToast } from "../lib/toast.js";
 import { dataState, dbStore, setAuthStage } from "../common/state.js";
 import { createHome, joinHome, setCurrentHomeId } from "../local-db/home-db.js";
 import { afterHome } from "../appBoot.js";
@@ -25,6 +25,12 @@ let mode = 'create';
 // doesn't navigate the browser away with the field as a GET query string.
 homeForm.addEventListener('submit', submitHomeForm);
 modeToggle.addEventListener('click', toggleMode);
+// Attached directly (not via the #app click-delegation used for
+// data-click-action elements) so stopPropagation() here reliably runs
+// before the click ever reaches .home-switcher's own openHomeSwitcher
+// handler - otherwise tapping the code would both copy it and open the
+// switcher.
+homeSwitcherCode.addEventListener('click', copyJoinCode);
 
 
 function initHomeUi() {
@@ -62,6 +68,22 @@ function setMode(newMode) {
 
 function toggleMode() {
   setMode(mode === 'create' ? 'join' : 'create');
+}
+
+/**
+ * @param {MouseEvent} e
+ */
+async function copyJoinCode(e) {
+  e.stopPropagation();
+  const joinCode = dataState.currentHome?.joinCode;
+  if (!joinCode) { return; }
+
+  try {
+    await navigator.clipboard.writeText(joinCode);
+    showInfoToast('Código copiado');
+  } catch {
+    showErrorToast('No se pudo copiar el código');
+  }
 }
 
 /**

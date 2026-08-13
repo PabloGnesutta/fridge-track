@@ -33,6 +33,26 @@ test('the home switcher displays the current Home\'s join code', async ({ page }
   await expect(page.locator('.home-switcher-code')).toContainText(joinCode);
 });
 
+test.describe('copying the join code', () => {
+  test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
+
+  test('clicking the join code copies it, without opening the Home switcher', async ({ page }) => {
+    await page.goto('/');
+    await ensureAuth(page);
+    await ensureHome(page, 'Casa Portapapeles');
+    await ensureLocation(page, 'Heladera Portapapeles');
+
+    const joinCode = await getJoinCode(page);
+    await page.click('.home-switcher-code');
+
+    await expect(page.locator('#infoToast .message')).toHaveText('Código copiado');
+    await expect(page.locator('#homeView')).toBeHidden();
+
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboardText).toBe(joinCode);
+  });
+});
+
 test('two Homes in one browser context keep their locations separate', async ({ page }) => {
   await page.goto('/');
   await ensureAuth(page);

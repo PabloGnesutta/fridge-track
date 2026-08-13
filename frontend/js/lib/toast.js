@@ -8,6 +8,9 @@ const undoBtn = $getInner(toastEl, '.undo-btn');
 const errorToastEl = $('errorToast');
 const errorMessageEl = $getInner(errorToastEl, '.message');
 
+const infoToastEl = $('infoToast');
+const infoMessageEl = $getInner(infoToastEl, '.message');
+
 /** @type {ReturnType<typeof setTimeout>|undefined} */
 let hideTimeout;
 /** @type {(() => void)|null} */
@@ -65,4 +68,23 @@ function showErrorToast(message, durationMs = 4000) {
 }
 
 
-export { showUndoToast, showErrorToast };
+/** @type {ReturnType<typeof setTimeout>|undefined} */
+let infoHideTimeout;
+
+/**
+ * Shows a short-lived, neutrally-styled toast for confirmations that aren't
+ * validation errors (e.g. "copied to clipboard") - separate from
+ * showErrorToast(), which is styled as an error and shouldn't be reused for
+ * good news.
+ * @param {string} message
+ * @param {number} [durationMs]
+ */
+function showInfoToast(message, durationMs = 2000) {
+  clearTimeout(infoHideTimeout);
+  infoMessageEl.innerText = message;
+  unfold(infoToastEl);
+  infoHideTimeout = setTimeout(() => fold(infoToastEl), durationMs);
+}
+
+
+export { showUndoToast, showErrorToast, showInfoToast };
