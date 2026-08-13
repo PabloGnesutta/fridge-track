@@ -17,6 +17,7 @@
   background-color: var(--bg-surface);
   border: 1px solid transparent;
   color: var(--text-secondary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 .location-chip:active,
@@ -63,6 +64,7 @@
   color: var(--text-muted);
   border: 1px dashed var(--text-muted);
   background-color: transparent;
+  box-shadow: none;
 }
 
 .location-chip.add-chip:active {

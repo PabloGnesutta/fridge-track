@@ -6,6 +6,18 @@ input {
   border-radius: 6px;
   font-size: 17px;
   padding: 8px;
+  background-color: var(--bg-surface-active);
+  color: var(--text-primary);
+}
+
+textarea::placeholder,
+input::placeholder {
+  color: var(--text-muted);
+}
+
+textarea:focus,
+input:focus {
+  border-color: var(--accent);
 }
 
 .base-form {
