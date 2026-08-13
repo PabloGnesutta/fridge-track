@@ -493,6 +493,10 @@ svg {
   text-decoration: underline;
 }
 
+.home-switcher .home-switcher-code {
+  margin-left: 0.35rem;
+}
+
 /* Header nav buttons: go-back everywhere except the list, the food-history
    shortcut only on the list - they share the header's right-hand slot. */
 .go-back,

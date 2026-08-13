@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ensureAuth, ensureHome, ensureLocation, addItem } from './helpers.js';
+import { ensureAuth, ensureHome, ensureLocation, addItem, getJoinCode } from './helpers.js';
 
 
 test('joining with an invalid code shows an error', async ({ page }) => {
@@ -7,8 +7,9 @@ test('joining with an invalid code shows an error', async ({ page }) => {
   await ensureAuth(page);
   await expect(page.locator('#homeView')).toBeVisible();
 
-  await page.fill('#homeJoinForm input[name="joinCode"]', 'ZZZZZZ');
-  await page.click('#homeJoinForm .submit');
+  await page.click('#homeModeToggle');
+  await page.fill('#homeForm input[name="joinCode"]', 'ZZZZZZ');
+  await page.click('#homeForm .submit');
 
   await expect(page.locator('#errorToast .message')).toHaveText('Código inválido');
   await expect(page.locator('#homeView')).toBeVisible();
@@ -21,6 +22,15 @@ test('creating a Home lands on the item list, ready to onboard a location', asyn
 
   await expect(page.locator('#homeView')).toBeHidden();
   await expect(page.locator('#locationForm')).toBeVisible();
+});
+
+test('the home switcher displays the current Home\'s join code', async ({ page }) => {
+  await page.goto('/');
+  await ensureAuth(page);
+  await ensureHome(page, 'Casa Con Código');
+
+  const joinCode = await getJoinCode(page);
+  await expect(page.locator('.home-switcher-code')).toContainText(joinCode);
 });
 
 test('two Homes in one browser context keep their locations separate', async ({ page }) => {

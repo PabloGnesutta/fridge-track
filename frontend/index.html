@@ -71,29 +71,21 @@
       <div id="homeView" class="page">
         <div class="home-chips"><!--  --></div>
 
-        <form id="homeCreateForm" class="base-form">
+        <form id="homeForm" class="base-form">
           <h3 class="form-title">
             <span class="form-title-text">Crear Hogar</span>
           </h3>
           <div class="form-content">
-            <div class="form-control">
+            <div id="homeNameField" class="form-control">
               <label for="homeName">Nombre</label>
               <input type="text" name="homeName" placeholder="ej. Casa" />
             </div>
-            <div class="submit"><!--  --></div>
-          </div>
-        </form>
-
-        <form id="homeJoinForm" class="base-form">
-          <h3 class="form-title">
-            <span class="form-title-text">Unirse a un Hogar</span>
-          </h3>
-          <div class="form-content">
-            <div class="form-control">
+            <div id="joinCodeField" class="form-control display-none">
               <label for="joinCode">Código de invitación</label>
               <input type="text" name="joinCode" placeholder="ej. AB12CD" autocomplete="off" />
             </div>
             <div class="submit"><!--  --></div>
+            <div id="homeModeToggle" class="mode-toggle" role="button">¿Tenés un código? Unite a un Hogar existente</div>
           </div>
         </form>
       </div>
@@ -102,6 +94,7 @@
       <div id="itemListView" class="page">
         <div class="home-switcher" data-click-action="openHomeSwitcher">
           <span class="home-switcher-name"></span>
+          <span class="home-switcher-code"></span>
         </div>
         <div class="location-chips"><!--  --></div>
 

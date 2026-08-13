@@ -54,15 +54,24 @@ export async function ensureAuth(page, { email, password = 'e2e-test-password' }
  * creates a new one (never joins) - this is what gives each test its own
  * isolated set of locations/items now that they're scoped to a Home, the
  * same role a fresh IndexedDB used to play before Homes existed.
+ *
+ * Waits (bounded) for the Home form rather than doing a one-shot visibility
+ * check - afterLogin()/afterHome() both await a network round-trip
+ * (syncHomesFromServer/syncHome) before the next screen renders, so an
+ * instant check can false-negative under load and silently skip this step.
  * @param {import('@playwright/test').Page} page
  * @param {string} [name]
  */
 export async function ensureHome(page, name = 'Hogar Test') {
-  const nameInput = page.locator('#homeCreateForm input[name="homeName"]');
-  if (!(await nameInput.isVisible().catch(() => false))) { return; }
+  // The Home form defaults to "create" mode (its name field visible) every
+  // time #homeView is (re)entered - see home-ui.js's setMode()/
+  // openHomeSwitcher().
+  const nameInput = page.locator('#homeForm input[name="homeName"]');
+  const appeared = await nameInput.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
+  if (!appeared) { return; }
 
   await nameInput.fill(name);
-  await page.click('#homeCreateForm .submit');
+  await page.click('#homeForm .submit');
   await page.waitForSelector('#homeView', { state: 'hidden' });
 }
 
@@ -82,12 +91,20 @@ export async function ensureOnboarded(page) {
  * Creates a location if the app is showing the onboarding form (every test
  * starts from a fresh IndexedDB via a fresh browser context, so this always
  * runs on the very first navigation).
+ *
+ * Waits (bounded) for the form rather than doing a one-shot visibility check
+ * - afterHome() awaits a syncHome() network round-trip before deciding
+ * whether to open this form, so an instant check right after ensureHome()
+ * returns can false-negative under load and silently skip this step,
+ * leaving the modal to pop open later and block whatever the test does next
+ * (e.g. clicking #newItemBtn, which sits behind the modal's backdrop).
  * @param {import('@playwright/test').Page} page
  * @param {string} [name]
  */
 export async function ensureLocation(page, name = 'Heladera Test') {
   const locationInput = page.locator('#locationForm input[name="locationName"]');
-  if (await locationInput.isVisible().catch(() => false)) {
+  const appeared = await locationInput.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
+  if (appeared) {
     await locationInput.fill(name);
     await page.click('#locationForm .submit');
     await page.waitForSelector('#locationForm', { state: 'hidden' });
@@ -118,16 +135,18 @@ export async function getJoinCode(page) {
 
 /**
  * Joins an existing Home via its join-code, if the app is showing the Home
- * selection screen. Mirrors ensureHome().
+ * selection screen. The form defaults to "create" mode, so this switches it
+ * to "join" first via the mode toggle. Mirrors ensureHome().
  * @param {import('@playwright/test').Page} page
  * @param {string} joinCode
  */
 export async function joinHome(page, joinCode) {
-  const joinInput = page.locator('#homeJoinForm input[name="joinCode"]');
-  if (!(await joinInput.isVisible().catch(() => false))) { return; }
+  const homeView = page.locator('#homeView');
+  if (!(await homeView.isVisible().catch(() => false))) { return; }
 
-  await joinInput.fill(joinCode);
-  await page.click('#homeJoinForm .submit');
+  await page.click('#homeModeToggle');
+  await page.fill('#homeForm input[name="joinCode"]', joinCode);
+  await page.click('#homeForm .submit');
   await page.waitForSelector('#homeView', { state: 'hidden' });
 }
 

@@ -3,7 +3,8 @@ import { normalize } from "../lib/string.js";
 import { clearArray } from "../lib/utils.js";
 import { generateId } from "../lib/id.js";
 import { computeStatus, getSoonestDays } from "../lib/freshnessStatus.js";
-import { getAllWithIndex, putOne } from "../lib/indexedDb.js";
+import { getAllWithIndex, getOne, putOne } from "../lib/indexedDb.js";
+import { syncHome } from "../sync/syncEngine.js";
 
 
 /**
@@ -42,6 +43,18 @@ import { getAllWithIndex, putOne } from "../lib/indexedDb.js";
 
 
 /**
+ * Resolves the item's Home via its location and fires a best-effort
+ * background sync (not awaited by callers), mirroring location-db.js's
+ * scheduleLocationSync - so a newly created/edited/deleted item doesn't sit
+ * unsynced until the next boot/Home-switch.
+ * @param {string} locationKey
+ */
+async function scheduleItemSync(locationKey) {
+  const location = await getOne('locations', locationKey);
+  if (location) { syncHome(location.homeId); }
+}
+
+/**
  * Creates a food item for the given storage location.
  * @param {string} locationKey
  * @param {string} name
@@ -75,6 +88,7 @@ async function createItem(locationKey, name, data, date = new Date()) {
   await putOne('items', item, key);
 
   dbStore.items.push(item);
+  scheduleItemSync(locationKey);
   return { data: item };
 }
 
@@ -101,6 +115,7 @@ async function updateItem(item, data, date = new Date()) {
   item.updatedAt = date;
 
   await putOne('items', item, item._key);
+  scheduleItemSync(item.locationKey);
   return { data: item };
 }
 
@@ -117,6 +132,7 @@ async function deleteItem(item, date = new Date()) {
   item.deletedAt = date;
   item.updatedAt = date;
   await putOne('items', item, item._key);
+  scheduleItemSync(item.locationKey);
   return { data: item };
 }
 
@@ -133,6 +149,7 @@ async function restoreItem(item, date = new Date()) {
   item.updatedAt = date;
   await putOne('items', item, item._key);
   dbStore.items.push(item);
+  scheduleItemSync(item.locationKey);
   return { data: item };
 }
 

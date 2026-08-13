@@ -20,29 +20,25 @@ test('locations, items, and deletes propagate between two devices sharing a Home
     await ensureAuth(pageB);
     await joinHome(pageB, joinCode);
 
-    // Device A creates a location. Location writes trigger their own
-    // background push (see location-db.js's scheduleLocationSync) - Device B
-    // should see it after just reloading, with no reload needed on A first.
+    // Device A creates a location, then an item in it. Both writes trigger
+    // their own background push (see location-db.js's scheduleLocationSync
+    // and item-db.js's scheduleItemSync) - Device B should see both after
+    // just reloading, with no reload needed on A first.
     await ensureLocation(pageA, 'Heladera Sync');
+    await addItem(pageA, { name: 'Leche Sync', shelfLifeDays: 5 });
     await pageA.waitForTimeout(500);
+
     await pageB.reload();
     await expect(pageB.locator('.location-chip .locationName', { hasText: 'Heladera Sync' })).toBeVisible();
-
-    // Items only sync on boot/Home-switch, so Device A needs a reload before
-    // Device B can pull the new item down.
-    await addItem(pageA, { name: 'Leche Sync', shelfLifeDays: 5 });
-    await pageA.reload();
-    await expect(pageA.locator('.list .row', { hasText: 'Leche Sync' })).toBeVisible();
-
-    await pageB.reload();
     await expect(pageB.locator('.list .row', { hasText: 'Leche Sync' })).toBeVisible();
 
-    // Device A deletes the item; after both devices resync, Device B should
-    // no longer see it (tombstone propagation).
+    // Device A deletes the item; the delete itself triggers its own
+    // background push too, so Device B should see it gone after just
+    // reloading (tombstone propagation, no reload needed on A first).
     await pageA.locator('.list .row', { hasText: 'Leche Sync' }).click();
     await pageA.click('#singleItemView .delete-btn');
     await pageA.waitForSelector('#singleItemView', { state: 'hidden' });
-    await pageA.reload();
+    await pageA.waitForTimeout(500);
 
     await pageB.reload();
     await expect(pageB.locator('.list .row', { hasText: 'Leche Sync' })).toHaveCount(0);
@@ -53,7 +49,7 @@ test('locations, items, and deletes propagate between two devices sharing a Home
     pageA.once('dialog', dialog => dialog.accept());
     await pageA.locator('.location-chip', { hasText: 'Heladera Sync' }).locator('.icon-btn').click();
     await pageA.click('#deleteLocationBtn');
-    await pageA.reload();
+    await pageA.waitForTimeout(500);
 
     await pageB.reload();
     await expect(pageB.locator('.location-chip .locationName', { hasText: 'Heladera Sync' })).toHaveCount(0);
