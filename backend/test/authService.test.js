@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { SCHEMA_SQL } from '../src/db/schema.js';
+import { runMigrations } from '../src/db/migrate.js';
+import { migrations } from '../src/db/migrations/index.js';
 import { addAllowedEmail } from '../src/db/allowedEmails.js';
 import { createAuthService } from '../src/services/authService.js';
 import { ServiceError } from '../src/services/ServiceError.js';
@@ -9,7 +10,7 @@ import { ServiceError } from '../src/services/ServiceError.js';
 
 function makeAuthService() {
   const db = new DatabaseSync(':memory:');
-  db.exec(SCHEMA_SQL);
+  runMigrations(db, migrations);
   return { authService: createAuthService(db), db };
 }
 

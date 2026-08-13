@@ -44,7 +44,23 @@ a `node:sqlite` file at `backend/data/fridgetrack.db` (gitignored, created on fi
 `backend/src/db/db.js`; `backend/src/services/authService.js` and `homeService.js` hold the actual logic
 (password hashing via `node:crypto` `scrypt`, opaque bearer session tokens, join-code generation/lookup)
 and are structured as `create*Service(db)` factories specifically so tests can inject an isolated
-`:memory:` database instead of touching the real data file. **Locations, items, and food-name history
+`:memory:` database instead of touching the real data file.
+
+**Database migrations** (`backend/src/db/migrate.js` + `backend/src/db/migrations/`) run on every boot,
+before anything else touches `db`. Each migration is a `NNN_description.js` file exporting a `sql`
+string, registered in order in `migrations/index.js` (an explicit array, not directory-scanning); a
+`runMigrations(db, migrations)` call tracks which versions have already run in a `schema_migrations`
+table and applies only the new ones, each inside its own transaction. This replaced an earlier one-shot
+`db.exec(SCHEMA_SQL)` (a single hand-maintained `CREATE TABLE IF NOT EXISTS` blob, no tracking at all) —
+that approach only ever worked for brand-new tables, since `CREATE TABLE IF NOT EXISTS` silently no-ops
+against a table that already exists on disk even after its column list changes in code. That gap is what
+actually broke `food_name_history.times_used` on the live dev database the day it was added: the column
+existed in the source but not in the already-created table, and nothing caught it until a query referencing
+it failed at runtime. **Never edit an already-shipped migration's `sql`** — add a new migration with the
+next version number instead, the same rule as any other migration tool; editing history means anyone
+who already applied the old version silently diverges from anyone starting fresh.
+
+**Locations, items, and food-name history
 live in IndexedDB on the client, synced to the backend** (`js/lib/indexedDb.js` + `js/local-db/*.js`
 locally; `backend/src/services/syncService.js` + `frontend/js/sync/syncEngine.js` remotely — see "Sync
 engine" below for the full mechanism, including what's deliberately still *not* real-time). The backend's
@@ -146,11 +162,12 @@ All user-facing strings are Spanish (e.g. "Ingresar nombre", "Alimentos").
 ## Sync engine (online-persistence Phase 2)
 
 Locations, items, and food-name history now sync between IndexedDB and the backend, on top of the
-Phase-1 accounts/Homes API above and the client-generated-UUID groundwork it laid (`js/lib/id.js`).
-`backend/src/db/schema.js` gained matching `locations`/`items`/`food_name_history` tables — `TEXT PRIMARY
-KEY` UUIDs supplied by the client (a first for this backend; every other table is `INTEGER PRIMARY KEY
-AUTOINCREMENT`), plus an `updated_at` column on every row and a nullable `deleted_at` tombstone column on
-`locations`/`items` (never on `food_name_history`, which is only ever upserted, never deleted).
+Phase-1 accounts/Homes API above and the client-generated-UUID groundwork it laid (`js/lib/id.js`). The
+baseline schema (migration `001_initial_schema`, see "Database migrations" below) gained matching
+`locations`/`items`/`food_name_history` tables — `TEXT PRIMARY KEY` UUIDs supplied by the client (a first
+for this backend; every other table is `INTEGER PRIMARY KEY AUTOINCREMENT`), plus an `updated_at` column
+on every row and a nullable `deleted_at` tombstone column on `locations`/`items` (never on
+`food_name_history`, which is only ever upserted, never deleted).
 `backend/src/services/syncService.js` (`createSyncService(db)`, same factory shape as `homeService.js`,
 reusing its exported `assertHomeMembership` helper) exposes `pullHomeSnapshot`/`pushHomeSnapshot`, wired
 to `sync/pull`/`sync/push` in `apiRouter.js`. Push applies **last-write-wins per record**: an incoming
@@ -251,3 +268,16 @@ Still deliberately not done: a light theme (the whole palette is dark-only), per
 toast queuing (rapid swipes supersede each other's undo option — `showUndoToast`'s "one active toast"
 behavior was always intentional, just more reachable now that swiping lowers the friction to act on
 several items quickly).
+
+## Product feature ideas (not yet scoped)
+
+Raised during a "what would make this more useful/sellable" discussion; picked expiry push notifications
+and waste stats to build first (see below). Not designed yet, just recorded so they aren't lost:
+
+- **Shopping list**, seeded from items marked discarded/used-up — closes the loop between "this went bad"
+  and "don't over-buy it again," which the app doesn't do anything with today.
+- **Barcode scanning** for quick-add (camera + a barcode→product lookup) — the most "modern app" feeling
+  feature, but a real lift (camera API + an external product database) and more differentiating than
+  essential.
+- **Recipe suggestions** from what's expiring soon (e.g. "chicken + spinach expiring — here's a recipe"),
+  via a third-party recipe API. High delight, but a stretch feature, not core.

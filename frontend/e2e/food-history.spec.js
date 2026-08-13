@@ -48,6 +48,32 @@ test('discarding an item increments its discard count in the history view, undo 
   await expect(page.locator('#foodHistoryView .list .row', { hasText: 'Yogur' })).not.toContainText('Tirado');
 });
 
+test('the history view shows an all-time usage-rate summary once something has been used or discarded', async ({ page }) => {
+  await page.goto('/');
+  await ensureOnboarded(page);
+
+  await page.click('#tabHistoryBtn .btn');
+  await expect(page.locator('#historyStats')).toBeHidden();
+
+  await page.click('#tabListBtn .btn');
+  await addItem(page, { name: 'Leche', shelfLifeDays: 5 });
+  await page.click('.list .row', { hasText: 'Leche' });
+  await page.click('#usedBtn');
+  await page.waitForTimeout(200);
+
+  await addItem(page, { name: 'Queso', shelfLifeDays: 5 });
+  await page.click('.list .row', { hasText: 'Queso' });
+  await page.click('#discardedBtn');
+  await page.waitForTimeout(200);
+
+  await page.click('#tabHistoryBtn .btn');
+  await expect(page.locator('#historyStats')).toBeVisible();
+  await expect(page.locator('#historyStats')).toContainText('50% aprovechado');
+  await expect(page.locator('#historyStats')).toContainText('1 usado');
+  await expect(page.locator('#historyStats')).toContainText('1 tirado');
+  await expect(page.locator('.list .row', { hasText: 'Leche' })).toContainText('Usado 1 vez');
+});
+
 test('the history tab opens /historial and the back button returns to the list', async ({ page }) => {
   await page.goto('/');
   await ensureOnboarded(page);

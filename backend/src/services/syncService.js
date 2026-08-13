@@ -47,6 +47,7 @@ function foodNameHistoryFromRow(row) {
     firstCreatedAt: Number(row.first_created_at),
     shelfLifeDays: row.shelf_life_days == null ? null : Number(row.shelf_life_days),
     timesDiscarded: Number(row.times_discarded),
+    timesUsed: Number(row.times_used),
     updatedAt: Number(row.updated_at),
   };
 }
@@ -139,15 +140,22 @@ function createSyncService(db) {
 
     if (existing) {
       db.prepare(
-        `UPDATE food_name_history SET name = ?, shelf_life_days = ?, times_discarded = ?, updated_at = ?
+        `UPDATE food_name_history
+           SET name = ?, shelf_life_days = ?, times_discarded = ?, times_used = ?, updated_at = ?
          WHERE home_id = ? AND normalized_name = ?`
-      ).run(entry.name, entry.shelfLifeDays ?? null, entry.timesDiscarded ?? 0, entry.updatedAt, homeId, entry.normalizedName);
+      ).run(
+        entry.name, entry.shelfLifeDays ?? null, entry.timesDiscarded ?? 0, entry.timesUsed ?? 0,
+        entry.updatedAt, homeId, entry.normalizedName
+      );
     } else {
       db.prepare(
         `INSERT INTO food_name_history
-           (home_id, normalized_name, name, first_created_at, shelf_life_days, times_discarded, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      ).run(homeId, entry.normalizedName, entry.name, entry.firstCreatedAt, entry.shelfLifeDays ?? null, entry.timesDiscarded ?? 0, entry.updatedAt);
+           (home_id, normalized_name, name, first_created_at, shelf_life_days, times_discarded, times_used, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        homeId, entry.normalizedName, entry.name, entry.firstCreatedAt, entry.shelfLifeDays ?? null,
+        entry.timesDiscarded ?? 0, entry.timesUsed ?? 0, entry.updatedAt
+      );
     }
   }
 

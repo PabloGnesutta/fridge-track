@@ -1,4 +1,11 @@
-const SCHEMA_SQL = `
+/**
+ * Baseline schema - everything the app has needed up through the
+ * online-persistence work (accounts/Homes, then locations/items/
+ * food_name_history sync, `times_used` included from the start here even
+ * though it was actually added after the fact on already-running databases
+ * via a hand-rolled ALTER TABLE, before this migration system existed).
+ */
+const sql = `
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   email TEXT NOT NULL UNIQUE,
@@ -66,9 +73,10 @@ CREATE TABLE IF NOT EXISTS food_name_history (
   first_created_at INTEGER NOT NULL,
   shelf_life_days INTEGER,
   times_discarded INTEGER NOT NULL DEFAULT 0,
+  times_used INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (home_id, normalized_name)
 );
 `;
 
-export { SCHEMA_SQL };
+export { sql };

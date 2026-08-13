@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { SCHEMA_SQL } from '../src/db/schema.js';
+import { runMigrations } from '../src/db/migrate.js';
+import { migrations } from '../src/db/migrations/index.js';
 import { addAllowedEmail } from '../src/db/allowedEmails.js';
 import { createAuthService } from '../src/services/authService.js';
 import { createHomeService } from '../src/services/homeService.js';
@@ -11,7 +12,7 @@ import { ServiceError } from '../src/services/ServiceError.js';
 
 function makeServices() {
   const db = new DatabaseSync(':memory:');
-  db.exec(SCHEMA_SQL);
+  runMigrations(db, migrations);
   return {
     authService: createAuthService(db),
     homeService: createHomeService(db),
@@ -196,4 +197,23 @@ test('food_name_history composite-key upsert respects LWW', () => {
   const snapshot = services.syncService.pullHomeSnapshot(user.id, home.id);
   assert.equal(snapshot.foodNameHistory.length, 1);
   assert.equal(snapshot.foodNameHistory[0].timesDiscarded, 1);
+});
+
+test('food_name_history timesUsed round-trips through push/pull', () => {
+  const services = makeServices();
+  const { user, home } = makeUserAndHome(services);
+  const entry = {
+    homeId: home.id,
+    normalizedName: 'leche',
+    name: 'Leche',
+    firstCreatedAt: 1000,
+    shelfLifeDays: 5,
+    timesDiscarded: 0,
+    timesUsed: 3,
+    updatedAt: 1000,
+  };
+  services.syncService.pushHomeSnapshot(user.id, home.id, { foodNameHistory: [entry] });
+
+  const snapshot = services.syncService.pullHomeSnapshot(user.id, home.id);
+  assert.equal(snapshot.foodNameHistory[0].timesUsed, 3);
 });

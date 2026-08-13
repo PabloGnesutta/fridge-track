@@ -9,7 +9,7 @@ import { appState, dataState, dbStore, setCurrentView, setStateField } from "../
 import {
   createItem, deleteItem, fetchAllItemsForHome, fetchItems, restoreItem, updateItem,
 } from "../local-db/item-db.js";
-import { adjustDiscardCount, recordItemCreated } from "../local-db/food-name-db.js";
+import { adjustDiscardCount, adjustUsedCount, recordItemCreated } from "../local-db/food-name-db.js";
 import { computeStatus, formatDueDetail, getSoonestDays } from "../lib/freshnessStatus.js";
 import { pageTitle } from "./ui.js";
 import { activateLocation, renderLocationChips } from "./location-ui.js";
@@ -422,11 +422,12 @@ function closeSingleItem() {
  * item directly, without first navigating into the single-item view.
  * @param {Item} item
  * @param {string} toastMessage
- * @param {{ discarded?: boolean }} [opts] When true, adjusts that food
- *   name's discard count (and undoes the adjustment if the removal itself
- *   is undone).
+ * @param {{ discarded?: boolean, used?: boolean }} [opts] When true,
+ *   adjusts that food name's discard/used count (and undoes the adjustment
+ *   if the removal itself is undone). Mutually exclusive in practice - the
+ *   trash-icon delete sets neither.
  */
-async function removeItem(item, toastMessage, { discarded = false } = {}) {
+async function removeItem(item, toastMessage, { discarded = false, used = false } = {}) {
   const location = dataState.currentLocation;
   if (!item || !location) { return; }
   const itemKey = item._key;
@@ -434,6 +435,7 @@ async function removeItem(item, toastMessage, { discarded = false } = {}) {
 
   await deleteItem(item);
   if (discarded) { await adjustDiscardCount(location.homeId, item.name, 1); }
+  if (used) { await adjustUsedCount(location.homeId, item.name, 1); }
 
   closeSingleItem();
 
@@ -446,6 +448,7 @@ async function removeItem(item, toastMessage, { discarded = false } = {}) {
   showUndoToast(toastMessage, async () => {
     await restoreItem(item);
     if (discarded) { await adjustDiscardCount(location.homeId, item.name, -1); }
+    if (used) { await adjustUsedCount(location.homeId, item.name, -1); }
     await fetchAndRenderItems(location);
   });
 }
@@ -464,7 +467,7 @@ function tryDeleteItem(item = dataState.currentItem) {
 /** @param {Item} [item] */
 function markItemUsed(item = dataState.currentItem) {
   if (!item) { return; }
-  return removeItem(item, `"${item.name}" usado`);
+  return removeItem(item, `"${item.name}" usado`, { used: true });
 }
 
 /** @param {Item} [item] */

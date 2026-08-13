@@ -493,6 +493,24 @@ svg {
   white-space: nowrap;
 }
 
+#foodHistoryView .list .used-count {
+  font-size: 13px;
+  color: var(--status-fresh-text);
+  white-space: nowrap;
+}
+
+.history-stats {
+  margin: 0.25rem 0.25rem 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 6px;
+  background-color: var(--bg-surface-raised);
+  color: var(--status-fresh-text);
+  font-size: 14px;
+  font-weight: bold;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
 .modal {
   position: fixed;
   top: 0;

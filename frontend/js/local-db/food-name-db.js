@@ -18,6 +18,9 @@ import { getAllWithIndex, getOne, putOne } from "../lib/indexedDb.js";
  *   value for this name. Only ever set from shelfLifeDays-based items - a
  *   due-date-based item never touches this field, positive or negative.
  * @property {number} timesDiscarded
+ * @property {number} [timesUsed] Only incremented by "Usado" specifically -
+ *   not the trash-icon delete, which isn't a real "I ate this" signal.
+ *   Absent on records written before this field existed; treated as 0.
  * @property {Date} [updatedAt] Absent on records written before sync existed;
  *   treated as older than anything for last-write-wins comparisons.
  */
@@ -47,6 +50,7 @@ async function recordItemCreated(homeId, name, shelfLifeDays, date) {
       firstCreatedAt: date,
       shelfLifeDays: shelfLifeDays ?? null,
       timesDiscarded: 0,
+      timesUsed: 0,
       updatedAt: date,
     };
     await putOne('foodNameHistory', record, key);
@@ -77,6 +81,30 @@ async function adjustDiscardCount(homeId, name, delta, date = new Date()) {
   if (!existing) { return; }
 
   existing.timesDiscarded = Math.max(0, existing.timesDiscarded + delta);
+  existing.updatedAt = date;
+  await putOne('foodNameHistory', existing, key);
+  upsertCache(existing);
+}
+
+/**
+ * Adjusts the used count for a name (+1 when marked "Usado", -1 if that
+ * action is undone). Mirrors adjustDiscardCount() - kept as a separate
+ * counter rather than folded into it, since "used" and "discarded" are
+ * opposite outcomes a stats view needs to tell apart. No-ops if the name has
+ * no history entry.
+ * @param {number} homeId
+ * @param {string} name
+ * @param {number} delta
+ * @param {Date} [date]
+ */
+async function adjustUsedCount(homeId, name, delta, date = new Date()) {
+  const normalizedName = normalize(name);
+  const key = [homeId, normalizedName];
+  /** @type {FoodNameHistory|null} */ // @ts-ignore
+  const existing = await getOne('foodNameHistory', key);
+  if (!existing) { return; }
+
+  existing.timesUsed = Math.max(0, (existing.timesUsed || 0) + delta);
   existing.updatedAt = date;
   await putOne('foodNameHistory', existing, key);
   upsertCache(existing);
@@ -115,4 +143,4 @@ function upsertCache(record) {
 }
 
 
-export { recordItemCreated, adjustDiscardCount, fetchFoodNameHistory };
+export { recordItemCreated, adjustDiscardCount, adjustUsedCount, fetchFoodNameHistory };

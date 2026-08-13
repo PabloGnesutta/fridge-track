@@ -12,6 +12,7 @@ import { openItemList } from "./item-ui.js";
  */
 
 const historyList = $queryOne('#foodHistoryView .list');
+const historyStats = $queryOne('#historyStats');
 
 /** Opens the food name history view */
 async function openFoodHistory() {
@@ -21,7 +22,31 @@ async function openFoodHistory() {
 
   const homeId = dataState.currentHome?.id;
   const entries = homeId ? await fetchFoodNameHistory(homeId) : [];
+  renderHistoryStats(entries);
   renderFoodHistoryList(entries);
+}
+
+/**
+ * All-time usage summary across every food name in the Home - a reporting
+ * layer on counts already being tracked per-name (timesUsed/timesDiscarded),
+ * not a new data source. Hidden entirely until there's at least one used or
+ * discarded item to report, so a brand-new Home doesn't show "0% used".
+ * @param {FoodNameHistory[]} entries
+ */
+function renderHistoryStats(entries) {
+  const used = entries.reduce((sum, entry) => sum + (entry.timesUsed || 0), 0);
+  const discarded = entries.reduce((sum, entry) => sum + (entry.timesDiscarded || 0), 0);
+  const total = used + discarded;
+
+  if (!total) {
+    historyStats.classList.add('display-none');
+    return;
+  }
+
+  const rate = Math.round((used / total) * 100);
+  historyStats.innerText = `${rate}% aprovechado — ${used} usado${used === 1 ? '' : 's'}, `
+    + `${discarded} tirado${discarded === 1 ? '' : 's'}`;
+  historyStats.classList.remove('display-none');
 }
 
 function closeFoodHistory() {
@@ -56,6 +81,12 @@ function buildHistoryRow(entry) {
 
   /** @type {HTMLDivElement[]} */
   const rightSideChildren = [];
+  if (entry.timesUsed) {
+    rightSideChildren.push($new({
+      class: 'used-count',
+      text: `Usado ${entry.timesUsed} ${entry.timesUsed === 1 ? 'vez' : 'veces'}`,
+    }));
+  }
   if (entry.timesDiscarded > 0) {
     rightSideChildren.push($new({
       class: 'discard-count',

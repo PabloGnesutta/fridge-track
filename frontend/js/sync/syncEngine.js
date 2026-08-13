@@ -60,6 +60,7 @@ async function buildLocalSnapshot(homeId) {
       firstCreatedAt: toMillis(entry.firstCreatedAt),
       shelfLifeDays: entry.shelfLifeDays,
       timesDiscarded: entry.timesDiscarded,
+      timesUsed: entry.timesUsed || 0,
       updatedAt: toMillis(entry.updatedAt) ?? toMillis(entry.firstCreatedAt),
     })),
   };
@@ -120,6 +121,7 @@ async function mergeFoodNameHistory(pulled) {
     firstCreatedAt: new Date(pulled.firstCreatedAt),
     shelfLifeDays: pulled.shelfLifeDays,
     timesDiscarded: pulled.timesDiscarded,
+    timesUsed: pulled.timesUsed || 0,
     updatedAt: new Date(pulled.updatedAt),
   }, key);
 }
