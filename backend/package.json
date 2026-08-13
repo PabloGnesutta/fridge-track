@@ -11,5 +11,8 @@
     "@types/node": "^20.11.20",
     "dotenv": "^16.3.1",
     "nodemon": "^3.1.10"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
   }
 }

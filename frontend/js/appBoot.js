@@ -10,6 +10,7 @@ import { syncHome } from "./sync/syncEngine.js";
 import { activateLocation, openLocationForm } from "./ui/location-ui.js";
 import { refreshHomeUi } from "./ui/home-ui.js";
 import { renderSpecificRoute } from "./common/router.js";
+import { initPushNotifications } from "./pushNotifications.js";
 
 /**
  * @typedef {import("./common/routeMatch.js").Route} Route
@@ -76,6 +77,12 @@ async function afterHome(home) {
     await syncHome(home.id);
   } catch {
     // Offline or unreachable - fall back to the local cache.
+  }
+
+  try {
+    initPushNotifications();
+  } catch {
+    // Push not supported/available in this browser - the banner just never shows.
   }
 
   const locations = await fetchLocations(home.id);

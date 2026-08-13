@@ -79,6 +79,33 @@ self.addEventListener('activate', () => {
   });
 });
 
+/**
+ * Push notification - unaffected by INTERCEPT_FETCH_REQUESTS, unlike the
+ * 'fetch' listener above; a push can arrive even while that flag is off.
+ */
+self.addEventListener('push', e => {
+  // @ts-ignore
+  const payload = e.data ? e.data.json() : {};
+  const { title = 'FridgeTrack', body = '', url = '/' } = payload;
+  // @ts-ignore
+  e.waitUntil(self.registration.showNotification(title, {
+    body,
+    icon: '/static/icons/android-chrome-192x192.png',
+    badge: '/static/icons/android-chrome-192x192.png',
+    data: { url },
+  }));
+});
+
+/** Opens (or focuses) the app to the notification's target url on click */
+self.addEventListener('notificationclick', e => {
+  // @ts-ignore
+  const url = e.notification.data?.url || '/';
+  // @ts-ignore
+  e.notification.close();
+  // @ts-ignore
+  e.waitUntil(self.clients.openWindow(url));
+});
+
 
 /**
  * @param {string} cacheName

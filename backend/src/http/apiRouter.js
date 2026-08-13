@@ -4,6 +4,7 @@ import { errorResponse, successResponse } from './httpResponses.js';
 import { createAuthService } from '../services/authService.js';
 import { createHomeService } from '../services/homeService.js';
 import { createSyncService } from '../services/syncService.js';
+import { createPushService } from '../services/pushService.js';
 import { ServiceError } from '../services/ServiceError.js';
 import { log } from '../logger/logger.js';
 
@@ -11,6 +12,7 @@ import { log } from '../logger/logger.js';
 const authService = createAuthService(db);
 const homeService = createHomeService(db);
 const syncService = createSyncService(db);
+const pushService = createPushService(db);
 
 /**
  * @param {import('./types').ApiRequest} req
@@ -59,6 +61,15 @@ export async function handleApiRequest(req, res, segments) {
     if (route === 'homes/list') { return successResponse(res, homeService.listHomesForUser(user.id)); }
     if (route === 'sync/pull') { return successResponse(res, syncService.pullHomeSnapshot(user.id, body.homeId)); }
     if (route === 'sync/push') { return successResponse(res, syncService.pushHomeSnapshot(user.id, body.homeId, body.snapshot)); }
+    if (route === 'push/vapid-public-key') { return successResponse(res, { publicKey: process.env.VAPID_PUBLIC_KEY }); }
+    if (route === 'push/subscribe') {
+      pushService.saveSubscription(user.id, body.subscription);
+      return successResponse(res, { ok: true });
+    }
+    if (route === 'push/unsubscribe') {
+      pushService.removeSubscription(user.id, body.endpoint);
+      return successResponse(res, { ok: true });
+    }
 
     return errorResponse(res, 'Ruta de API no encontrada: ' + route, 404);
   } catch (err) {

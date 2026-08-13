@@ -124,7 +124,22 @@ async function apiSyncPush(homeId, snapshot) {
   return apiCall('sync/push', { homeId, snapshot });
 }
 
+async function apiPushVapidKey() {
+  return apiCall('push/vapid-public-key', {});
+}
+
+/** @param {PushSubscriptionJSON} subscription */
+async function apiPushSubscribe(subscription) {
+  return apiCall('push/subscribe', { subscription });
+}
+
+/** @param {string} endpoint */
+async function apiPushUnsubscribe(endpoint) {
+  return apiCall('push/unsubscribe', { endpoint });
+}
+
 export {
   apiSignup, apiLogin, apiLogout, apiCreateHome, apiJoinHome, apiListHomes,
-  apiSyncPull, apiSyncPush, isLoggedIn, getAccessToken, clearSession,
+  apiSyncPull, apiSyncPush, apiPushVapidKey, apiPushSubscribe, apiPushUnsubscribe,
+  isLoggedIn, getAccessToken, clearSession,
 };

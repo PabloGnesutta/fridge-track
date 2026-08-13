@@ -7,6 +7,8 @@ const __dirname = dirname(__filename);
 configEnv({ path: join(__dirname, '../', '.env') });
 import { handleRequest } from './http/requestHandler.js';
 import { log } from './logger/logger.js';
+import { db } from './db/db.js';
+import { startExpiryNotificationScheduler } from './scheduler/expiryNotifier.js';
 
 
 createServer(
@@ -15,5 +17,6 @@ createServer(
   process.env.PORT,
   async () => {
     log(' - Listening on port', process.env.PORT);
+    startExpiryNotificationScheduler(db);
   }
 );

@@ -1,0 +1,52 @@
+#notifBanner {
+  position: fixed;
+  bottom: calc(var(--footer-heigt) + 1rem);
+  left: 1rem;
+  right: 1rem;
+  max-width: 420px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background-color: var(--bg-surface-raised);
+  color: var(--text-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 999;
+  transition: transform 300ms ease-out;
+}
+
+#notifBanner.folded {
+  transform: translateY(calc(100% + var(--footer-heigt) + 2rem));
+  pointer-events: none;
+}
+
+#notifBanner .message {
+  font-size: 14px;
+  flex: 1;
+}
+
+#notifBanner .activate-btn {
+  color: var(--accent-text);
+  font-weight: bold;
+  font-size: 15px;
+  white-space: nowrap;
+  padding: 4px 8px;
+}
+
+#notifBanner .activate-btn:active {
+  opacity: 0.6;
+}
+
+#notifBanner .dismiss-btn {
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 6px;
+  color: var(--text-muted);
+}
+
+#notifBanner .dismiss-btn:active {
+  opacity: 0.6;
+}

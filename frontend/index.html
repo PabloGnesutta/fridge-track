@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="/css/location-chips.css" />
   <link rel="stylesheet" href="/css/toast.css" />
   <link rel="stylesheet" href="/css/install-banner.css" />
+  <link rel="stylesheet" href="/css/notif-banner.css" />
   <link rel="stylesheet" href="/css/confirm-dialog.css" />
 
   <script src="/js/app.js" type="module" defer></script>
@@ -237,6 +238,12 @@
     <span class="message"></span>
     <div id="installBtn" role="button" class="install-btn">Instalar</div>
     <div id="dismissInstallBtn" role="button" class="dismiss-btn">&times;</div>
+  </div>
+
+  <div id="notifBanner" class="folded">
+    <span class="message">Activar notificaciones de vencimiento</span>
+    <div id="activateNotifBtn" role="button" tabindex="0" class="activate-btn">Activar</div>
+    <div id="dismissNotifBtn" role="button" tabindex="0" class="dismiss-btn">&times;</div>
   </div>
 
   <!-- Confirm dialog (replaces the browser's native confirm()) -->

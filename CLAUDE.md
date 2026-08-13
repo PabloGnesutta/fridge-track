@@ -15,6 +15,10 @@ was built against 24.19.0 via `nvm4w` on Windows) if your global Node is older.
 npm run serve          # nodemon on src/index.js, reads PORT from backend/.env (currently 3001)
 npm test                # unit tests: node --test (backend/test/*.test.js) - service-layer logic only
 ```
+`backend/.env` also needs `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` for push notifications
+(see "Push notifications" below) — generate a keypair once via `npx web-push generate-vapid-keys`. Missing
+keys don't crash the server, just silently no-op the feature (subscribe requests get an empty public key,
+and the scheduler's send attempts fail quietly, logged but caught).
 
 **Frontend (`frontend/`)** — no bundler/build step. Every file is loaded exactly as written, either
 natively by the browser (`<script type="module">`, relative `import`s between `js/` files) or served
@@ -269,10 +273,67 @@ toast queuing (rapid swipes supersede each other's undo option — `showUndoToas
 behavior was always intentional, just more reachable now that swiping lowers the friction to act on
 several items quickly).
 
+## Waste/usage stats (product feature #2)
+
+`food_name_history` (see above) gained a `timesUsed` counter alongside its existing `timesDiscarded`,
+synced through `syncService.js`/`syncEngine.js` the same way as every other field on that table.
+`adjustUsedCount()` (`local-db/food-name-db.js`) bumps it from `item-ui.js`'s `removeItem(item, ...,
+{ used: true })` path — mirroring `adjustDiscardCount()`'s existing `{ discarded: true }` path exactly,
+undo included. `/historial`'s `renderHistoryStats()` (`food-history-ui.js`) sums both counters across
+every entry and shows a single all-time "N% aprovechado — X usado(s), Y tirado(s)" line, hidden while
+both totals are zero.
+
+## Push notifications (product feature #1)
+
+A background scheduler on the backend, not a client-side timer, since the whole point is alerting users
+who don't have the app open. Follows the sync engine's "best-effort, no outbox" philosophy rather than
+building real cron infra: `backend/src/scheduler/expiryNotifier.js`'s `startExpiryNotificationScheduler(db)`
+(started from `index.js`'s `listen()` callback) runs an immediate tick, then a `setInterval` every
+`NOTIFICATION_CHECK_INTERVAL_MS` (env, default 1h). **v1 is deliberately one digest notification per user
+per Home per day** ("N alimentos vencen pronto"), not per-item tracking — a `push_notification_log` row
+keyed by `(user_id, home_id, sent_date)` (migration `002_push_subscriptions`, alongside `push_subscriptions`
+itself) is the entire dedup mechanism, which is why an hourly tick that's a no-op most hours is fine
+instead of needing precise cron timing.
+
+Since the sync engine (above) already means `items` live in the backend db too, the scheduler queries
+`items` directly (`home_id`, `deleted_at IS NULL`) rather than needing any new sync plumbing. It runs each
+row through `backend/src/lib/itemStatus.js`'s `computeItemStatus()` — a **deliberate duplicate** of
+`frontend/js/lib/freshnessStatus.js`'s `computeStatus()` decision logic (same `EXPIRING_SOON_DAYS = 2`
+threshold, same "expired if either the use-by date or the shelf-life-from-added-date has elapsed" rule),
+because the two npm projects share no code; if the threshold/logic ever changes, change both files.
+
+`backend/src/services/pushService.js` (same `create*Service(db)` factory shape as `homeService.js`) owns
+`push_subscriptions` (one row per subscribed browser/device, upserted by `endpoint` so resubscribing the
+same device doesn't duplicate) and the log table above. `backend/src/services/webPushClient.js` wraps the
+new `web-push` npm dependency (the backend's **first real runtime `dependencies` entry** — previously only
+`devDependencies` existed) and **configures VAPID lazily** (`getWebPush()`, memoized on first call) rather
+than at module top level: this module is statically imported (via `expiryNotifier.js`) from `index.js`,
+and ES module imports are hoisted and evaluated *before* any of `index.js`'s own body runs — including its
+`configEnv()` dotenv call — so reading `process.env.VAPID_*` at import time would always see `undefined`.
+This is the same ESM-ordering quirk `index.js`'s own header comment already warns about, just tripped in a
+new way. VAPID keys live in `backend/.env` (`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`,
+generated once via `npx web-push generate-vapid-keys`), loaded the same way `PORT` already is.
+
+Three new bearer-auth-gated routes in `apiRouter.js`, following the exact existing POST-only pattern:
+`push/vapid-public-key`, `push/subscribe`, `push/unsubscribe` — mirrored on the client as
+`apiPushVapidKey`/`apiPushSubscribe`/`apiPushUnsubscribe` in `apiCaller.js`.
+
+On the client, `frontend/js/pushNotifications.js` mirrors `installPrompt.js`'s exact opt-in pattern
+(single `localStorage` dismissal key, always-in-DOM `.folded` `#notifBanner`) but with one difference:
+`installPrompt.js`'s `initInstallPrompt()` is only ever called once, from `app.js`'s module body, so it
+wires its click listeners inline; `initPushNotifications()` is instead called from `appBoot.js`'s
+`afterHome()` (best-effort, alongside `syncHome()` — needs a logged-in user and a resolved Home, since the
+digest is per-Home), which re-runs on every Home switch, not just cold boot — so `pushNotifications.js`
+wires its listeners once at module load instead, to stay idempotent across repeated `afterHome()` calls.
+The banner only ever shows while `Notification.permission === 'default'`; once granted or denied the
+browser itself won't re-prompt, so no separate suppression flag is needed. `cacheServiceWorker.js` gained
+`push`/`notificationclick` listeners — both unaffected by `INTERCEPT_FETCH_REQUESTS` (that flag only gates
+the existing `fetch` listener), so they work even with the service worker otherwise inert in development.
+
 ## Product feature ideas (not yet scoped)
 
-Raised during a "what would make this more useful/sellable" discussion; picked expiry push notifications
-and waste stats to build first (see below). Not designed yet, just recorded so they aren't lost:
+Raised during a "what would make this more useful/sellable" discussion; expiry push notifications and
+waste stats (both above) were picked to build first. Still just recorded ideas, not designed:
 
 - **Shopping list**, seeded from items marked discarded/used-up — closes the loop between "this went bad"
   and "don't over-buy it again," which the app doesn't do anything with today.
