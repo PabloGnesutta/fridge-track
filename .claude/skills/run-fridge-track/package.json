@@ -1,0 +1,8 @@
+{
+  "name": "run-fridge-track-skill",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}
