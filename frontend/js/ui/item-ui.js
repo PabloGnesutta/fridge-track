@@ -337,7 +337,7 @@ function appendItemRow(item) {
         class: 'right-side',
         children: [
           $new({ class: 'due-detail', text: dueText }),
-          $new({ class: 'added-date', text: `Agregado el ${formatReadableDate(item.addedDate)}` }),
+          $new({ class: 'added-date', text: `Agregado ${formatReadableDate(item.addedDate)}` }),
         ],
       }),
     ],
