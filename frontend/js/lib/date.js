@@ -72,4 +72,19 @@ function fromYYYYMMDD(str) {
 }
 
 
-export { timeAgo, toYYYYMMDD, fromYYYYMMDD };
+const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const MONTHS = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+];
+
+/**
+ * @param {Date} date
+ * @returns {string} e.g. "martes 1 de agosto"
+ */
+function formatReadableDate(date) {
+    return `${WEEKDAYS[date.getDay()]} ${date.getDate()} de ${MONTHS[date.getMonth()]}`;
+}
+
+
+export { timeAgo, toYYYYMMDD, fromYYYYMMDD, formatReadableDate };

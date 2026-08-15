@@ -1,4 +1,4 @@
-import { fromYYYYMMDD, toYYYYMMDD } from "../lib/date.js";
+import { fromYYYYMMDD, toYYYYMMDD, formatReadableDate } from "../lib/date.js";
 import { matches, normalize } from "../lib/string.js";
 import { $, $form, $getInner, $new, $queryOne, $queryOneInput, makeKeyboardActivatable } from "../lib/dom.js";
 import { showUndoToast, showErrorToast } from "../lib/toast.js";
@@ -333,7 +333,13 @@ function appendItemRow(item) {
       // dropped status-badge used to say ("Vencido" + "vencido hace 1 día"
       // was the same fact twice), the colored left-border still gives the
       // at-a-glance status cue.
-      $new({ class: 'right-side', children: [$new({ class: 'due-detail', text: dueText })] }),
+      $new({
+        class: 'right-side',
+        children: [
+          $new({ class: 'due-detail', text: dueText }),
+          $new({ class: 'added-date', text: `Agregado el ${formatReadableDate(item.addedDate)}` }),
+        ],
+      }),
     ],
   });
 

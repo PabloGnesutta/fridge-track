@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toYYYYMMDD, fromYYYYMMDD } from '../js/lib/date.js';
+import { toYYYYMMDD, fromYYYYMMDD, formatReadableDate } from '../js/lib/date.js';
 
 
 test('toYYYYMMDD pads single-digit month and day', () => {
@@ -22,4 +22,12 @@ test('fromYYYYMMDD parses as local midnight, not UTC', () => {
 test('toYYYYMMDD and fromYYYYMMDD round-trip', () => {
   const str = '2026-12-01';
   assert.equal(toYYYYMMDD(fromYYYYMMDD(str)), str);
+});
+
+test('formatReadableDate spells out the weekday and month in Spanish', () => {
+  assert.equal(formatReadableDate(new Date(2026, 7, 4)), 'martes 4 de agosto');
+});
+
+test('formatReadableDate does not zero-pad the day', () => {
+  assert.equal(formatReadableDate(new Date(2026, 0, 1)), 'jueves 1 de enero');
 });

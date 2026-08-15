@@ -246,6 +246,11 @@ svg {
   color: var(--status-expired-text);
 }
 
+.list .row .added-date {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 /* Left-border accent so urgency reads at a glance, before the text does */
 .list .row[data-status='fresh'] {
   border-left: 4px solid var(--status-fresh);
