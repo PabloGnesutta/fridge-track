@@ -5,7 +5,11 @@ const USER_NAME_KEY = 'userName';
 
 /**
  * @template T
- * @typedef {{data: T, error?: undefined} | {data?: undefined, error: string}} ApiResult<T>
+ * @typedef {{
+ *   data: T, error?: undefined, status?: undefined, detail?: undefined
+ * } | {
+ *   data?: undefined, error: string, status?: number, detail?: string
+ * }} ApiResult<T>
  */
 
 /**
@@ -13,6 +17,14 @@ const USER_NAME_KEY = 'userName';
  * header. Always resolves to {data} or {error} - network failures resolve
  * {error} too (rather than throwing) so callers can fall back to the local
  * cache instead of crashing when offline.
+ *
+ * `status`/`detail` carry extra diagnostic context (HTTP status, raw
+ * response text, or the underlying fetch exception's message) that existing
+ * callers ignore - they only ever destructure `.data`/`.error`, so this is
+ * purely additive. Added specifically so background callers like
+ * sync/syncEngine.js can log something more actionable than a single
+ * generic string when a sync silently fails on a real device with no other
+ * way to inspect the network request.
  * @param {string} path
  * @param {Object} payload
  * @returns {Promise<ApiResult<*>>}
@@ -24,20 +36,42 @@ async function apiCall(path, payload) {
     Authorization: 'Bearer ' + (localStorage.getItem(ACCESS_TOKEN_KEY) || ''),
   };
 
-  let json;
+  /** @type {Response} */
+  let response;
   try {
-    const response = await fetch(
-      'api/' + path,
+    // Root-relative ('/api/...'), not relative ('api/...') - a relative URL
+    // resolves against the CURRENT browser path, which for a background
+    // sync call is whatever client-side route the user happens to be on
+    // (e.g. '/item/42'), not necessarily '/'. From '/item/42', a relative
+    // 'api/sync/push' resolves to '/item/api/sync/push', which the backend
+    // doesn't recognize as an API path and answers with the SPA-fallback
+    // index.html (200 OK, wrong body) instead of a real API response or
+    // error - silently, since nothing about that response says "wrong route"
+    // on its face. Same class of gotcha CLAUDE.md already documents for
+    // <script src>/<link href> tags, just missed here.
+    response = await fetch(
+      '/api/' + path,
       { headers, method: 'POST', body: JSON.stringify(payload) }
     );
-    json = await response.json();
+  } catch (err) {
+    return { error: 'No se pudo conectar con el servidor', detail: String(err?.message || err) };
+  }
+
+  // Read as text first, not response.json() directly - a body can only be
+  // read once, and a malformed/non-JSON response (e.g. a reverse-proxy
+  // error page instead of this API's JSON envelope) needs the raw text
+  // available for diagnostics rather than just a generic parse failure.
+  const text = await response.text();
+  let json;
+  try {
+    json = JSON.parse(text);
   } catch {
-    return { error: 'No se pudo conectar con el servidor' };
+    return { error: 'Respuesta inválida del servidor', status: response.status, detail: text.slice(0, 300) };
   }
 
   if (json.error) {
     console.warn('error', json.error);
-    return { error: json.error };
+    return { error: json.error, status: response.status };
   }
 
   return { data: json.data };

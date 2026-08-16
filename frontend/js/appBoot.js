@@ -11,6 +11,7 @@ import { activateLocation, openLocationForm } from "./ui/location-ui.js";
 import { refreshHomeUi } from "./ui/home-ui.js";
 import { renderSpecificRoute } from "./common/router.js";
 import { initPushNotifications } from "./pushNotifications.js";
+import { _error } from "./lib/logger.js";
 
 /**
  * @typedef {import("./common/routeMatch.js").Route} Route
@@ -48,8 +49,11 @@ async function bootApp(initialRoute) {
 async function afterLogin() {
   try {
     await syncHomesFromServer();
-  } catch {
-    // Offline or server unreachable - fall back to whatever's cached.
+  } catch (err) {
+    // Offline or server unreachable - fall back to whatever's cached, but
+    // log it (this app has no manual "open logs" affordance anymore, so a
+    // silent catch here is otherwise completely invisible).
+    _error(' - syncHomesFromServer failed:', err);
   }
   const homes = await fetchHomes();
   const home = resolveCurrentHome(homes);
@@ -75,8 +79,11 @@ async function afterHome(home) {
 
   try {
     await syncHome(home.id);
-  } catch {
-    // Offline or unreachable - fall back to the local cache.
+  } catch (err) {
+    // syncHome() itself already never throws (and logs its own failures via
+    // _error) - this is just a defensive backstop in case something
+    // unexpected still slips through.
+    _error(' - afterHome syncHome threw unexpectedly:', err);
   }
 
   try {

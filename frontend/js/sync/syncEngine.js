@@ -1,7 +1,7 @@
 import { getAllWithIndex, getOne, putOne } from "../lib/indexedDb.js";
 import { apiSyncPull, apiSyncPush } from "../api-caller/apiCaller.js";
 import { remoteWins } from "./lwwMerge.js";
-import { _warn } from "../lib/logger.js";
+import { _error } from "../lib/logger.js";
 
 
 /**
@@ -134,27 +134,35 @@ async function mergeFoodNameHistory(pulled) {
  * `try { await syncHome(id) } catch {}` and fall back to the local cache.
  * Does not touch dbStore or trigger any re-render - that's the caller's job.
  *
- * Failures are logged via _warn (not _error - this fires on every item/
- * location mutation, so auto-popping the debug panel on a flaky connection
- * would be disruptive) rather than swallowed silently. Previously a failed
- * push/pull left zero trace anywhere, which made "device A's change never
- * reached device B" reports impossible to diagnose after the fact.
+ * Failures are logged via _error (auto-opens the debug panel) rather than
+ * swallowed silently or logged via _warn - this app has no manual "open
+ * logs" affordance anymore, so a _warn entry is invisible unless the panel
+ * already happens to be open. Previously a failed push/pull left zero trace
+ * anywhere, which made "device A's change never reached device B" reports
+ * impossible to diagnose after the fact - this was the actual gap behind a
+ * real incident where one device's sync was silently, completely broken.
  * @param {number} homeId
  */
 async function syncHome(homeId) {
   try {
     const snapshot = await buildLocalSnapshot(homeId);
     const pushResult = await apiSyncPush(homeId, snapshot);
-    if (pushResult.error) { _warn(' - syncHome push failed:', pushResult.error); return; }
+    if (pushResult.error) {
+      _error(' - syncHome push failed:', pushResult.error, 'status:', pushResult.status, 'detail:', pushResult.detail);
+      return;
+    }
 
     const pullResult = await apiSyncPull(homeId);
-    if (pullResult.error || !pullResult.data) { _warn(' - syncHome pull failed:', pullResult.error); return; }
+    if (pullResult.error || !pullResult.data) {
+      _error(' - syncHome pull failed:', pullResult.error, 'status:', pullResult.status, 'detail:', pullResult.detail);
+      return;
+    }
 
     for (const location of pullResult.data.locations) { await mergeLocation(location); }
     for (const item of pullResult.data.items) { await mergeItem(item); }
     for (const entry of pullResult.data.foodNameHistory) { await mergeFoodNameHistory(entry); }
   } catch (err) {
-    _warn(' - syncHome threw (offline or unreachable):', err);
+    _error(' - syncHome threw (offline or unreachable):', err);
   }
 }
 
