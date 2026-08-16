@@ -338,6 +338,40 @@ async function deleteOne(storeName, key) {
 }
 
 /**
+ * Wipes all locally-cached data by deleting the entire IndexedDB database -
+ * an explicit "fresh start" escape hatch (offered on sign-out), not part of
+ * normal app flow. Closes the existing connection first - deleteDatabase()
+ * blocks/hangs indefinitely (fires onblocked, never onsuccess) while any
+ * connection is still open. Callers should reload the page afterward: every
+ * other module's `db` reference and in-memory dbStore/dataState assume a
+ * live connection and populated caches, which a full reload cleanly resets
+ * via the normal boot sequence instead of trying to reconcile in place.
+ * @returns {Promise<void>}
+ */
+async function clearAllData() {
+  if (db) {
+    db.close();
+    db = null;
+  }
+  return new Promise((res, rej) => {
+    const deleteRequest = indexedDB.deleteDatabase(dbName);
+    deleteRequest.onsuccess = () => {
+      _info(' __ IndexedDB borrada');
+      res();
+    };
+    deleteRequest.onerror = e => {
+      _error(' __ Error borrando IndexedDB');
+      // @ts-ignore
+      _error(e.target.error?.message);
+      rej(e);
+    };
+    deleteRequest.onblocked = () => {
+      _error(' __ Borrado de IndexedDB bloqueado - hay otra conexión abierta');
+    };
+  });
+}
+
+/**
  * Deletes all entries for the given store, index name and index value
  * @param {ObjectStores} storeName 
  * @param {Indexes} indexName 
@@ -375,4 +409,7 @@ async function deleteMany(storeName, indexName, indexValue) {
 }
 
 
-export { initializeIndexedDb, putOne, getOne, getAll, getOneWithIndex, getAllWithIndex, deleteOne, deleteMany };
+export {
+  initializeIndexedDb, putOne, getOne, getAll, getOneWithIndex, getAllWithIndex, deleteOne, deleteMany,
+  clearAllData,
+};

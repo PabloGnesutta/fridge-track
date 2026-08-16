@@ -2,6 +2,7 @@ import { appState, dataState, dbStore, setStateField } from "../common/state.js"
 import { $, $button, $getInner, $queryOne } from "../lib/dom.js";
 import { _info, _log, _warn } from "../lib/logger.js";
 import { showConfirmDialog } from "../lib/confirmDialog.js";
+import { clearAllData } from "../lib/indexedDb.js";
 import {
   arrow_left, pen_solid, svg_check, svg_home, svg_list, svg_logout, svg_notes, svg_search, svg_trash,
 } from "../svg/svgFn.js";
@@ -19,6 +20,30 @@ import { closeFoodHistory, openFoodHistory } from "./food-history-ui.js";
 
 const mainHeader = $('mainHeader');
 const pageTitle = $getInner(mainHeader, '.page-title');
+
+/**
+ * Signs out, then separately offers a "fresh start" - wiping this device's
+ * entire local cache. A manual escape hatch for a device stuck showing
+ * stale data (e.g. a sync that silently failed for a while before the
+ * failure became visible) - not something normal sign-out should do by
+ * default, since IndexedDB is deliberately left alone on logout otherwise
+ * (see appBoot.js's logout()) so a device keeps working offline and a
+ * repeat login doesn't need a full network round-trip. Asked as a second,
+ * separate dialog rather than folded into the sign-out confirmation itself,
+ * since by this point sign-out has already happened either way - this
+ * question is purely about local cache, and "cancel" here just means
+ * "leave it as-is", not "undo the sign-out".
+ */
+async function confirmLogoutAndOfferWipe() {
+  await logout();
+  showConfirmDialog(
+    '¿Querés borrar los datos guardados en este dispositivo? Vas a perder el acceso sin conexión hasta que vuelvas a iniciar sesión y sincronizar.',
+    async () => {
+      await clearAllData();
+      window.location.reload();
+    }
+  );
+}
 
 function initUi() {
   // Go Back Button
@@ -47,7 +72,7 @@ function initUi() {
     appendTo: $('logoutBtn'),
     svgFn: svg_logout,
     ariaLabel: 'Cerrar sesión',
-    listener: { fn: () => showConfirmDialog('¿Seguro que querés cerrar sesión?', logout) },
+    listener: { fn: () => showConfirmDialog('¿Seguro que querés cerrar sesión?', confirmLogoutAndOfferWipe) },
   });
 
   $('newItemBtn').addEventListener('click', () => { openItemForm(false); });

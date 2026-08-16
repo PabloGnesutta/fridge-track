@@ -40,8 +40,14 @@ test('signing out asks for confirmation before actually logging out', async ({ p
   await expect(page.locator('#confirmDialog')).not.toHaveClass(/open/);
   await expect(page.locator('#itemListView')).toBeVisible();
 
-  // Confirm: actually logs out, back to the auth screen.
+  // Confirm: actually logs out, back to the auth screen. A second dialog
+  // then offers to wipe local data - cancel it here, this test is only
+  // about the sign-out confirmation itself (see wipe-on-logout.spec.js for
+  // that second dialog's own behavior).
   await page.click('#logoutBtn .btn');
   await page.click('#confirmOkBtn');
   await expect(page.locator('#authView')).toBeVisible();
+  await expect(page.locator('#confirmDialog')).toHaveClass(/open/);
+  await expect(page.locator('#confirmDialog .confirm-message')).toContainText('borrar los datos');
+  await page.click('#confirmCancelBtn');
 });
