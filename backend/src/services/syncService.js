@@ -9,6 +9,7 @@ function locationFromRow(row) {
     id: row.id,
     homeId: Number(row.home_id),
     name: row.name,
+    category: row.category,
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
     deletedAt: row.deleted_at == null ? null : Number(row.deleted_at),
@@ -84,13 +85,16 @@ function createSyncService(db) {
 
     if (existing) {
       db.prepare(
-        `UPDATE locations SET name = ?, updated_at = ?, deleted_at = ? WHERE id = ?`
-      ).run(location.name, location.updatedAt, location.deletedAt ?? null, location.id);
+        `UPDATE locations SET name = ?, category = ?, updated_at = ?, deleted_at = ? WHERE id = ?`
+      ).run(location.name, location.category ?? 'alimento', location.updatedAt, location.deletedAt ?? null, location.id);
     } else {
       db.prepare(
-        `INSERT INTO locations (id, home_id, name, created_at, updated_at, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      ).run(location.id, homeId, location.name, location.createdAt, location.updatedAt, location.deletedAt ?? null);
+        `INSERT INTO locations (id, home_id, name, category, created_at, updated_at, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        location.id, homeId, location.name, location.category ?? 'alimento',
+        location.createdAt, location.updatedAt, location.deletedAt ?? null
+      );
     }
   }
 

@@ -10,6 +10,7 @@ import {
   createItem, deleteItem, fetchAllItemsForHome, fetchItems, restoreItem, updateItem,
 } from "../local-db/item-db.js";
 import { adjustDiscardCount, adjustUsedCount, recordItemCreated } from "../local-db/food-name-db.js";
+import { getCategoryLabel } from "../lib/locationCategory.js";
 import { computeStatus, formatDueDetail, getSoonestDays } from "../lib/freshnessStatus.js";
 import { apiRecipeSuggestions } from "../api-caller/apiCaller.js";
 import { pageTitle } from "./ui.js";
@@ -302,7 +303,7 @@ async function openRecipeSuggestions() {
 /** Open the item list view */
 function openItemList() {
   setCurrentView('ItemList');
-  pageTitle.innerText = 'Alimentos';
+  pageTitle.innerText = getCategoryLabel(dataState.currentLocation?.category);
   syncUrl('/', { replace: true });
 }
 
@@ -470,7 +471,7 @@ async function openSingleItem(itemKey) {
   if (!item) { return showErrorToast('Alimento no encontrado'); }
 
   setCurrentView('SingleItem');
-  pageTitle.innerText = 'Alimentos';
+  pageTitle.innerText = getCategoryLabel(dataState.currentLocation?.category);
   dataState.currentItem = item;
 
   renderItemDetail(item);

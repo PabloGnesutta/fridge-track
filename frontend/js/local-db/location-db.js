@@ -14,6 +14,7 @@ import { syncHome } from "../sync/syncEngine.js";
  * @typedef {object} Location
  * @property {string} name
  * @property {number} homeId
+ * @property {string} [category]
  * @property {string} [_key]
  * @property {Date} [createdAt]
  * @property {Date} [updatedAt]
@@ -41,14 +42,15 @@ function scheduleLocationSync(homeId) {
  * @param {string} name
  * @param {number} homeId
  * @param {Date} [date]
+ * @param {string} [category]
  * @returns {ServiceReturn<Location>}
  */
-async function createLocation(name, homeId, date = new Date()) {
+async function createLocation(name, homeId, date = new Date(), category = 'alimento') {
   name = name.trim();
   if (!name) { return { errorMsg: 'Ingresar nombre' }; }
 
   /** @type {Location} */
-  const location = { name, homeId, createdAt: date, updatedAt: date, deletedAt: null };
+  const location = { name, homeId, category, createdAt: date, updatedAt: date, deletedAt: null };
   const key = generateId();
   location._key = key;
   await putOne('locations', location, key);
@@ -60,18 +62,20 @@ async function createLocation(name, homeId, date = new Date()) {
 }
 
 /**
- * Renames a location. Mutates the given location.
+ * Renames/recategorizes a location. Mutates the given location.
  * @param {Location} location
  * @param {string} name
  * @param {Date} [date]
+ * @param {string} [category]
  * @returns {ServiceReturn<Location>}
  */
-async function updateLocation(location, name, date = new Date()) {
+async function updateLocation(location, name, date = new Date(), category = 'alimento') {
   if (!location._key) { return { errorMsg: 'Llave no provista' }; }
   name = name.trim();
   if (!name) { return { errorMsg: 'Ingresar nombre' }; }
 
   location.name = name;
+  location.category = category;
   location.updatedAt = date;
   await putOne('locations', location, location._key);
   scheduleLocationSync(location.homeId);

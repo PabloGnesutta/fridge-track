@@ -33,6 +33,7 @@ function makeLocation(homeId, overrides = {}) {
     id: 'loc-1',
     homeId,
     name: 'Heladera',
+    category: 'alimento',
     createdAt: 1000,
     updatedAt: 1000,
     deletedAt: null,
@@ -216,4 +217,15 @@ test('food_name_history timesUsed round-trips through push/pull', () => {
 
   const snapshot = services.syncService.pullHomeSnapshot(user.id, home.id);
   assert.equal(snapshot.foodNameHistory[0].timesUsed, 3);
+});
+
+test('location category round-trips through push/pull', () => {
+  const services = makeServices();
+  const { user, home } = makeUserAndHome(services);
+  const location = makeLocation(home.id, { category: 'medicamento' });
+
+  services.syncService.pushHomeSnapshot(user.id, home.id, { locations: [location] });
+
+  const snapshot = services.syncService.pullHomeSnapshot(user.id, home.id);
+  assert.equal(snapshot.locations[0].category, 'medicamento');
 });

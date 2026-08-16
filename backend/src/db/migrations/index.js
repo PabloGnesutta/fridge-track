@@ -1,5 +1,6 @@
 import { sql as initialSchema } from './001_initial_schema.js';
 import { sql as pushSubscriptions } from './002_push_subscriptions.js';
+import { sql as locationCategory } from './003_location_category.js';
 
 /**
  * Ordered, explicit registry (no directory-scanning) - add new migrations
@@ -12,6 +13,7 @@ import { sql as pushSubscriptions } from './002_push_subscriptions.js';
 const migrations = [
   { version: 1, name: 'initial_schema', sql: initialSchema },
   { version: 2, name: 'push_subscriptions', sql: pushSubscriptions },
+  { version: 3, name: 'location_category', sql: locationCategory },
 ];
 
 export { migrations };

@@ -1,5 +1,6 @@
 textarea,
-input {
+input,
+select {
   width: 100%;
   outline: none;
   border: 2px solid transparent;
@@ -16,7 +17,8 @@ input::placeholder {
 }
 
 textarea:focus,
-input:focus {
+input:focus,
+select:focus {
   border-color: var(--accent);
 }
 

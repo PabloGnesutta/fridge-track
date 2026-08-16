@@ -16,6 +16,8 @@ import { fetchAndRenderItems, openItemList } from "./item-ui.js";
 
 const locationForm = $form('locationForm');
 const locationNameInput = $queryOneInput('#locationForm input[name="locationName"]');
+/** @type {HTMLSelectElement} */ // @ts-ignore
+const locationCategoryInput = $queryOne('#locationForm select[name="locationCategory"]');
 const formTitleText = $getInner(locationForm, '.form-title-text');
 const deleteLocationBtn = $('deleteLocationBtn');
 const submitLocationBtn = $queryOne('#locationForm .submit');
@@ -46,6 +48,7 @@ function openLocationForm(onboarding = false, editTarget = null) {
 
   if (editTarget) {
     locationNameInput.value = editTarget.name;
+    locationCategoryInput.value = editTarget.category || 'alimento';
     formTitleText.innerText = 'Editar Ubicación';
     submitLabel.innerText = 'Guardar Cambios';
     deleteLocationBtn.classList.remove('display-none');
@@ -71,9 +74,10 @@ async function submitLocationForm(e) {
   const formData = new FormData(locationForm);
   const name = formData.get('locationName') || '';
   if (typeof name !== 'string') { return; }
+  const category = formData.get('locationCategory')?.toString() || 'alimento';
 
   if (locationBeingEdited) {
-    const result = await updateLocation(locationBeingEdited, name);
+    const result = await updateLocation(locationBeingEdited, name, new Date(), category);
     if (!result.data) { return showErrorToast(result.errorMsg); }
     locationBeingEdited = null;
     locationForm.reset();
@@ -84,7 +88,7 @@ async function submitLocationForm(e) {
 
   const homeId = dataState.currentHome?.id;
   if (!homeId) { return; }
-  const result = await createLocation(name, homeId);
+  const result = await createLocation(name, homeId, new Date(), category);
   if (!result.data) {
     return showErrorToast(result.errorMsg);
   }
