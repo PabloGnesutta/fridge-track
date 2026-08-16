@@ -6,6 +6,7 @@ import { computeStatus, getSoonestDays } from "../lib/freshnessStatus.js";
 import { getAllWithIndex, getOne, putOne } from "../lib/indexedDb.js";
 import { syncHome } from "../sync/syncEngine.js";
 import { fetchLocations } from "./location-db.js";
+import { _error } from "../lib/logger.js";
 
 
 /**
@@ -48,11 +49,24 @@ import { fetchLocations } from "./location-db.js";
  * background sync (not awaited by callers), mirroring location-db.js's
  * scheduleLocationSync - so a newly created/edited/deleted item doesn't sit
  * unsynced until the next boot/Home-switch.
+ *
+ * If the location lookup itself comes back empty, the item is silently
+ * never synced - no error anywhere, since syncHome() (where all the other
+ * push/pull failure logging lives) never even gets called. Logged via
+ * _error (not _warn) specifically because this app has no manual "open
+ * logs" affordance anymore - _warn entries are invisible unless the panel
+ * is already open, and a missing local location record for an existing
+ * item is a genuine data-inconsistency case worth _error's auto-open
+ * behavior, not routine best-effort friction like a network blip.
  * @param {string} locationKey
  */
 async function scheduleItemSync(locationKey) {
   const location = await getOne('locations', locationKey);
-  if (location) { syncHome(location.homeId); }
+  if (location) {
+    syncHome(location.homeId);
+  } else {
+    _error(' - scheduleItemSync: no local location found for locationKey', locationKey, '- sync skipped');
+  }
 }
 
 /**
