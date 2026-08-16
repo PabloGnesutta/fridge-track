@@ -11,6 +11,7 @@ import { initInstallPrompt } from "./installPrompt.js";
 import { bootApp } from "./appBoot.js";
 import { initAuthUi } from "./ui/auth-ui.js";
 import { initHomeUi } from "./ui/home-ui.js";
+import { initVoiceItemUi } from "./ui/voice-item-ui.js";
 
 
 _info(' (!) App started');
@@ -42,3 +43,4 @@ initAuthUi();
 initHomeUi();
 initRouter();
 initInstallPrompt();
+initVoiceItemUi();

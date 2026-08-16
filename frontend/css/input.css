@@ -142,6 +142,59 @@ select:focus {
   padding: 4px 0.75rem;
 }
 
+.name-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.name-input-row input {
+  flex: 1;
+}
+
+.mic-btn {
+  flex-shrink: 0;
+}
+
+.mic-btn .btn {
+  padding: 0.6rem;
+}
+
+.mic-btn .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.mic-btn.listening .btn {
+  color: var(--status-expired-text);
+  background-color: var(--status-expired);
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--status-expired); }
+  50% { box-shadow: 0 0 0 8px transparent; }
+}
+
+.voice-status {
+  min-height: 1.2em;
+  font-size: 13px;
+  margin-top: 6px;
+  color: var(--text-muted);
+}
+
+.voice-status[data-type='success'] {
+  color: var(--status-fresh-text);
+}
+
+.voice-status[data-type='error'] {
+  color: var(--status-expired-text);
+}
+
+.voice-status[data-type='listening'] {
+  color: var(--accent-text);
+}
+
 .search-toggle .btn {
   padding: 8px;
 }

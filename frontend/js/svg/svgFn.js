@@ -18,5 +18,10 @@ const svg_logout = () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5
 const svg_list = () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><rect x="96" y="144" width="448" height="64" rx="16" fill="currentColor"/><rect x="96" y="288" width="448" height="64" rx="16" fill="currentColor"/><rect x="96" y="432" width="448" height="64" rx="16" fill="currentColor"/></svg>`;
 const svg_home = () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><polygon points="320,90 100,270 540,270" fill="currentColor"/><rect x="140" y="270" width="360" height="270" fill="currentColor"/></svg>`;
 
+const svg_mic = () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v5"/><path d="M8 22h8"/></svg>`;
 
-export { arrow_left, pen_solid, svg_trash, svg_notes, svg_check, svg_search, svg_logout, svg_list, svg_home };
+
+export {
+  arrow_left, pen_solid, svg_trash, svg_notes, svg_check, svg_search, svg_logout, svg_list, svg_home,
+  svg_mic,
+};

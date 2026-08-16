@@ -87,4 +87,4 @@ function formatReadableDate(date) {
 }
 
 
-export { timeAgo, toYYYYMMDD, fromYYYYMMDD, formatReadableDate };
+export { timeAgo, toYYYYMMDD, fromYYYYMMDD, formatReadableDate, MONTHS };

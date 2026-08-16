@@ -11,6 +11,7 @@ import {
 } from "../local-db/item-db.js";
 import { adjustDiscardCount, adjustUsedCount, recordItemCreated } from "../local-db/food-name-db.js";
 import { getCategoryLabel } from "../lib/locationCategory.js";
+import { resetVoiceStatus } from "./voice-item-ui.js";
 import { computeStatus, formatDueDetail, getSoonestDays } from "../lib/freshnessStatus.js";
 import { apiRecipeSuggestions } from "../api-caller/apiCaller.js";
 import { pageTitle } from "./ui.js";
@@ -414,6 +415,7 @@ function openItemForm(isEdit) {
   }
 
   hideNameSuggestions();
+  resetVoiceStatus();
   setStateField('showItemForm', true);
   itemNameInput.focus();
   itemNameInput.select();
