@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { debug, log } from '../logger/logger.js';
+import { debug, log, error } from '../logger/logger.js';
 import { errorResponse } from './httpResponses.js';
 import { handleApiRequest } from './apiRouter.js';
 
@@ -64,7 +64,7 @@ export async function handleRequest(req, res) {
     // 404
     return errorResponse(res, 'Resource not found ' + _url, 404);
   } catch (_err) {
-    log('---Error @handleRequest', _err);
+    error('---Error @handleRequest', _err);
     return errorResponse(res, 'Something went wrong', 500);
   }
 }
@@ -93,7 +93,7 @@ function sendAssetFile(res, fileRoute, contentType) {
       res.writeHead(404);
       res.end();
     } else {
-      log('---Error @sendAssetFile', err);
+      error('---Error @sendAssetFile', err);
       res.writeHead(500);
       res.end();
     }

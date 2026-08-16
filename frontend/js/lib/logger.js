@@ -51,7 +51,11 @@ function log() {
       default:
         text = String(arg); break;
     }
-    const p = $new({ tag: 'pre', class: 'folded log-entry type-' + logLevel, text });
+    // Timestamped so multiple stacked entries (e.g. several sync failures
+    // in one session) can be told apart by when they fired, not just what
+    // they say.
+    const timePrefix = `[${new Date().toLocaleTimeString()}] `;
+    const p = $new({ tag: 'pre', class: 'folded log-entry type-' + logLevel, text: timePrefix + text });
     if (logLevel === 'error') { p.classList.remove('folded') }
     logs.prepend(p);
   });

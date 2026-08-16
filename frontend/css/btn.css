@@ -55,14 +55,43 @@
   color: white;
 }
 .go-back .btn,
-#logoutBtn .btn {
+#headerMenuBtn .btn {
   padding: 0.75rem;
 }
 
 .go-back .btn .icon,
-#logoutBtn .btn .icon {
+#headerMenuBtn .btn .icon {
   width: 22px;
   height: 22px;
+}
+
+.header-menu {
+  position: relative;
+}
+
+.header-menu-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background-color: var(--bg-surface-raised);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  z-index: 20;
+  min-width: 180px;
+}
+
+.header-menu-item .btn {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0.75rem 1rem;
+  border-radius: 0;
+}
+
+.header-menu-item .btn .icon {
+  width: 20px;
+  height: 20px;
 }
 
 .edit-btn .btn {

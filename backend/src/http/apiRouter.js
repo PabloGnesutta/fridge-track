@@ -7,7 +7,7 @@ import { createSyncService } from '../services/syncService.js';
 import { createPushService } from '../services/pushService.js';
 import { createRecipeService } from '../services/recipeService.js';
 import { ServiceError } from '../services/ServiceError.js';
-import { log } from '../logger/logger.js';
+import { error } from '../logger/logger.js';
 
 
 const authService = createAuthService(db);
@@ -82,7 +82,7 @@ export async function handleApiRequest(req, res, segments) {
     if (err instanceof Error && err.message === INVALID_JSON_MESSAGE) {
       return errorResponse(res, err.message, 400);
     }
-    log('---Error @handleApiRequest', err);
+    error('---Error @handleApiRequest', err);
     return errorResponse(res, 'Something went wrong', 500);
   }
 }

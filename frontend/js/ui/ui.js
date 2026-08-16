@@ -1,10 +1,11 @@
 import { appState, dataState, dbStore, setStateField } from "../common/state.js";
 import { $, $button, $getInner, $queryOne } from "../lib/dom.js";
-import { _info, _log, _warn } from "../lib/logger.js";
+import { _info, _log, _warn, openLogs } from "../lib/logger.js";
 import { showConfirmDialog } from "../lib/confirmDialog.js";
 import { clearAllData } from "../lib/indexedDb.js";
 import {
-  arrow_left, pen_solid, svg_check, svg_home, svg_list, svg_logout, svg_notes, svg_search, svg_trash,
+  arrow_left, pen_solid, svg_check, svg_home, svg_list, svg_logout, svg_menu, svg_notes, svg_search,
+  svg_trash,
 } from "../svg/svgFn.js";
 import { logout } from "../appBoot.js";
 import {
@@ -20,6 +21,15 @@ import { closeFoodHistory, openFoodHistory } from "./food-history-ui.js";
 
 const mainHeader = $('mainHeader');
 const pageTitle = $getInner(mainHeader, '.page-title');
+const headerMenuPanel = $queryOne('#headerMenu .header-menu-panel');
+
+function toggleHeaderMenu() {
+  headerMenuPanel.classList.toggle('display-none');
+}
+
+function closeHeaderMenu() {
+  headerMenuPanel.classList.add('display-none');
+}
 
 /**
  * Signs out, then separately offers a "fresh start" - wiping this device's
@@ -69,10 +79,36 @@ function initUi() {
   });
 
   $button({
+    appendTo: $('headerMenuBtn'),
+    svgFn: svg_menu,
+    ariaLabel: 'Menú',
+    listener: { fn: toggleHeaderMenu },
+  });
+
+  $button({
     appendTo: $('logoutBtn'),
     svgFn: svg_logout,
-    ariaLabel: 'Cerrar sesión',
-    listener: { fn: () => showConfirmDialog('¿Seguro que querés cerrar sesión?', confirmLogoutAndOfferWipe) },
+    label: 'Cerrar sesión',
+    class: 'horizontal',
+    listener: {
+      fn: () => {
+        closeHeaderMenu();
+        showConfirmDialog('¿Seguro que querés cerrar sesión?', confirmLogoutAndOfferWipe);
+      },
+    },
+  });
+
+  $button({
+    appendTo: $('openLogsBtn'),
+    svgFn: svg_notes,
+    label: 'Ver logs',
+    class: 'horizontal',
+    listener: {
+      fn: () => {
+        closeHeaderMenu();
+        openLogs();
+      },
+    },
   });
 
   $('newItemBtn').addEventListener('click', () => { openItemForm(false); });
@@ -166,6 +202,16 @@ function initUi() {
   });
 
   modalBackdropHandler();
+
+  // Close the header menu on any click outside it - the hamburger button
+  // itself is inside #headerMenu, so the same click that opens the menu
+  // can't also immediately close it here.
+  $('app').addEventListener('click', e => {
+    if (headerMenuPanel.classList.contains('display-none')) { return; }
+    if (!(e.target instanceof Element) || !e.target.closest('#headerMenu')) {
+      closeHeaderMenu();
+    }
+  });
 
   // Click Event Delegation
   $('app').addEventListener('click', e => {

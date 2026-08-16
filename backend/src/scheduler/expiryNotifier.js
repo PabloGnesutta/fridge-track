@@ -2,7 +2,7 @@ import { createHomeService } from '../services/homeService.js';
 import { createPushService } from '../services/pushService.js';
 import { getWebPush } from '../services/webPushClient.js';
 import { computeItemStatus } from '../lib/itemStatus.js';
-import { log } from '../logger/logger.js';
+import { error } from '../logger/logger.js';
 
 const DEFAULT_INTERVAL_MS = 60 * 60 * 1000;
 
@@ -66,7 +66,7 @@ async function runNotificationTick(db) {
           if (err?.statusCode === 404 || err?.statusCode === 410) {
             pushService.removeSubscriptionByEndpoint(subscription.endpoint);
           } else {
-            log('---Error @runNotificationTick sendNotification', err);
+            error('---Error @runNotificationTick sendNotification', err);
           }
         }
       }
@@ -82,7 +82,7 @@ async function runNotificationTick(db) {
 function startExpiryNotificationScheduler(db) {
   const intervalMs = Number(process.env.NOTIFICATION_CHECK_INTERVAL_MS) || DEFAULT_INTERVAL_MS;
 
-  const tick = () => { runNotificationTick(db).catch(err => log('---Error @expiryNotifier tick', err)); };
+  const tick = () => { runNotificationTick(db).catch(err => error('---Error @expiryNotifier tick', err)); };
   tick();
   setInterval(tick, intervalMs);
 }

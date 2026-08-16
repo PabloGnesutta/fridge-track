@@ -207,6 +207,52 @@ deleted.
   for real service-worker offline support (see above).
 - Tombstone pruning/GC — deleted rows are kept forever server-side; fine at this scale, not yet an issue.
 
+**A real production incident traced a sync gap back to `apiCaller.js`'s `fetch()` using a relative
+URL** (`'api/' + path`) instead of root-relative (`'/api/' + path`) — from a client-side route like
+`/item/42` (exactly where the "Usado" button lives), that resolved to `/item/api/sync/push` instead of
+`/api/sync/push`, which the backend's router doesn't recognize as an API path, so it silently served the
+SPA-fallback `index.html` (`200 OK`, wrong body) instead of a real response or error. Same class of
+relative-vs-root-relative gotcha this file already documents for `<script src>`/`<link href>` tags, just
+missed for the API caller itself — fixed now. The investigation is also why `syncHome()`'s push/pull
+failures and `scheduleItemSync()`'s "no local location found" case now log via `_error()` (auto-opens the
+debug panel) rather than being silently swallowed or logged via `_warn` (invisible with no manual way to
+open the panel — see the header menu note below) — a failed sync used to leave zero trace anywhere,
+which is exactly what made this bug so hard to pin down on a real device with no devtools access.
+
+**Sign-out offers a "fresh start" escape hatch.** After the existing "¿Seguro que querés cerrar sesión?"
+confirmation and the actual sign-out, a *second*, separate dialog asks whether to also wipe this
+device's entire local IndexedDB cache (`js/lib/indexedDb.js`'s `clearAllData()` — closes the existing
+connection first, since `deleteDatabase()` blocks/hangs otherwise, then the caller reloads the page).
+It's deliberately a second dialog, not folded into the first: by that point sign-out has already
+happened either way, so "cancel" here just means "leave the cache alone," not "undo the sign-out." Not
+part of normal logout by default — `logout()` in `appBoot.js` still deliberately leaves IndexedDB alone
+on its own, so a device keeps working offline and a repeat login doesn't need a full network round-trip.
+This is purely a manual recovery option for a device stuck showing stale data.
+
+## Header hamburger menu + logging
+
+The header's standalone logout icon is now a hamburger menu (`#headerMenuBtn`, built like every other
+icon button via `$button()` — there was no existing dropdown/popup component anywhere in this app to
+reuse, so this one is built from existing primitives: the `.display-none` toggle convention, and a
+click-outside-to-close listener on `#app` in the same spirit as `modalBackdropHandler()`). The panel
+holds "Cerrar sesión" (the same `#logoutBtn`, just relocated - unchanged id/logic) and a new "Ver logs"
+button that calls `logger.js`'s already-exported-but-previously-unused `openLogs()`. That gap mattered:
+the debug panel (`#logger`) has had no manual open affordance since an earlier pass removed its old
+"open logs" button, so it only ever opened automatically via `_error()` — genuinely unreachable
+on-demand, which was a real problem while debugging the sync issue above on a phone with no devtools.
+
+Backend logging (`backend/src/logger/logger.js`) was a literal `// TODO: Implement logger` stub - raw
+`console.debug/log/warn` re-exports, no `error` level at all, no timestamps. It's now a small wrapper
+adding an ISO timestamp + level tag to every line and a real `error` export (routed to `console.error`,
+not `console.log`) - no logging library, just enough to make server output (wherever it ends up: a nohup
+file, `pm2 logs`, `journalctl`) greppable and correlatable against a client-side report. Every existing
+`log('---Error @...', err)` call site (`apiRouter.js`'s catch-all, `requestHandler.js`'s asset-serving
+error paths, `expiryNotifier.js`'s tick/notification-send catches) now uses `error(...)` instead;
+non-error `log`/`debug` calls (e.g. the per-request `debug('urlArray', ...)`, or the expected-404
+"file does not exist" case) are unchanged. The frontend's own `logger.js` gained a matching small
+improvement: every rendered log entry is now timestamped, so multiple stacked entries from one
+debugging session can be told apart by when they fired, not just what they say.
+
 ## UI/UX overhaul: navigation, motion, accessibility, gestures
 
 On top of a pure visual pass (dark-themed inputs, `box-shadow` elevation on rows/chips/modal, an

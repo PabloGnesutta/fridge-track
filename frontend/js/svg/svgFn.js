@@ -20,8 +20,10 @@ const svg_home = () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640
 
 const svg_mic = () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v5"/><path d="M8 22h8"/></svg>`;
 
+const svg_menu = () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>`;
+
 
 export {
   arrow_left, pen_solid, svg_trash, svg_notes, svg_check, svg_search, svg_logout, svg_list, svg_home,
-  svg_mic,
+  svg_mic, svg_menu,
 };
