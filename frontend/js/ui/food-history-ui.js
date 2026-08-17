@@ -17,7 +17,7 @@ const historyStats = $queryOne('#historyStats');
 /** Opens the food name history view */
 async function openFoodHistory() {
   setCurrentView('FoodHistory');
-  pageTitle.innerText = 'Historial';
+  pageTitle.innerText = 'Historial TEST';
   syncUrl('/historial');
 
   const homeId = dataState.currentHome?.id;
