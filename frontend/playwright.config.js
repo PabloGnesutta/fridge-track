@@ -16,7 +16,7 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
-    command: 'node ../backend/src/index.js',
+    command: 'node ../backend/src/index.fridge.js',
     url: 'http://localhost:3001',
     reuseExistingServer: !process.env.CI,
     timeout: 15_000,

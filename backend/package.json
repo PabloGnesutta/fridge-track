@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "serve": "nodemon ./src/index.js",
+    "serve": "nodemon ./src/index.fridge.js",
     "test": "node --test",
     "send-test-email": "node ./scripts/sendTestEmail.js"
   },
