@@ -26,12 +26,20 @@ function dismiss() {
   fold(banner);
 }
 
+/**
+ * Requests permission (a no-op prompt-wise if already granted/denied) and
+ * subscribes this device, saving the subscription server-side. Also used by
+ * the header-menu push toggle (ui.js's initNotificationToggles()), not just
+ * the opt-in banner - hence returning a boolean instead of just folding the
+ * banner, so a caller with no banner of its own can react to failure.
+ * @returns {Promise<boolean>}
+ */
 async function subscribe() {
   const permission = await Notification.requestPermission();
-  if (permission !== 'granted') { fold(banner); return; }
+  if (permission !== 'granted') { fold(banner); return false; }
 
   const { data: vapid, error: vapidError } = await apiPushVapidKey();
-  if (vapidError || !vapid?.publicKey) { _error(' - could not fetch VAPID public key', vapidError); fold(banner); return; }
+  if (vapidError || !vapid?.publicKey) { _error(' - could not fetch VAPID public key', vapidError); fold(banner); return false; }
 
   const registration = await navigator.serviceWorker.ready;
   const subscription = await registration.pushManager.subscribe({
@@ -40,10 +48,30 @@ async function subscribe() {
   });
 
   const { error: subscribeError } = await apiPushSubscribe(subscription.toJSON());
-  if (subscribeError) { _error(' - could not save push subscription', subscribeError); }
-  else { _info(' - push notifications enabled'); }
-
   fold(banner);
+  if (subscribeError) { _error(' - could not save push subscription', subscribeError); return false; }
+
+  _info(' - push notifications enabled');
+  return true;
+}
+
+/**
+ * Whether this device actually has a live, permitted push subscription -
+ * the real capability signal, kept deliberately separate from the stored
+ * pushEnabled preference (apiCaller.js's getNotificationPreferences()).
+ * A fresh signup defaults pushEnabled to true (matches the DB column's own
+ * DEFAULT 1) despite having no subscription yet, and a denied/revoked
+ * browser permission doesn't change that stored preference either - so
+ * "is the toggle actually ON" has to be computed from both, not read off
+ * the preference alone. See ui.js's initNotificationToggles().
+ * @returns {Promise<boolean>}
+ */
+async function hasActiveSubscription() {
+  if (!isSupported()) { return false; }
+  if (Notification.permission !== 'granted') { return false; }
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  return !!subscription;
 }
 
 /**
@@ -61,4 +89,7 @@ function initPushNotifications() {
 }
 
 
-export { initPushNotifications };
+export {
+  initPushNotifications, isSupported as isPushSupported, subscribe as subscribeToPush,
+  hasActiveSubscription,
+};

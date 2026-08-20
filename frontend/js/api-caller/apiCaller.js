@@ -2,6 +2,8 @@ const ACCESS_TOKEN_KEY = 'accessToken';
 const USER_ID_KEY = 'userId';
 const USER_EMAIL_KEY = 'userEmail';
 const USER_NAME_KEY = 'userName';
+const PUSH_ENABLED_KEY = 'pushEnabled';
+const EMAIL_ENABLED_KEY = 'emailEnabled';
 
 /**
  * @template T
@@ -78,13 +80,17 @@ async function apiCall(path, payload) {
 }
 
 /**
- * @param {{accessToken: string, userId: number, email: string, name?: string}} session
+ * @param {{accessToken: string, userId: number, email: string, name?: string, pushEnabled?: boolean, emailEnabled?: boolean}} session
  */
 function persistSession(session) {
   localStorage.setItem(ACCESS_TOKEN_KEY, session.accessToken);
   localStorage.setItem(USER_ID_KEY, String(session.userId));
   localStorage.setItem(USER_EMAIL_KEY, session.email);
   localStorage.setItem(USER_NAME_KEY, session.name || '');
+  persistNotificationPreferences({
+    pushEnabled: session.pushEnabled !== false,
+    emailEnabled: session.emailEnabled !== false,
+  });
 }
 
 function clearSession() {
@@ -92,6 +98,31 @@ function clearSession() {
   localStorage.removeItem(USER_ID_KEY);
   localStorage.removeItem(USER_EMAIL_KEY);
   localStorage.removeItem(USER_NAME_KEY);
+  localStorage.removeItem(PUSH_ENABLED_KEY);
+  localStorage.removeItem(EMAIL_ENABLED_KEY);
+}
+
+/**
+ * Both channels default to enabled - matches the backend columns' own
+ * DEFAULT 1, so a session cached before this feature existed (no stored
+ * keys yet) still renders as "on" instead of silently reading as off.
+ * @returns {{pushEnabled: boolean, emailEnabled: boolean}}
+ */
+function getNotificationPreferences() {
+  return {
+    pushEnabled: localStorage.getItem(PUSH_ENABLED_KEY) !== '0',
+    emailEnabled: localStorage.getItem(EMAIL_ENABLED_KEY) !== '0',
+  };
+}
+
+/** @param {{pushEnabled?: boolean, emailEnabled?: boolean}} prefs */
+function persistNotificationPreferences(prefs) {
+  if (prefs.pushEnabled !== undefined) {
+    localStorage.setItem(PUSH_ENABLED_KEY, prefs.pushEnabled ? '1' : '0');
+  }
+  if (prefs.emailEnabled !== undefined) {
+    localStorage.setItem(EMAIL_ENABLED_KEY, prefs.emailEnabled ? '1' : '0');
+  }
 }
 
 /** @returns {string|null} */
@@ -177,8 +208,18 @@ async function apiRecipeSuggestions(homeId) {
   return apiCall('recipes/suggestions', { homeId });
 }
 
+/**
+ * @param {{pushEnabled?: boolean, emailEnabled?: boolean}} prefs
+ */
+async function apiUpdateNotificationPreferences(prefs) {
+  const result = await apiCall('notifications/preferences', prefs);
+  if (result.data) { persistNotificationPreferences(result.data); }
+  return result;
+}
+
 export {
   apiSignup, apiLogin, apiLogout, apiCreateHome, apiJoinHome, apiListHomes,
   apiSyncPull, apiSyncPush, apiPushVapidKey, apiPushSubscribe, apiPushUnsubscribe,
-  apiRecipeSuggestions, isLoggedIn, getAccessToken, clearSession,
+  apiRecipeSuggestions, apiUpdateNotificationPreferences, isLoggedIn, getAccessToken, clearSession,
+  getNotificationPreferences, persistNotificationPreferences,
 };

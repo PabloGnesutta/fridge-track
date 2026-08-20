@@ -1,8 +1,11 @@
 import { appState, dataState, dbStore, setStateField } from "../common/state.js";
-import { $, $button, $getInner, $queryOne } from "../lib/dom.js";
+import { $, $button, $getInner, $input, $queryOne } from "../lib/dom.js";
 import { _info, _log, _warn, openLogs } from "../lib/logger.js";
 import { showConfirmDialog } from "../lib/confirmDialog.js";
+import { showErrorToast } from "../lib/toast.js";
 import { clearAllData } from "../lib/indexedDb.js";
+import { apiUpdateNotificationPreferences, getNotificationPreferences } from "../api-caller/apiCaller.js";
+import { hasActiveSubscription, isPushSupported, subscribeToPush } from "../pushNotifications.js";
 import {
   arrow_left, pen_solid, svg_check, svg_home, svg_list, svg_logout, svg_menu, svg_notes, svg_search,
   svg_trash,
@@ -24,7 +27,12 @@ const pageTitle = $getInner(mainHeader, '.page-title');
 const headerMenuPanel = $queryOne('#headerMenu .header-menu-panel');
 
 function toggleHeaderMenu() {
+  const opening = headerMenuPanel.classList.contains('display-none');
   headerMenuPanel.classList.toggle('display-none');
+  // Refreshed on every open, not just once at boot - browser permission can
+  // change underneath the app (revoked/granted via browser site settings)
+  // with nothing to notify the page when it does.
+  if (opening) { refreshPushToggleState(); }
 }
 
 function closeHeaderMenu() {
@@ -53,6 +61,86 @@ async function confirmLogoutAndOfferWipe() {
       window.location.reload();
     }
   );
+}
+
+/**
+ * Whether the push toggle should show as ON is NOT just the stored
+ * pushEnabled preference - a fresh signup defaults that to true (matches
+ * the DB column's DEFAULT 1) despite having no subscription yet, and a
+ * denied/revoked browser permission doesn't change the stored preference
+ * either (see pushNotifications.js's hasActiveSubscription() doc comment).
+ * So the checkbox is only really ON when the user wants it AND this device
+ * actually has a live subscription to back that up.
+ * @returns {Promise<boolean>}
+ */
+async function computePushToggleChecked() {
+  const prefs = getNotificationPreferences();
+  return prefs.pushEnabled && await hasActiveSubscription();
+}
+
+/**
+ * Re-derives the push toggle's checked state - called on every menu open,
+ * not just once at boot, since browser permission can change underneath the
+ * app (revoked/granted via browser site settings) with no event to notify
+ * the page when it does.
+ */
+async function refreshPushToggleState() {
+  const pushToggle = $input('pushNotifToggle');
+  if (pushToggle.disabled) { return; }
+  pushToggle.checked = await computePushToggleChecked();
+}
+
+/**
+ * Wires the two header-menu toggles. Push is a real, currently-firing
+ * feature (see backend/src/scheduler/expiryNotifier.js) so enabling it here
+ * goes through the same permission-request/subscribe flow as the opt-in
+ * banner (pushNotifications.js's subscribeToPush()); email has no trigger
+ * yet (see emailService.js) so its toggle only ever persists a preference,
+ * nothing currently reads it. Both write through to the backend immediately
+ * on change - there's no separate "save" step in this menu.
+ */
+function initNotificationToggles() {
+  const pushToggle = $input('pushNotifToggle');
+  const emailToggle = $input('emailNotifToggle');
+
+  emailToggle.checked = getNotificationPreferences().emailEnabled;
+
+  if (!isPushSupported()) {
+    pushToggle.disabled = true;
+  } else {
+    refreshPushToggleState();
+  }
+
+  pushToggle.addEventListener('change', async () => {
+    const wantEnabled = pushToggle.checked;
+
+    // Enabling needs an active subscription to actually deliver anything -
+    // requests permission (a silent no-op if already granted, impossible to
+    // re-request if already denied) and subscribes if not already.
+    if (wantEnabled) {
+      const subscribed = await subscribeToPush();
+      if (!subscribed) {
+        pushToggle.checked = false;
+        showErrorToast('No se pudo activar - revisá los permisos de notificaciones del navegador.');
+        return;
+      }
+    }
+
+    const { error } = await apiUpdateNotificationPreferences({ pushEnabled: wantEnabled });
+    if (error) {
+      pushToggle.checked = !wantEnabled;
+      showErrorToast('No se pudo guardar la preferencia.');
+    }
+  });
+
+  emailToggle.addEventListener('change', async () => {
+    const wantEnabled = emailToggle.checked;
+    const { error } = await apiUpdateNotificationPreferences({ emailEnabled: wantEnabled });
+    if (error) {
+      emailToggle.checked = !wantEnabled;
+      showErrorToast('No se pudo guardar la preferencia.');
+    }
+  });
 }
 
 function initUi() {
@@ -84,6 +172,8 @@ function initUi() {
     ariaLabel: 'Menú',
     listener: { fn: toggleHeaderMenu },
   });
+
+  initNotificationToggles();
 
   $button({
     appendTo: $('logoutBtn'),

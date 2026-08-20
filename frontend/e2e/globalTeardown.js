@@ -39,6 +39,12 @@ export default async function globalTeardown() {
     }
     db.prepare(`DELETE FROM sessions WHERE user_id IN (${placeholders})`).run(...userIds);
     db.prepare(`DELETE FROM home_members WHERE user_id IN (${placeholders})`).run(...userIds);
+    // Added once notification-toggles.spec.js started creating real
+    // push_subscriptions rows (previously nothing in the e2e suite ever
+    // subscribed for real) - without these, deleting `users` below hits a
+    // FOREIGN KEY constraint against whichever of these two still reference it.
+    db.prepare(`DELETE FROM push_subscriptions WHERE user_id IN (${placeholders})`).run(...userIds);
+    db.prepare(`DELETE FROM push_notification_log WHERE user_id IN (${placeholders})`).run(...userIds);
     db.prepare(`DELETE FROM homes WHERE created_by IN (${placeholders})`).run(...userIds);
     db.prepare(`DELETE FROM users WHERE id IN (${placeholders})`).run(...userIds);
   } finally {

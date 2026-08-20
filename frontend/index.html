@@ -27,6 +27,7 @@
   <link rel="stylesheet" href="/css/install-banner.css" />
   <link rel="stylesheet" href="/css/notif-banner.css" />
   <link rel="stylesheet" href="/css/confirm-dialog.css" />
+  <link rel="stylesheet" href="/css/toggle-switch.css" />
 
   <script src="/js/app.js" type="module" defer></script>
 </head>
@@ -41,8 +42,22 @@
         <div id="headerMenu" class="header-menu">
           <div id="headerMenuBtn"></div>
           <div class="header-menu-panel display-none">
-            <div id="logoutBtn" class="header-menu-item"></div>
+            <div class="header-menu-item toggle-item">
+              <span class="toggle-label">Notificaciones push</span>
+              <label class="switch">
+                <input type="checkbox" id="pushNotifToggle" />
+                <span class="switch-track"></span>
+              </label>
+            </div>
+            <div class="header-menu-item toggle-item">
+              <span class="toggle-label">Notificaciones por email</span>
+              <label class="switch">
+                <input type="checkbox" id="emailNotifToggle" />
+                <span class="switch-track"></span>
+              </label>
+            </div>
             <div id="openLogsBtn" class="header-menu-item"></div>
+            <div id="logoutBtn" class="header-menu-item"></div>
           </div>
         </div>
       </div>
