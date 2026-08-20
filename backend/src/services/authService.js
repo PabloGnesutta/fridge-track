@@ -25,7 +25,10 @@ function createAuthService(db) {
       'INSERT INTO users (email, password_hash, name, created_at) VALUES (?, ?, ?, ?)'
     ).run(email, hashPassword(password), name, Date.now());
 
-    return { id: Number(info.lastInsertRowid), email, name };
+    // pushEnabled/emailEnabled hardcoded true here rather than re-queried -
+    // matches the columns' own DEFAULT 1, so this is just avoiding a
+    // redundant round-trip for a value we already know.
+    return { id: Number(info.lastInsertRowid), email, name, pushEnabled: true, emailEnabled: true };
   }
 
   /**
@@ -58,12 +61,16 @@ function createAuthService(db) {
    */
   function getUserBySessionToken(token) {
     if (!token) { return null; }
-    const user = db.prepare(
-      `SELECT users.id, users.email, users.name FROM sessions
+    const row = db.prepare(
+      `SELECT users.id, users.email, users.name, users.push_enabled, users.email_enabled FROM sessions
        JOIN users ON users.id = sessions.user_id
        WHERE sessions.token = ?`
     ).get(token);
-    return user || null;
+    if (!row) { return null; }
+    return {
+      id: row.id, email: row.email, name: row.name,
+      pushEnabled: !!row.push_enabled, emailEnabled: !!row.email_enabled,
+    };
   }
 
   /**
@@ -73,7 +80,25 @@ function createAuthService(db) {
     db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
   }
 
-  return { createUser, verifyLogin, createSession, getUserBySessionToken, deleteSession };
+  /**
+   * @param {number} userId
+   * @param {{pushEnabled?: boolean, emailEnabled?: boolean}} prefs
+   */
+  function updateNotificationPreferences(userId, prefs) {
+    if (prefs.pushEnabled !== undefined) {
+      db.prepare('UPDATE users SET push_enabled = ? WHERE id = ?').run(prefs.pushEnabled ? 1 : 0, userId);
+    }
+    if (prefs.emailEnabled !== undefined) {
+      db.prepare('UPDATE users SET email_enabled = ? WHERE id = ?').run(prefs.emailEnabled ? 1 : 0, userId);
+    }
+    const row = db.prepare('SELECT push_enabled, email_enabled FROM users WHERE id = ?').get(userId);
+    return { pushEnabled: !!row.push_enabled, emailEnabled: !!row.email_enabled };
+  }
+
+  return {
+    createUser, verifyLogin, createSession, getUserBySessionToken, deleteSession,
+    updateNotificationPreferences,
+  };
 }
 
 export { createAuthService };

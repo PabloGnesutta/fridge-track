@@ -99,3 +99,28 @@ test('recordSent does not throw when called twice for the same (user, home, date
   services.pushService.recordSent(user.id, home.id, '2026-08-12');
   assert.doesNotThrow(() => services.pushService.recordSent(user.id, home.id, '2026-08-12'));
 });
+
+test('listAllSubscriptionsGroupedByUser excludes a user who has turned push off', () => {
+  const services = makeServices();
+  addAllowedEmail(services.db, 'a@test.local');
+  const user = services.authService.createUser('a@test.local', 'password123');
+  services.pushService.saveSubscription(user.id, makeSubscription());
+
+  services.authService.updateNotificationPreferences(user.id, { pushEnabled: false });
+
+  const byUser = services.pushService.listAllSubscriptionsGroupedByUser();
+  assert.equal(byUser.has(user.id), false);
+});
+
+test('listAllSubscriptionsGroupedByUser includes the user again once push is re-enabled', () => {
+  const services = makeServices();
+  addAllowedEmail(services.db, 'a@test.local');
+  const user = services.authService.createUser('a@test.local', 'password123');
+  services.pushService.saveSubscription(user.id, makeSubscription());
+
+  services.authService.updateNotificationPreferences(user.id, { pushEnabled: false });
+  services.authService.updateNotificationPreferences(user.id, { pushEnabled: true });
+
+  const byUser = services.pushService.listAllSubscriptionsGroupedByUser();
+  assert.equal(byUser.has(user.id), true);
+});

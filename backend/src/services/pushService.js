@@ -34,11 +34,18 @@ function createPushService(db) {
   }
 
   /**
-   * Groups every stored subscription by user, for the scheduler to walk.
+   * Groups every stored subscription by user, for the scheduler to walk -
+   * excluding users who've turned push off via notification preferences, so
+   * "don't send" is enforced at the source rather than the scheduler having
+   * to remember a separate per-user check.
    * @returns {Map<number, {endpoint: string, keys: {p256dh: string, auth: string}}[]>}
    */
   function listAllSubscriptionsGroupedByUser() {
-    const rows = db.prepare('SELECT * FROM push_subscriptions').all();
+    const rows = db.prepare(
+      `SELECT push_subscriptions.* FROM push_subscriptions
+       JOIN users ON users.id = push_subscriptions.user_id
+       WHERE users.push_enabled = 1`
+    ).all();
     /** @type {Map<number, {endpoint: string, keys: {p256dh: string, auth: string}}[]>} */
     const byUser = new Map();
     for (const row of rows) {

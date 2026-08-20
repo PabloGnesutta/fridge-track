@@ -40,12 +40,21 @@ export async function handleApiRequest(req, res, segments) {
     if (route === 'signup') {
       const user = authService.createUser(body.email, body.password, body.name);
       const accessToken = authService.createSession(user.id);
-      return successResponse(res, { accessToken, userId: user.id, email: user.email, name: user.name });
+      return successResponse(res, {
+        accessToken, userId: user.id, email: user.email, name: user.name,
+        pushEnabled: user.pushEnabled, emailEnabled: user.emailEnabled,
+      });
     }
     if (route === 'login') {
+      // verifyLogin returns the raw `users` row (snake_case columns,
+      // including password_hash) - only picking named fields here keeps
+      // that out of the response.
       const user = authService.verifyLogin(body.email, body.password);
       const accessToken = authService.createSession(user.id);
-      return successResponse(res, { accessToken, userId: user.id, email: user.email, name: user.name });
+      return successResponse(res, {
+        accessToken, userId: user.id, email: user.email, name: user.name,
+        pushEnabled: !!user.push_enabled, emailEnabled: !!user.email_enabled,
+      });
     }
 
     // Every route below requires a valid bearer token.
@@ -74,6 +83,11 @@ export async function handleApiRequest(req, res, segments) {
     }
     if (route === 'recipes/suggestions') {
       return successResponse(res, await recipeService.getSuggestionsForHome(user.id, body.homeId));
+    }
+    if (route === 'notifications/preferences') {
+      return successResponse(res, authService.updateNotificationPreferences(user.id, {
+        pushEnabled: body.pushEnabled, emailEnabled: body.emailEnabled,
+      }));
     }
 
     return errorResponse(res, 'Ruta de API no encontrada: ' + route, 404);

@@ -87,3 +87,35 @@ test('getUserBySessionToken returns null for an unknown token', () => {
   const { authService } = makeAuthService();
   assert.equal(authService.getUserBySessionToken('not-a-real-token'), null);
 });
+
+test('new users default to both notification channels enabled', () => {
+  const { authService, db } = makeAuthService();
+  addAllowedEmail(db, 'a@test.local');
+  const user = authService.createUser('a@test.local', 'password123');
+  assert.equal(user.pushEnabled, true);
+  assert.equal(user.emailEnabled, true);
+
+  const token = authService.createSession(user.id);
+  const resolved = authService.getUserBySessionToken(token);
+  assert.equal(resolved.pushEnabled, true);
+  assert.equal(resolved.emailEnabled, true);
+});
+
+test('updateNotificationPreferences flips only the field given, leaving the other alone', () => {
+  const { authService, db } = makeAuthService();
+  addAllowedEmail(db, 'a@test.local');
+  const user = authService.createUser('a@test.local', 'password123');
+
+  const afterPushOff = authService.updateNotificationPreferences(user.id, { pushEnabled: false });
+  assert.equal(afterPushOff.pushEnabled, false);
+  assert.equal(afterPushOff.emailEnabled, true);
+
+  const afterEmailOff = authService.updateNotificationPreferences(user.id, { emailEnabled: false });
+  assert.equal(afterEmailOff.pushEnabled, false);
+  assert.equal(afterEmailOff.emailEnabled, false);
+
+  const token = authService.createSession(user.id);
+  const resolved = authService.getUserBySessionToken(token);
+  assert.equal(resolved.pushEnabled, false);
+  assert.equal(resolved.emailEnabled, false);
+});
