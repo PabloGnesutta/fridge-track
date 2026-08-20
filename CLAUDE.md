@@ -399,6 +399,37 @@ card can never actually become visible or reachable. To re-enable: pick a recipe
 or swap in a free English-only one like TheMealDB — would need a translation step for Spanish item names
 first), re-add the `toggleRecipeSuggestionsVisibility()` call, and add the missing `ui.js` case.
 
+## Email sending — scaffolding only, not wired to any feature yet
+
+Generic outbound-email capability, added ahead of any specific feature needing it (a "vencimiento hoy"
+digest, a password-reset flow, etc. would all consume it later) and deliberately built to be portable —
+copy the three files below into another project and they work unchanged, no fridge-track-specific
+coupling. Same `create*Service`-factory/injectable-client shape as `recipeService.js`+`edamamClient.js`,
+split three ways:
+
+- `backend/src/lib/emailTemplate.js` — pure, dependency-free `renderEmailHtml({title, bodyText, appName})`.
+  Turns a plain-text body into a self-contained HTML document (inline CSS only, no `<style>` block or
+  external asset, since some mail clients strip/block both) with basic styling — a dark header bar, a
+  white card, blank-line-separated paragraphs, single newlines as `<br>`. No template engine; unit-tested
+  like the other DOM-free `lib/` modules.
+- `backend/src/services/mailClient.js` — wraps `nodemailer`'s SMTP transport (not a provider-specific API
+  like SES/SendGrid, so switching providers later is just env vars) behind `getMailTransport()`, memoized
+  and configured lazily on first call for the same ESM-import-hoisting reason `webPushClient.js`/
+  `edamamClient.js` already document — reading `process.env.SMTP_*` at module top level would always see
+  `undefined`, since this module loads before `index.js`'s `configEnv()` dotenv call runs.
+- `backend/src/services/emailService.js` — `createEmailService(mailClient = {getMailTransport})` exposes
+  `sendEmail({to, subject, text, html?, appName?})`, auto-generating the HTML via `emailTemplate.js` unless
+  the caller already supplies `html`. Unlike the push scheduler's fire-and-forget/log-and-continue calls,
+  `sendEmail()` is always caller-invoked (nothing triggers it automatically yet), so it deliberately
+  **rejects** on missing SMTP config or a transport failure instead of swallowing the error — the caller
+  is in the best position to decide whether that should surface, retry, or be ignored.
+
+Config lives in `backend/.env` (`SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASS`/`MAIL_FROM`/
+`MAIL_APP_NAME`, all optional/blank in `.env.example`) the same way `PORT`/`VAPID_*` already are. Not
+wired to any route or trigger — no allocated use case yet, so nothing calls `sendEmail()` in the app. To
+use it: `import { createEmailService } from './services/emailService.js'; const { sendEmail } =
+createEmailService(); await sendEmail({to, subject, text})`.
+
 ## Voice dictation for adding items
 
 A mic button on the item form ("Nombre" field) lets you dictate "Leche cantidad dos litros
