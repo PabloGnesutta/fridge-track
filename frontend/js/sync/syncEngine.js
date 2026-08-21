@@ -1,4 +1,4 @@
-import { getAllWithIndex, getOne, putOne } from "../lib/indexedDb.js";
+import { getAllWithIndex, getOne, putOne, deleteOne } from "../lib/indexedDb.js";
 import { apiSyncPull, apiSyncPush } from "../api-caller/apiCaller.js";
 import { remoteWins } from "./lwwMerge.js";
 import { _error } from "../lib/logger.js";
@@ -17,7 +17,14 @@ function toMillis(value) {
  * Reads every locations/items/foodNameHistory record for the Home directly
  * from IndexedDB (including tombstones - unlike fetchLocations/fetchItems,
  * which filter them out for display) and translates them into the wire
- * format the sync API expects.
+ * format the sync API expects. Also returns the IndexedDB keys of any
+ * foodNameHistory records still sitting under the old, pre-category-scoping
+ * 2-part key ([homeId, normalizedName]) - they're included in the pushed
+ * snapshot below (category-defaulted to 'alimento') but syncHome() needs
+ * their *old* key separately, to delete them locally once the round trip
+ * lands their data under the new 3-part key. Without that cleanup they
+ * linger forever alongside the new-keyed record synced back down, showing up
+ * as a duplicate entry in /historial.
  * @param {number} homeId
  */
 async function buildLocalSnapshot(homeId) {
@@ -29,8 +36,11 @@ async function buildLocalSnapshot(homeId) {
   }
 
   const foodNameHistory = await getAllWithIndex('foodNameHistory', 'homeId', homeId);
+  const legacyFoodNameHistoryKeys = foodNameHistory
+    .filter(entry => !entry.category)
+    .map(entry => entry._key);
 
-  return {
+  const snapshot = {
     locations: locations.map(location => ({
       id: location._key,
       homeId,
@@ -70,6 +80,8 @@ async function buildLocalSnapshot(homeId) {
       deletedAt: toMillis(entry.deletedAt),
     })),
   };
+
+  return { snapshot, legacyFoodNameHistoryKeys };
 }
 
 /**
@@ -152,7 +164,7 @@ async function mergeFoodNameHistory(pulled) {
  */
 async function syncHome(homeId) {
   try {
-    const snapshot = await buildLocalSnapshot(homeId);
+    const { snapshot, legacyFoodNameHistoryKeys } = await buildLocalSnapshot(homeId);
     const pushResult = await apiSyncPush(homeId, snapshot);
     if (pushResult.error) {
       _error(' - syncHome push failed:', pushResult.error, 'status:', pushResult.status, 'detail:', pushResult.detail);
@@ -168,6 +180,12 @@ async function syncHome(homeId) {
     for (const location of pullResult.data.locations) { await mergeLocation(location); }
     for (const item of pullResult.data.items) { await mergeItem(item); }
     for (const entry of pullResult.data.foodNameHistory) { await mergeFoodNameHistory(entry); }
+
+    // Only reached once this record's data has definitely landed under its
+    // new 3-part key (already there locally, or just written by the merge
+    // loop above from the pull we just did) - safe to drop the old-keyed
+    // duplicate now.
+    for (const legacyKey of legacyFoodNameHistoryKeys) { await deleteOne('foodNameHistory', legacyKey); }
   } catch (err) {
     _error(' - syncHome threw (offline or unreachable):', err);
   }
