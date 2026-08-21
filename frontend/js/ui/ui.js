@@ -14,7 +14,7 @@ import { logout } from "../appBoot.js";
 import {
   deleteLocationFromForm, editLocation, openAddLocation, submitLocationForm, switchLocation,
 } from "./location-ui.js";
-import { openHomeSwitcher, switchHome } from "./home-ui.js";
+import { openHomeManage, closeHomeManage, switchHome } from "./home-ui.js";
 import {
   closeSingleItem, markItemDiscarded, markItemUsed, openItemForm, openItemList, openMostUrgentItem,
   openSingleItem, submitItemBtn, submitItemForm, toggleSearch, tryDeleteItem,
@@ -162,6 +162,9 @@ function initUi() {
           case 'FoodHistory':
             closeFoodHistory();
             break;
+          case 'Home':
+            closeHomeManage();
+            break;
           default: break;
         }
       }
@@ -296,7 +299,7 @@ function initUi() {
     label: 'Hogar',
     class: 'tab-btn',
     ariaLabel: 'Cambiar de Hogar',
-    dataset: [['clickAction', 'openHomeSwitcher'], ['tab', 'home']],
+    dataset: [['clickAction', 'openHomeManage'], ['tab', 'home']],
   });
 
   modalBackdropHandler();
@@ -355,8 +358,8 @@ function initUi() {
       case 'switchHome':
         switchHome(dataset.homeId || '');
         break;
-      case 'openHomeSwitcher':
-        openHomeSwitcher();
+      case 'openHomeManage':
+        openHomeManage();
         break;
       default:
         return _warn(' :: clickAction not defined: ' + dataset.clickAction);

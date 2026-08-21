@@ -20,7 +20,7 @@ import { _log } from "../lib/logger.js";
  * @property {Views} currentView
  * @property {AuthStage} authStage
  *
- * @typedef {'ItemList'|'SingleItem'|'FoodHistory'} Views
+ * @typedef {'ItemList'|'SingleItem'|'FoodHistory'|'Home'} Views
  * @typedef {'checking'|'login'|'chooseHome'|'ready'} AuthStage
  *
  * @typedef {object} DataState
@@ -81,6 +81,7 @@ const VIEW_ELEMENT_IDS = {
     ItemList: 'itemListView',
     SingleItem: 'singleItemView',
     FoodHistory: 'foodHistoryView',
+    Home: 'homeView',
 };
 
 /**

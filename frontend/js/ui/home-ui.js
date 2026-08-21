@@ -2,9 +2,12 @@ import {
   $, $button, $form, $getInner, $new, $queryOne, $queryOneInput, display, undisplay, makeKeyboardActivatable,
 } from "../lib/dom.js";
 import { showErrorToast, showInfoToast } from "../lib/toast.js";
-import { dataState, dbStore, setAuthStage } from "../common/state.js";
+import { appState, dataState, dbStore, setCurrentView } from "../common/state.js";
+import { syncUrl } from "../common/router.js";
 import { createHome, joinHome, setCurrentHomeId } from "../local-db/home-db.js";
 import { afterHome } from "../appBoot.js";
+import { pageTitle } from "./ui.js";
+import { openItemList } from "./item-ui.js";
 
 
 const homeForm = $form('homeForm');
@@ -30,9 +33,9 @@ modeToggle.addEventListener('click', toggleMode);
 makeKeyboardActivatable(modeToggle);
 // Attached directly (not via the #app click-delegation used for
 // data-click-action elements) so stopPropagation() here reliably runs
-// before the click ever reaches .home-switcher's own openHomeSwitcher
+// before the click ever reaches .home-switcher's own openHomeManage
 // handler - otherwise tapping the code would both copy it and open the
-// switcher.
+// Hogar tab.
 homeSwitcherCode.addEventListener('click', copyJoinCode);
 
 
@@ -146,13 +149,26 @@ async function switchHome(homeId) {
 }
 
 /**
- * Re-enters the Home selection screen without logging out - the only way to
- * reach a second Home once the app is already showing one.
+ * Opens the "Hogar" tab - a real page (own URL, header/footer/hamburger menu
+ * all present) rather than dropping back to the pre-ready chooseHome screen,
+ * so switching/creating/joining a Home once the app is already showing one
+ * looks and navigates like every other tab (Lista/Historial) instead of like
+ * re-onboarding. The chooseHome auth stage (see state.js) is unrelated and
+ * unchanged - that one's still the pre-login/no-Home-yet screen, deliberately
+ * without header/footer since the user isn't "in" the app yet.
  */
-function openHomeSwitcher() {
+function openHomeManage() {
+  setCurrentView('Home');
+  pageTitle.innerText = 'Hogar';
+  syncUrl('/hogar');
   renderHomeChips();
   setMode('create');
-  setAuthStage('chooseHome');
+}
+
+/** Mirrors closeFoodHistory() in food-history-ui.js - go-back from the Hogar tab returns to Lista. */
+function closeHomeManage() {
+  if (appState.currentView !== 'Home') { return; }
+  openItemList();
 }
 
 /**
@@ -169,4 +185,4 @@ function refreshHomeUi() {
 }
 
 
-export { initHomeUi, renderHomeChips, switchHome, openHomeSwitcher, refreshHomeUi };
+export { initHomeUi, renderHomeChips, switchHome, openHomeManage, closeHomeManage, refreshHomeUi };

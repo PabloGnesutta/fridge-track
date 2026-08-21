@@ -1,5 +1,6 @@
 import { openItemList, openSingleItem } from "../ui/item-ui.js";
 import { openFoodHistory } from "../ui/food-history-ui.js";
+import { openHomeManage } from "../ui/home-ui.js";
 import { parseRoute } from "./routeMatch.js";
 
 
@@ -33,6 +34,8 @@ function renderSpecificRoute(route) {
     openSingleItem(route.itemKey);
   } else if (route.view === 'FoodHistory') {
     openFoodHistory();
+  } else if (route.view === 'Home') {
+    openHomeManage();
   } else {
     openItemList();
   }

@@ -26,10 +26,14 @@ test('the bottom tab bar is hidden until a Home is ready, then navigates between
   await expect(page.locator('#itemListView')).toBeVisible();
   await expect(page.locator('[data-tab="list"]')).toHaveCSS('color', 'rgb(255, 111, 163)');
 
-  // Hogar tab opens the Home switcher - a full-screen mode that hides the
-  // tab bar too, exactly like the header already does (see style.css's
-  // auth-stage gating).
+  // Hogar tab navigates and updates the URL, same as every other tab - a
+  // real page with the header/footer still visible, not the full-screen
+  // pre-ready chooseHome screen (that one's still auth-stage gated, see
+  // style.css).
   await page.click('#tabHomeBtn .btn');
+  await expect(page).toHaveURL('/hogar');
   await expect(page.locator('#homeView')).toBeVisible();
-  await expect(page.locator('#mainFooter')).toBeHidden();
+  await expect(page.locator('#mainFooter')).toBeVisible();
+  await expect(page.locator('#mainHeader')).toBeVisible();
+  await expect(page.locator('[data-tab="home"]')).toHaveCSS('color', 'rgb(255, 111, 163)');
 });

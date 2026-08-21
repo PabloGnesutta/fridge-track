@@ -65,7 +65,7 @@ export async function ensureAuth(page, { email, password = 'e2e-test-password' }
 export async function ensureHome(page, name = 'Hogar Test') {
   // The Home form defaults to "create" mode (its name field visible) every
   // time #homeView is (re)entered - see home-ui.js's setMode()/
-  // openHomeSwitcher().
+  // openHomeManage().
   const nameInput = page.locator('#homeForm input[name="homeName"]');
   const appeared = await nameInput.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
   if (!appeared) { return; }

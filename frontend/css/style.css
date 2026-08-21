@@ -142,7 +142,8 @@ svg {
 }
 
 #app[data-current-view='ItemList'] #mainFooter [data-tab='list'],
-#app[data-current-view='FoodHistory'] #mainFooter [data-tab='history'] {
+#app[data-current-view='FoodHistory'] #mainFooter [data-tab='history'],
+#app[data-current-view='Home'] #mainFooter [data-tab='home'] {
   color: var(--accent-text);
 }
 
@@ -640,16 +641,19 @@ svg {
   pointer-events: none;
 }
 
-/* Views state */
+/* Views state - #homeView (the "Hogar" tab) is a page like the other three
+   here, current-view-gated the same way; see the auth/home gating block
+   below for the separate pre-ready "chooseHome" onboarding case that also
+   needs it visible. */
 #app:not([data-current-view='ItemList']) #itemListView,
 #app:not([data-current-view='SingleItem']) #singleItemView,
-#app:not([data-current-view='FoodHistory']) #foodHistoryView {
+#app:not([data-current-view='FoodHistory']) #foodHistoryView,
+#app:not([data-current-view='Home']) #homeView {
   display: none;
 }
 
 /* Auth/Home gating: blocks the whole app behind login + home selection */
-#authView,
-#homeView {
+#authView {
   display: none;
 }
 
@@ -657,16 +661,22 @@ svg {
   display: block;
 }
 
-#app[data-auth-stage='chooseHome'] #homeView {
-  display: block;
-}
-
 #app:not([data-auth-stage='ready']) #mainHeader,
 #app:not([data-auth-stage='ready']) #itemListView,
 #app:not([data-auth-stage='ready']) #singleItemView,
 #app:not([data-auth-stage='ready']) #foodHistoryView,
+#app:not([data-auth-stage='ready']) #homeView,
 #app:not([data-auth-stage='ready']) #mainFooter {
   display: none;
+}
+
+/* #homeView still needs to show during the pre-ready "pick a Home"
+   onboarding step even though the not-ready rule just above just hid it -
+   same selector specificity, so this has to stay textually after that block
+   to win the tie and be shown. Once ready, visibility goes back to being
+   driven purely by data-current-view (see the views-state block above). */
+#app[data-auth-stage='chooseHome'] #homeView {
+  display: block;
 }
 
 .mode-toggle {

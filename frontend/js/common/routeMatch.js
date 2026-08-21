@@ -1,5 +1,5 @@
 /**
- * @typedef {{ view: 'ItemList' } | { view: 'SingleItem', itemKey: string } | { view: 'FoodHistory' }} Route
+ * @typedef {{ view: 'ItemList' } | { view: 'SingleItem', itemKey: string } | { view: 'FoodHistory' } | { view: 'Home' }} Route
  */
 
 /**
@@ -13,6 +13,7 @@ function parseRoute(pathname) {
   const itemMatch = pathname.match(/^\/item\/([^/]+)\/?$/);
   if (itemMatch) { return { view: 'SingleItem', itemKey: itemMatch[1] }; }
   if (pathname.match(/^\/historial\/?$/)) { return { view: 'FoodHistory' }; }
+  if (pathname.match(/^\/hogar\/?$/)) { return { view: 'Home' }; }
   return { view: 'ItemList' };
 }
 

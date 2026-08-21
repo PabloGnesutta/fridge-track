@@ -27,3 +27,11 @@ test('parseRoute: /historial maps to the food name history view', () => {
 test('parseRoute: trailing slash on /historial is tolerated', () => {
   assert.deepEqual(parseRoute('/historial/'), { view: 'FoodHistory' });
 });
+
+test('parseRoute: /hogar maps to the Home view', () => {
+  assert.deepEqual(parseRoute('/hogar'), { view: 'Home' });
+});
+
+test('parseRoute: trailing slash on /hogar is tolerated', () => {
+  assert.deepEqual(parseRoute('/hogar/'), { view: 'Home' });
+});
