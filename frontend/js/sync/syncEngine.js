@@ -45,6 +45,7 @@ async function buildLocalSnapshot(homeId) {
       id: location._key,
       homeId,
       name: location.name,
+      category: location.category || 'alimento',
       createdAt: toMillis(location.createdAt),
       updatedAt: toMillis(location.updatedAt),
       deletedAt: toMillis(location.deletedAt),
@@ -94,6 +95,7 @@ async function mergeLocation(pulled) {
   await putOne('locations', {
     name: pulled.name,
     homeId: pulled.homeId,
+    category: pulled.category || 'alimento',
     createdAt: new Date(pulled.createdAt),
     updatedAt: new Date(pulled.updatedAt),
     deletedAt: pulled.deletedAt != null ? new Date(pulled.deletedAt) : null,

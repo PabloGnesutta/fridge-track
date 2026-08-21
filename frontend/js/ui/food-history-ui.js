@@ -3,12 +3,12 @@ import { toYYYYMMDD, timeAgo } from "../lib/date.js";
 import { showConfirmDialog } from "../lib/confirmDialog.js";
 import { showErrorToast } from "../lib/toast.js";
 import { pen_solid, svg_trash } from "../svg/svgFn.js";
-import { appState, dataState, setCurrentView, setStateField } from "../common/state.js";
+import { appState, dataState, dbStore, setCurrentView, setStateField } from "../common/state.js";
 import { syncUrl } from "../common/router.js";
 import {
   deleteFoodNameHistory, fetchFoodNameHistory, updateFoodNameHistory,
 } from "../local-db/food-name-db.js";
-import { LOCATION_CATEGORIES } from "../lib/locationCategory.js";
+import { getKnownCategories } from "../lib/locationCategory.js";
 import { pageTitle } from "./ui.js";
 import { openItemList } from "./item-ui.js";
 
@@ -76,7 +76,7 @@ async function openFoodHistory() {
 /** Renders the category tab row, highlighting the currently selected one. */
 function renderHistoryCategoryTabs() {
   historyTabs.innerHTML = '';
-  for (const { value, label } of LOCATION_CATEGORIES) {
+  for (const { value, label } of getKnownCategories(dbStore.locations)) {
     historyTabs.append($new({
       class: 'history-category-tab' + (value === selectedCategory ? ' active' : ''),
       text: label,

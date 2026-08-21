@@ -9,7 +9,7 @@ import { ensureOnboarded, addItem } from './helpers.js';
 async function addLocation(page, name, category) {
   await page.click('.location-chips .add-chip');
   await page.fill('#locationForm input[name="locationName"]', name);
-  await page.selectOption('#locationForm select[name="locationCategory"]', category);
+  await page.fill('#locationForm input[name="locationCategory"]', category);
   await page.click('#locationForm .submit');
   await page.waitForSelector('#locationForm', { state: 'hidden' });
 }

@@ -191,11 +191,11 @@
             </div>
             <div class="form-control">
               <label for="locationCategory">Qué guarda</label>
-              <select name="locationCategory">
-                <option value="alimento">Alimentos</option>
-                <option value="medicamento">Medicamentos</option>
-                <option value="otro">Otros</option>
-              </select>
+              <input
+                type="text" name="locationCategory" list="locationCategoryOptions"
+                placeholder="ej. Alimentos" autocomplete="off"
+              />
+              <datalist id="locationCategoryOptions"><!--  --></datalist>
             </div>
             <div class="submit"><!--  --></div>
           </div>

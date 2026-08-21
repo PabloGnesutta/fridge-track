@@ -3,6 +3,7 @@ import { showErrorToast } from "../lib/toast.js";
 import { showConfirmDialog } from "../lib/confirmDialog.js";
 import { pen_solid, svg_trash } from "../svg/svgFn.js";
 import { dataState, dbStore, setStateField } from "../common/state.js";
+import { getKnownCategories } from "../lib/locationCategory.js";
 import {
   createLocation, deleteLocationAndItems, resolveCurrentLocation, setLastUsedLocationKey, updateLocation,
 } from "../local-db/location-db.js";
@@ -16,8 +17,8 @@ import { fetchAndRenderItems, openItemList } from "./item-ui.js";
 
 const locationForm = $form('locationForm');
 const locationNameInput = $queryOneInput('#locationForm input[name="locationName"]');
-/** @type {HTMLSelectElement} */ // @ts-ignore
-const locationCategoryInput = $queryOne('#locationForm select[name="locationCategory"]');
+const locationCategoryInput = $queryOneInput('#locationForm input[name="locationCategory"]');
+const locationCategoryOptions = $('locationCategoryOptions');
 const formTitleText = $getInner(locationForm, '.form-title-text');
 const deleteLocationBtn = $('deleteLocationBtn');
 const submitLocationBtn = $queryOne('#locationForm .submit');
@@ -45,6 +46,7 @@ function openLocationForm(onboarding = false, editTarget = null) {
 
   const submitLabel = $getInner(submitLocationBtn, '.label');
   locationBeingEdited = editTarget;
+  renderCategoryOptions();
 
   if (editTarget) {
     locationNameInput.value = editTarget.name;
@@ -54,6 +56,13 @@ function openLocationForm(onboarding = false, editTarget = null) {
     deleteLocationBtn.classList.remove('display-none');
   } else {
     locationForm.reset();
+    // Left empty (placeholder-only), not pre-filled with 'alimento' like the
+    // old <select> defaulted to - a native <input list> datalist filters its
+    // suggestions to whatever text is already in the box, so pre-filling it
+    // made every OTHER category (built-in or custom) invisible until the
+    // field was manually cleared, which looked like "alimento" was the only
+    // option. Submitting blank still defaults to 'alimento' (see
+    // submitLocationForm), so behavior is unchanged, just the display.
     formTitleText.innerText = 'Nueva Ubicación';
     submitLabel.innerText = 'Agregar Ubicación';
     deleteLocationBtn.classList.add('display-none');
@@ -62,6 +71,20 @@ function openLocationForm(onboarding = false, editTarget = null) {
   setStateField('showLocationForm', true);
   locationNameInput.focus();
   locationNameInput.select();
+}
+
+/**
+ * (Re)fills the category field's suggestion list from whatever's currently
+ * known for this Home - the 3 built-ins plus any custom category a location
+ * already uses (see locationCategory.js's getKnownCategories). Called each
+ * time the form opens rather than kept continuously in sync, same as
+ * renderHomeChips()/renderLocationChips() elsewhere in this app.
+ */
+function renderCategoryOptions() {
+  locationCategoryOptions.innerHTML = '';
+  for (const { value, label } of getKnownCategories(dbStore.locations)) {
+    locationCategoryOptions.append($new({ tag: 'option', value, text: label }));
+  }
 }
 
 /**
@@ -74,7 +97,7 @@ async function submitLocationForm(e) {
   const formData = new FormData(locationForm);
   const name = formData.get('locationName') || '';
   if (typeof name !== 'string') { return; }
-  const category = formData.get('locationCategory')?.toString() || 'alimento';
+  const category = formData.get('locationCategory')?.toString().trim() || 'alimento';
 
   if (locationBeingEdited) {
     const result = await updateLocation(locationBeingEdited, name, new Date(), category);
