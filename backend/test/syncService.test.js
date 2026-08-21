@@ -252,6 +252,23 @@ test('food_name_history entry with no category defaults to alimento', () => {
   assert.equal(snapshot.foodNameHistory[0].category, 'alimento');
 });
 
+test('food_name_history deletedAt round-trips through push/pull, tombstones still returned', () => {
+  const services = makeServices();
+  const { user, home } = makeUserAndHome(services);
+  const entry = {
+    homeId: home.id, category: 'alimento', normalizedName: 'leche', name: 'Leche',
+    firstCreatedAt: 1000, shelfLifeDays: 5, timesDiscarded: 0, timesUsed: 0, updatedAt: 1000,
+  };
+  services.syncService.pushHomeSnapshot(user.id, home.id, { foodNameHistory: [entry] });
+
+  const deleted = { ...entry, deletedAt: 2000, updatedAt: 2000 };
+  services.syncService.pushHomeSnapshot(user.id, home.id, { foodNameHistory: [deleted] });
+
+  const snapshot = services.syncService.pullHomeSnapshot(user.id, home.id);
+  assert.equal(snapshot.foodNameHistory.length, 1);
+  assert.equal(snapshot.foodNameHistory[0].deletedAt, 2000);
+});
+
 test('location category round-trips through push/pull', () => {
   const services = makeServices();
   const { user, home } = makeUserAndHome(services);

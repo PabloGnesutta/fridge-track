@@ -67,6 +67,7 @@ async function buildLocalSnapshot(homeId) {
       timesDiscarded: entry.timesDiscarded,
       timesUsed: entry.timesUsed || 0,
       updatedAt: toMillis(entry.updatedAt) ?? toMillis(entry.firstCreatedAt),
+      deletedAt: toMillis(entry.deletedAt),
     })),
   };
 }
@@ -129,6 +130,7 @@ async function mergeFoodNameHistory(pulled) {
     timesDiscarded: pulled.timesDiscarded,
     timesUsed: pulled.timesUsed || 0,
     updatedAt: new Date(pulled.updatedAt),
+    deletedAt: pulled.deletedAt != null ? new Date(pulled.deletedAt) : null,
   }, key);
 }
 

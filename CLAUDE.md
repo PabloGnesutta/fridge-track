@@ -380,6 +380,54 @@ border/background) - same reasoning as the confirm dialog's own separate-class c
 file: a different concern (category filter vs. location switching) shouldn't risk one component's future
 CSS changes silently leaking into the other's.
 
+## Editing and deleting food_name_history entries
+
+Added because a typo in a history entry's name would otherwise sit in autocomplete forever - fixing it
+needed both a rename and a delete path, neither of which existed before (the whole table was previously
+write-only from the app's perspective: upserted on item creation, adjusted on use/discard, never directly
+edited or removed by a person).
+
+**Delete gives `food_name_history` a tombstone for the first time.** Migration
+`006_food_name_history_deleted_at.js` adds `deleted_at` - a plain `ALTER TABLE ADD COLUMN` this time
+(unlike migration `005`), since it isn't part of the primary key. `local-db/food-name-db.js`'s
+`deleteFoodNameHistory()` soft-deletes exactly like items/locations already do (set `deletedAt`, bump
+`updatedAt`, keep the row so the tombstone propagates through sync); `fetchFoodNameHistory()` now filters
+`deletedAt == null` client-side, the same pattern `fetchItems`/`fetchLocations` already use for their own
+tombstones. Deleting doesn't touch `dbStore` or trigger sync itself - callers re-fetch afterward, same as
+after any other write in this module, since edit/delete are infrequent, deliberate user actions on the
+`/historial` screen rather than a hot path like item creation that needs `upsertCache()`'s per-write cache
+patching to avoid a refetch.
+
+**Renaming moves the record to a new key, it doesn't update in place** - `normalizedName` is *derived*
+from `name` and is part of this store's `[homeId, category, normalizedName]` key (see the category-scoping
+section above), so a real typo fix (not just a capitalization tweak) changes the record's identity.
+`updateFoodNameHistory()` checks whether the new name's normalized form actually differs first: if not,
+it's a trivial in-place field update; if it does, it tombstones the old key and creates a new record at the
+new one, carrying over `firstCreatedAt`/`timesDiscarded`/`timesUsed` - reusing the exact same tombstone
+mechanism delete just added, not a separate "rename" concept. **Collisions are blocked, not merged or
+silently overwritten**: if the new key already matches another still-live entry, `updateFoodNameHistory()`
+returns `{ok: false, error}` instead of touching anything - combining two different names' accumulated
+history is a bigger, unrequested decision than a rename should make on its own. None of this needed any
+sync-engine changes beyond the `deletedAt` field itself - from `syncService.js`/`syncEngine.js`'s
+perspective a rename is just two ordinary pushed records (one now-tombstoned, one new), no special "move"
+handling required.
+
+**A tombstoned entry is "nonexistent" to `recordItemCreated()`, not resurrectable.** Creating a new item
+under a name whose history was explicitly deleted starts a genuinely fresh record (reset counts, new
+`firstCreatedAt`) rather than quietly reviving the old `timesUsed`/`timesDiscarded` - deleting was a
+deliberate "forget this" action, so bringing the old stats back without telling anyone would defeat the
+point. `adjustDiscardCount()`/`adjustUsedCount()` treat a tombstoned entry as absent too (no-op), for the
+same reason in the other direction - they shouldn't silently revive a deleted entry just because an
+already-in-flight discard/use happens to land after its deletion.
+
+**UI**: `/historial` rows get a pencil + trash icon (`food-history-ui.js`'s `buildHistoryRow()`, styled in
+`css/btn.css` as `.history-row-actions`) - the trash opens the existing `showConfirmDialog()`; the pencil
+opens a small new form (`#foodNameHistoryForm`, name + shelf-life-days) reusing the same shared-modal/
+state-flag pattern as `locationForm`/`itemForm` (`showFoodNameHistoryForm` in `state.js`, gated in
+`style.css` and `ui.js`'s `modalBackdropHandler()` exactly like the other two forms). Only the name and
+shelf-life-days are editable - not the category, since that's a property of *where* an item was added
+(the location), not something a history entry should redefine on its own.
+
 ## Push notifications (product feature #1)
 
 A background scheduler on the backend, not a client-side timer, since the whole point is alerting users

@@ -109,3 +109,18 @@
   width: 20px;
   height: 20px;
 }
+
+.history-row-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.history-row-actions .btn {
+  padding: 0.5rem;
+}
+
+.history-row-actions .btn .icon {
+  width: 16px;
+  height: 16px;
+}

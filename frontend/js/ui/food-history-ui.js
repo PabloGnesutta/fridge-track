@@ -1,8 +1,13 @@
-import { $new, $queryOne } from "../lib/dom.js";
+import { $button, $form, $getInner, $new, $queryOne, $queryOneInput } from "../lib/dom.js";
 import { toYYYYMMDD, timeAgo } from "../lib/date.js";
-import { appState, dataState, setCurrentView } from "../common/state.js";
+import { showConfirmDialog } from "../lib/confirmDialog.js";
+import { showErrorToast } from "../lib/toast.js";
+import { pen_solid, svg_trash } from "../svg/svgFn.js";
+import { appState, dataState, setCurrentView, setStateField } from "../common/state.js";
 import { syncUrl } from "../common/router.js";
-import { fetchFoodNameHistory } from "../local-db/food-name-db.js";
+import {
+  deleteFoodNameHistory, fetchFoodNameHistory, updateFoodNameHistory,
+} from "../local-db/food-name-db.js";
 import { LOCATION_CATEGORIES } from "../lib/locationCategory.js";
 import { pageTitle } from "./ui.js";
 import { openItemList } from "./item-ui.js";
@@ -15,6 +20,20 @@ import { openItemList } from "./item-ui.js";
 const historyTabs = $queryOne('#foodHistoryView .history-category-tabs');
 const historyList = $queryOne('#foodHistoryView .list');
 const historyStats = $queryOne('#historyStats');
+
+const foodNameHistoryForm = $form('foodNameHistoryForm');
+const foodNameHistoryNameInput = $queryOneInput('#foodNameHistoryForm input[name="foodNameHistoryName"]');
+const foodNameHistoryShelfLifeInput = $queryOneInput(
+  '#foodNameHistoryForm input[name="foodNameHistoryShelfLifeDays"]'
+);
+
+/** The entry currently open in the edit form, if any. */
+/** @type {FoodNameHistory|null} */
+let entryBeingEdited = null;
+
+// Intercept native form submission (e.g. pressing Enter in a field) so it
+// doesn't navigate the browser away with the field as a GET query string.
+foodNameHistoryForm.addEventListener('submit', submitFoodNameHistoryForm);
 
 /**
  * Every entry for the current Home, unfiltered - fetched once per
@@ -86,6 +105,67 @@ function renderCurrentCategory() {
 }
 
 /**
+ * Re-fetches allEntries (refreshing both this view's list and the shared
+ * dbStore.foodNameHistory autocomplete cache - fetchFoodNameHistory() writes
+ * both) and re-renders. Called after a successful edit or delete.
+ */
+async function refreshAfterEdit() {
+  const homeId = dataState.currentHome?.id;
+  allEntries = homeId ? await fetchFoodNameHistory(homeId) : [];
+  renderCurrentCategory();
+}
+
+/**
+ * Opens the rename/shelf-life edit form, prefilled with the entry's current
+ * values.
+ * @param {FoodNameHistory} entry
+ */
+function openFoodNameHistoryForm(entry) {
+  entryBeingEdited = entry;
+  foodNameHistoryNameInput.value = entry.name;
+  foodNameHistoryShelfLifeInput.value = entry.shelfLifeDays != null ? String(entry.shelfLifeDays) : '';
+  setStateField('showFoodNameHistoryForm', true);
+  foodNameHistoryNameInput.focus();
+  foodNameHistoryNameInput.select();
+}
+
+/**
+ * @param {Event} e
+ */
+async function submitFoodNameHistoryForm(e) {
+  e.preventDefault();
+  const entry = entryBeingEdited;
+  const homeId = dataState.currentHome?.id;
+  if (!entry || !homeId) { return; }
+
+  const formData = new FormData(foodNameHistoryForm);
+  const newName = (formData.get('foodNameHistoryName') || '').toString().trim();
+  if (!newName) { return showErrorToast('Ingresar nombre'); }
+  const rawShelfLife = formData.get('foodNameHistoryShelfLifeDays');
+  const newShelfLifeDays = rawShelfLife ? Number(rawShelfLife) : null;
+
+  const result = await updateFoodNameHistory(homeId, entryCategory(entry), entry, newName, newShelfLifeDays);
+  if (!result.ok) { return showErrorToast(result.error); }
+
+  entryBeingEdited = null;
+  foodNameHistoryForm.reset();
+  setStateField('showFoodNameHistoryForm', false);
+  await refreshAfterEdit();
+}
+
+/**
+ * @param {FoodNameHistory} entry
+ */
+function deleteFoodNameHistoryEntry(entry) {
+  showConfirmDialog(`¿Seguro que querés borrar el historial de "${entry.name}"?`, async () => {
+    const homeId = dataState.currentHome?.id;
+    if (!homeId) { return; }
+    await deleteFoodNameHistory(homeId, entryCategory(entry), entry.normalizedName);
+    await refreshAfterEdit();
+  });
+}
+
+/**
  * All-time usage summary across every food name in the Home - a reporting
  * layer on counts already being tracked per-name (timesUsed/timesDiscarded),
  * not a new data source. Hidden entirely until there's at least one used or
@@ -153,6 +233,20 @@ function buildHistoryRow(entry) {
     }));
   }
 
+  const actions = $new({ class: 'history-row-actions' });
+  $button({
+    appendTo: actions,
+    svgFn: pen_solid,
+    ariaLabel: 'Editar historial',
+    listener: { fn: () => openFoodNameHistoryForm(entry) },
+  });
+  $button({
+    appendTo: actions,
+    svgFn: svg_trash,
+    ariaLabel: 'Borrar historial',
+    listener: { fn: () => deleteFoodNameHistoryEntry(entry) },
+  });
+
   return $new({
     class: 'row',
     children: [
@@ -164,9 +258,10 @@ function buildHistoryRow(entry) {
         ],
       }),
       $new({ class: 'right-side', children: rightSideChildren }),
+      actions,
     ],
   });
 }
 
 
-export { openFoodHistory, closeFoodHistory, switchHistoryCategory };
+export { openFoodHistory, closeFoodHistory, switchHistoryCategory, submitFoodNameHistoryForm };

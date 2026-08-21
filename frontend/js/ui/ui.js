@@ -19,7 +19,9 @@ import {
   closeSingleItem, markItemDiscarded, markItemUsed, openItemForm, openItemList, openMostUrgentItem,
   openSingleItem, submitItemBtn, submitItemForm, toggleSearch, tryDeleteItem,
 } from "./item-ui.js";
-import { closeFoodHistory, openFoodHistory, switchHistoryCategory } from "./food-history-ui.js";
+import {
+  closeFoodHistory, openFoodHistory, submitFoodNameHistoryForm, switchHistoryCategory,
+} from "./food-history-ui.js";
 
 
 const mainHeader = $('mainHeader');
@@ -236,6 +238,12 @@ function initUi() {
   });
 
   $button({
+    label: 'Guardar Cambios',
+    listener: { fn: submitFoodNameHistoryForm },
+    appendTo: $queryOne('#foodNameHistoryForm .submit'),
+  });
+
+  $button({
     // Borrar Ubicación (only shown while editing an existing one)
     listener: { fn: deleteLocationFromForm },
     svgFn: svg_trash,
@@ -365,6 +373,7 @@ function modalBackdropHandler() {
       setStateField('editingItem', false);
       setStateField('showLocationForm', false);
       setStateField('showItemForm', false);
+      setStateField('showFoodNameHistoryForm', false);
     }
   });
 }

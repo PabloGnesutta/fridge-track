@@ -3,6 +3,7 @@ import { sql as pushSubscriptions } from './002_push_subscriptions.js';
 import { sql as locationCategory } from './003_location_category.js';
 import { sql as notificationPreferences } from './004_notification_preferences.js';
 import { sql as foodNameHistoryCategory } from './005_food_name_history_category.js';
+import { sql as foodNameHistoryDeletedAt } from './006_food_name_history_deleted_at.js';
 
 /**
  * Ordered, explicit registry (no directory-scanning) - add new migrations
@@ -18,6 +19,7 @@ const migrations = [
   { version: 3, name: 'location_category', sql: locationCategory },
   { version: 4, name: 'notification_preferences', sql: notificationPreferences },
   { version: 5, name: 'food_name_history_category', sql: foodNameHistoryCategory },
+  { version: 6, name: 'food_name_history_deleted_at', sql: foodNameHistoryDeletedAt },
 ];
 
 export { migrations };
