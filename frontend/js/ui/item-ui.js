@@ -73,8 +73,10 @@ itemNameInput.addEventListener('input', () => {
   const query = itemNameInput.value.trim();
   if (!query) { return hideNameSuggestions(); }
   const normalizedQuery = normalize(query);
+  const currentCategory = dataState.currentLocation?.category || 'alimento';
   const suggestions = dbStore.foodNameHistory
-    .filter(entry => matches(entry.normalizedName, normalizedQuery))
+    .filter(entry => matches(entry.normalizedName, normalizedQuery)
+      && (entry.category || 'alimento') === currentCategory)
     .slice(0, 6);
   renderNameSuggestions(suggestions);
 });
@@ -449,7 +451,7 @@ async function submitItemForm(e) {
   } else {
     const result = await createItem(location._key || '', name, { quantity, addedDate, useByDate, shelfLifeDays, notes });
     if (!result.data) { return showErrorToast(result.errorMsg); }
-    await recordItemCreated(location.homeId, result.data.name, shelfLifeDays, addedDate);
+    await recordItemCreated(location.homeId, location.category, result.data.name, shelfLifeDays, addedDate);
   }
 
   itemForm.reset();
@@ -527,8 +529,8 @@ async function removeItem(item, toastMessage, { discarded = false, used = false 
   if (!itemKey) { return; }
 
   await deleteItem(item);
-  if (discarded) { await adjustDiscardCount(location.homeId, item.name, 1); }
-  if (used) { await adjustUsedCount(location.homeId, item.name, 1); }
+  if (discarded) { await adjustDiscardCount(location.homeId, location.category, item.name, 1); }
+  if (used) { await adjustUsedCount(location.homeId, location.category, item.name, 1); }
 
   closeSingleItem();
 
@@ -540,8 +542,8 @@ async function removeItem(item, toastMessage, { discarded = false, used = false 
 
   showUndoToast(toastMessage, async () => {
     await restoreItem(item);
-    if (discarded) { await adjustDiscardCount(location.homeId, item.name, -1); }
-    if (used) { await adjustUsedCount(location.homeId, item.name, -1); }
+    if (discarded) { await adjustDiscardCount(location.homeId, location.category, item.name, -1); }
+    if (used) { await adjustUsedCount(location.homeId, location.category, item.name, -1); }
     await fetchAndRenderItems(location);
   });
 }

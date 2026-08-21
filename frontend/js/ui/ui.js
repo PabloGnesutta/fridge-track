@@ -19,7 +19,7 @@ import {
   closeSingleItem, markItemDiscarded, markItemUsed, openItemForm, openItemList, openMostUrgentItem,
   openSingleItem, submitItemBtn, submitItemForm, toggleSearch, tryDeleteItem,
 } from "./item-ui.js";
-import { closeFoodHistory, openFoodHistory } from "./food-history-ui.js";
+import { closeFoodHistory, openFoodHistory, switchHistoryCategory } from "./food-history-ui.js";
 
 
 const mainHeader = $('mainHeader');
@@ -328,6 +328,9 @@ function initUi() {
         break;
       case 'openFoodHistory':
         openFoodHistory();
+        break;
+      case 'switchHistoryCategory':
+        switchHistoryCategory(dataset.category || 'alimento');
         break;
       case 'openMostUrgentItem':
         openMostUrgentItem();

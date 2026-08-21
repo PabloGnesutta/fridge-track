@@ -43,6 +43,7 @@ function itemFromRow(row) {
 function foodNameHistoryFromRow(row) {
   return {
     homeId: Number(row.home_id),
+    category: row.category,
     normalizedName: row.normalized_name,
     name: row.name,
     firstCreatedAt: Number(row.first_created_at),
@@ -136,28 +137,32 @@ function createSyncService(db) {
    */
   function pushFoodNameHistory(homeId, entry) {
     if (Number(entry.homeId) !== homeId) { return; }
+    // Defaults for a client still running pre-category code (or replaying an
+    // old local record - see syncEngine.js's buildLocalSnapshot) - every
+    // entry that predates location categories is, in fact, food.
+    const category = entry.category || 'alimento';
 
     const existing = db.prepare(
-      'SELECT updated_at FROM food_name_history WHERE home_id = ? AND normalized_name = ?'
-    ).get(homeId, entry.normalizedName);
+      'SELECT updated_at FROM food_name_history WHERE home_id = ? AND category = ? AND normalized_name = ?'
+    ).get(homeId, category, entry.normalizedName);
     if (existing && Number(existing.updated_at) >= Number(entry.updatedAt)) { return; }
 
     if (existing) {
       db.prepare(
         `UPDATE food_name_history
            SET name = ?, shelf_life_days = ?, times_discarded = ?, times_used = ?, updated_at = ?
-         WHERE home_id = ? AND normalized_name = ?`
+         WHERE home_id = ? AND category = ? AND normalized_name = ?`
       ).run(
         entry.name, entry.shelfLifeDays ?? null, entry.timesDiscarded ?? 0, entry.timesUsed ?? 0,
-        entry.updatedAt, homeId, entry.normalizedName
+        entry.updatedAt, homeId, category, entry.normalizedName
       );
     } else {
       db.prepare(
         `INSERT INTO food_name_history
-           (home_id, normalized_name, name, first_created_at, shelf_life_days, times_discarded, times_used, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+           (home_id, category, normalized_name, name, first_created_at, shelf_life_days, times_discarded, times_used, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
-        homeId, entry.normalizedName, entry.name, entry.firstCreatedAt, entry.shelfLifeDays ?? null,
+        homeId, category, entry.normalizedName, entry.name, entry.firstCreatedAt, entry.shelfLifeDays ?? null,
         entry.timesDiscarded ?? 0, entry.timesUsed ?? 0, entry.updatedAt
       );
     }

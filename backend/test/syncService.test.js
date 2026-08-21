@@ -219,6 +219,39 @@ test('food_name_history timesUsed round-trips through push/pull', () => {
   assert.equal(snapshot.foodNameHistory[0].timesUsed, 3);
 });
 
+test('food_name_history entries with the same name but different categories are tracked separately', () => {
+  const services = makeServices();
+  const { user, home } = makeUserAndHome(services);
+  const food = {
+    homeId: home.id, category: 'alimento', normalizedName: 'aspirina', name: 'Aspirina',
+    firstCreatedAt: 1000, shelfLifeDays: 30, timesDiscarded: 0, timesUsed: 0, updatedAt: 1000,
+  };
+  const medicine = { ...food, category: 'medicamento', shelfLifeDays: 365, updatedAt: 1000 };
+
+  services.syncService.pushHomeSnapshot(user.id, home.id, { foodNameHistory: [food, medicine] });
+
+  const snapshot = services.syncService.pullHomeSnapshot(user.id, home.id);
+  assert.equal(snapshot.foodNameHistory.length, 2);
+  const byCategory = Object.fromEntries(snapshot.foodNameHistory.map(e => [e.category, e]));
+  assert.equal(byCategory.alimento.shelfLifeDays, 30);
+  assert.equal(byCategory.medicamento.shelfLifeDays, 365);
+});
+
+test('food_name_history entry with no category defaults to alimento', () => {
+  const services = makeServices();
+  const { user, home } = makeUserAndHome(services);
+  const entry = {
+    homeId: home.id, normalizedName: 'leche', name: 'Leche',
+    firstCreatedAt: 1000, shelfLifeDays: 5, timesDiscarded: 0, updatedAt: 1000,
+  };
+
+  services.syncService.pushHomeSnapshot(user.id, home.id, { foodNameHistory: [entry] });
+
+  const snapshot = services.syncService.pullHomeSnapshot(user.id, home.id);
+  assert.equal(snapshot.foodNameHistory.length, 1);
+  assert.equal(snapshot.foodNameHistory[0].category, 'alimento');
+});
+
 test('location category round-trips through push/pull', () => {
   const services = makeServices();
   const { user, home } = makeUserAndHome(services);

@@ -56,6 +56,10 @@ async function buildLocalSnapshot(homeId) {
     })),
     foodNameHistory: foodNameHistory.map(entry => ({
       homeId,
+      // Defaults a legacy local record (written before category-scoping
+      // existed) to 'alimento' rather than pushing `category: undefined` -
+      // every such record predates location categories, so it's food.
+      category: entry.category || 'alimento',
       normalizedName: entry.normalizedName,
       name: entry.name,
       firstCreatedAt: toMillis(entry.firstCreatedAt),
@@ -111,7 +115,7 @@ async function mergeItem(pulled) {
  * @param {any} pulled
  */
 async function mergeFoodNameHistory(pulled) {
-  const key = [pulled.homeId, pulled.normalizedName];
+  const key = [pulled.homeId, pulled.category, pulled.normalizedName];
   const local = await getOne('foodNameHistory', key);
   if (!remoteWins(local, pulled)) { return; }
 
@@ -119,6 +123,7 @@ async function mergeFoodNameHistory(pulled) {
     name: pulled.name,
     normalizedName: pulled.normalizedName,
     homeId: pulled.homeId,
+    category: pulled.category,
     firstCreatedAt: new Date(pulled.firstCreatedAt),
     shelfLifeDays: pulled.shelfLifeDays,
     timesDiscarded: pulled.timesDiscarded,

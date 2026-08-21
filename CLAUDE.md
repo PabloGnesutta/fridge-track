@@ -329,6 +329,57 @@ undo included. `/historial`'s `renderHistoryStats()` (`food-history-ui.js`) sums
 every entry and shows a single all-time "N% aprovechado — X usado(s), Y tirado(s)" line, hidden while
 both totals are zero.
 
+## food_name_history scoped by location category, not just by Home
+
+Originally `food_name_history` was shared across every location in a Home (see above) - meaning a
+`locations.category` of `'medicamento'` (added earlier for "what kind of stuff a location holds", see
+migration `003`) had no effect on autocomplete/shelf-life history at all: adding "Aspirina" in a medicine
+cabinet would pollute food autocomplete, and two same-named-but-unrelated items across categories shared
+one shelf-life default. Migration `005_food_name_history_category.js` adds a `category` column and widens
+the primary key from `(home_id, normalized_name)` to `(home_id, category, normalized_name)` - a real
+**recreate-table** migration (rename old table aside, create the new one, `INSERT ... SELECT` across with
+every existing row backfilled to `category = 'alimento'`, drop the renamed original), not a plain
+`ALTER TABLE ADD COLUMN` like `003`/`004`, since SQLite can't widen a PRIMARY KEY in place. The backfill is
+safe unconditionally: every row that existed before this migration predates location categories entirely,
+so all of it is, in fact, food.
+
+**Every place that used to identify a `food_name_history` record by `(homeId, normalizedName)` now needs
+`category` as a third component of that same identity** - `local-db/food-name-db.js`'s
+`recordItemCreated()`/`adjustDiscardCount()`/`adjustUsedCount()` (now all take a `category` param, building
+a 3-part IndexedDB key), `sync/syncEngine.js`'s `mergeFoodNameHistory()` (3-part key) and
+`buildLocalSnapshot()` (adds `category` to the wire shape), and `syncService.js`'s `pushFoodNameHistory()`
+(3-column `WHERE`/`INSERT`). `item-ui.js`'s three call sites (`submitItemForm`, `removeItem`'s two branches
+plus their undo mirrors) already had `location.category` in scope - no new lookup needed, just one more
+argument threaded through. The `.name-suggestions` autocomplete filter in the same file now also matches
+on `(entry.category || 'alimento') === (dataState.currentLocation?.category || 'alimento')` - the
+`|| 'alimento'` default reads a record written before this field existed as food, same assumption as the
+SQL backfill above, just applied client-side.
+
+**No client-side (IndexedDB) migration was written on purpose** - a deliberate choice, not an oversight,
+made explicitly because this app currently has exactly one real user. Every local record written before
+this shipped is still keyed `[homeId, normalizedName]` (2 parts); the new code only ever looks things up
+by the 3-part key, so those old records go quietly unreachable rather than being actively re-keyed. They
+self-heal the next time `afterHome()`'s `syncHome()` runs (every boot/Home switch already pulls a fresh,
+correctly-keyed snapshot from the backend, which by then has already backfilled `category`), at the cost
+of a possible one-session "history looks empty" blip on a device that's offline exactly when this ships -
+judged not worth a cursor-based IndexedDB re-keying migration (reading every old record during
+`onDbUpgradeNeeded`, deleting it, re-`put`-ing it under the new key) for a single-user app. Revisit this
+if this app ever gets more than a couple of users, since a wider rollout makes that blip land on people
+who can't be talked through it in person.
+
+**`/historial` now has one tab per `locationCategory.js`'s `LOCATION_CATEGORIES`** instead of one flat,
+mixed list. `food-history-ui.js` fetches the Home's full entry set once per `openFoodHistory()` call
+(`allEntries`, module state) and re-filters it locally on every tab switch (`switchHistoryCategory()`,
+wired through `ui.js`'s existing `data-click-action` delegation switch, same pattern
+`renderLocationChips()`'s chips already use) - no re-fetch per tab, mirroring how this app already treats
+IndexedDB reads as a cheap local cache everywhere else. The default selected tab is whichever category the
+user's current location has, not always `'alimento'`, so opening history from the medicine cabinet doesn't
+land you on the food tab first. The tabs (`.history-category-tab`, new in `css/style.css`) deliberately
+don't reuse `.location-chip`'s class even though they copy its exact visual language (pill shape, `.active`
+border/background) - same reasoning as the confirm dialog's own separate-class choice elsewhere in this
+file: a different concern (category filter vs. location switching) shouldn't risk one component's future
+CSS changes silently leaking into the other's.
+
 ## Push notifications (product feature #1)
 
 A background scheduler on the backend, not a client-side timer, since the whole point is alerting users

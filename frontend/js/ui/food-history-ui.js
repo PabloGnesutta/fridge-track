@@ -3,6 +3,7 @@ import { toYYYYMMDD, timeAgo } from "../lib/date.js";
 import { appState, dataState, setCurrentView } from "../common/state.js";
 import { syncUrl } from "../common/router.js";
 import { fetchFoodNameHistory } from "../local-db/food-name-db.js";
+import { LOCATION_CATEGORIES } from "../lib/locationCategory.js";
 import { pageTitle } from "./ui.js";
 import { openItemList } from "./item-ui.js";
 
@@ -11,8 +12,31 @@ import { openItemList } from "./item-ui.js";
  * @typedef {import("../local-db/food-name-db.js").FoodNameHistory} FoodNameHistory
  */
 
+const historyTabs = $queryOne('#foodHistoryView .history-category-tabs');
 const historyList = $queryOne('#foodHistoryView .list');
 const historyStats = $queryOne('#historyStats');
+
+/**
+ * Every entry for the current Home, unfiltered - fetched once per
+ * openFoodHistory() call, re-filtered locally on every tab switch (no
+ * re-fetch needed, same "local cache, no per-mutation round-trip" spirit
+ * as the rest of this app's IndexedDB-backed views).
+ * @type {FoodNameHistory[]}
+ */
+let allEntries = [];
+
+/** Which category tab is currently selected. */
+let selectedCategory = 'alimento';
+
+/**
+ * A record's effective category - defaults to 'alimento' for entries
+ * written before category-scoping existed (see food-name-db.js's
+ * FoodNameHistory typedef).
+ * @param {FoodNameHistory} entry
+ */
+function entryCategory(entry) {
+  return entry.category || 'alimento';
+}
 
 /** Opens the food name history view */
 async function openFoodHistory() {
@@ -21,7 +45,42 @@ async function openFoodHistory() {
   syncUrl('/historial');
 
   const homeId = dataState.currentHome?.id;
-  const entries = homeId ? await fetchFoodNameHistory(homeId) : [];
+  allEntries = homeId ? await fetchFoodNameHistory(homeId) : [];
+  // Defaults to whichever category the user was just looking at, so opening
+  // history from the medicine cabinet doesn't land on the food tab.
+  selectedCategory = dataState.currentLocation?.category || 'alimento';
+
+  renderHistoryCategoryTabs();
+  renderCurrentCategory();
+}
+
+/** Renders the category tab row, highlighting the currently selected one. */
+function renderHistoryCategoryTabs() {
+  historyTabs.innerHTML = '';
+  for (const { value, label } of LOCATION_CATEGORIES) {
+    historyTabs.append($new({
+      class: 'history-category-tab' + (value === selectedCategory ? ' active' : ''),
+      text: label,
+      dataset: [['clickAction', 'switchHistoryCategory'], ['category', value]],
+    }));
+  }
+}
+
+/**
+ * Switches the selected tab and re-renders from the already-fetched
+ * allEntries - called via ui.js's click-delegation switch.
+ * @param {string} category
+ */
+function switchHistoryCategory(category) {
+  if (category === selectedCategory) { return; }
+  selectedCategory = category;
+  renderHistoryCategoryTabs();
+  renderCurrentCategory();
+}
+
+/** Filters allEntries down to the selected category and (re)renders both the stats line and the list. */
+function renderCurrentCategory() {
+  const entries = allEntries.filter(entry => entryCategory(entry) === selectedCategory);
   renderHistoryStats(entries);
   renderFoodHistoryList(entries);
 }
@@ -110,4 +169,4 @@ function buildHistoryRow(entry) {
 }
 
 
-export { openFoodHistory, closeFoodHistory };
+export { openFoodHistory, closeFoodHistory, switchHistoryCategory };
