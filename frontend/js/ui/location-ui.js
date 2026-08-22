@@ -94,7 +94,7 @@ function openLocationForm(onboarding = false, editTarget = null) {
 /**
  * (Re)fills the category <select> from dbStore.categories, plus a trailing
  * "+ Nueva categoría" option. Called each time the form opens rather than
- * kept continuously in sync, same as renderHomeChips()/renderLocationChips()
+ * kept continuously in sync, same as renderHomeCards()/renderLocationChips()
  * elsewhere in this app.
  *
  * Falls back to the 3 hardcoded built-in names (see category-db.js's

@@ -198,6 +198,14 @@ async function apiListHomes() {
   return apiCall('homes/list', {});
 }
 
+/**
+ * @param {number} homeId
+ * @param {string} email
+ */
+async function apiInviteToHome(homeId, email) {
+  return apiCall('homes/invite', { homeId, email });
+}
+
 /** @param {number} homeId */
 async function apiSyncPull(homeId) {
   return apiCall('sync/pull', { homeId });
@@ -241,7 +249,7 @@ async function apiUpdateNotificationPreferences(prefs) {
 
 export {
   apiSignup, apiLogin, apiVerifyEmail, apiResendVerification, apiLogout,
-  apiCreateHome, apiJoinHome, apiListHomes,
+  apiCreateHome, apiJoinHome, apiListHomes, apiInviteToHome,
   apiSyncPull, apiSyncPush, apiPushVapidKey, apiPushSubscribe, apiPushUnsubscribe,
   apiRecipeSuggestions, apiUpdateNotificationPreferences, isLoggedIn, getAccessToken, getUserEmail, clearSession,
   getNotificationPreferences, persistNotificationPreferences,

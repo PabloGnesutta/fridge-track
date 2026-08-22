@@ -14,7 +14,7 @@ import { logout } from "../appBoot.js";
 import {
   deleteLocationFromForm, editLocation, openAddLocation, submitLocationForm, switchLocation,
 } from "./location-ui.js";
-import { openHomeManage, closeHomeManage, switchHome, submitCategoryForm } from "./home-ui.js";
+import { openHomeManage, closeHomeManage, switchHome, submitCategoryForm, submitInviteForm } from "./home-ui.js";
 import {
   closeSingleItem, markItemDiscarded, markItemUsed, openItemForm, openItemList, openMostUrgentItem,
   openSingleItem, submitItemBtn, submitItemForm, toggleSearch, tryDeleteItem,
@@ -266,6 +266,12 @@ function initUi() {
   });
 
   $button({
+    label: 'Enviar Invitación',
+    listener: { fn: submitInviteForm },
+    appendTo: $queryOne('#inviteHomeForm .submit'),
+  });
+
+  $button({
     // Borrar Ubicación (only shown while editing an existing one)
     listener: { fn: deleteLocationFromForm },
     svgFn: svg_trash,
@@ -397,6 +403,7 @@ function modalBackdropHandler() {
       setStateField('showItemForm', false);
       setStateField('showFoodNameHistoryForm', false);
       setStateField('showCategoryForm', false);
+      setStateField('showInviteForm', false);
     }
   });
 }

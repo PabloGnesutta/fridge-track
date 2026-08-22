@@ -83,6 +83,9 @@ export async function handleApiRequest(req, res, segments) {
     if (route === 'homes/create') { return successResponse(res, homeService.createHome(user.id, body.name)); }
     if (route === 'homes/join') { return successResponse(res, homeService.joinHome(user.id, body.joinCode)); }
     if (route === 'homes/list') { return successResponse(res, homeService.listHomesForUser(user.id)); }
+    if (route === 'homes/invite') {
+      return successResponse(res, await homeService.inviteToHome(user.id, body.homeId, body.email));
+    }
     if (route === 'sync/pull') { return successResponse(res, syncService.pullHomeSnapshot(user.id, body.homeId)); }
     if (route === 'sync/push') { return successResponse(res, syncService.pushHomeSnapshot(user.id, body.homeId, body.snapshot)); }
     if (route === 'push/vapid-public-key') { return successResponse(res, { publicKey: process.env.VAPID_PUBLIC_KEY }); }

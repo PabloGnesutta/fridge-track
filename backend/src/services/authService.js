@@ -1,6 +1,7 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { hashPassword, verifyPassword } from '../auth/passwordHash.js';
 import { isEmailAllowed } from '../db/allowedEmails.js';
+import { getAppBaseUrl } from '../lib/appUrl.js';
 import { ServiceError } from './ServiceError.js';
 import { createEmailService } from './emailService.js';
 
@@ -19,19 +20,12 @@ function generateVerificationCode() {
 }
 
 /**
- * Builds the "just click this" magic link alongside the code - read lazily
- * (called at request time, not at module load), same ESM-import-hoisting
- * reason webPushClient.js/mailClient.js already document for their own env
- * reads: this module is statically imported before index.fridge.js's own
- * configEnv() call runs, so anything read at module top level would always
- * see undefined. Falls back to localhost:PORT so this still works out of
- * the box in local dev without APP_BASE_URL set.
+ * Builds the "just click this" magic link alongside the code.
  * @param {string} email
  * @param {string} code
  */
 function buildVerificationLink(email, code) {
-  const base = (process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3001}`).replace(/\/+$/, '');
-  return `${base}/?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
+  return `${getAppBaseUrl()}/?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
 }
 
 /**

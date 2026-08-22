@@ -3,11 +3,12 @@ import {
 } from "../lib/dom.js";
 import { showErrorToast, showInfoToast } from "../lib/toast.js";
 import { showConfirmDialog } from "../lib/confirmDialog.js";
-import { pen_solid, svg_trash } from "../svg/svgFn.js";
+import { pen_solid, svg_trash, svg_mail, svg_link } from "../svg/svgFn.js";
 import { appState, dataState, dbStore, setCurrentView, setStateField } from "../common/state.js";
 import { syncUrl } from "../common/router.js";
 import { createHome, joinHome, setCurrentHomeId } from "../local-db/home-db.js";
 import { deleteCategory, fetchCategories, renameCategory } from "../local-db/category-db.js";
+import { apiInviteToHome } from "../api-caller/apiCaller.js";
 import { afterHome } from "../appBoot.js";
 import { pageTitle } from "./ui.js";
 import { openItemList } from "./item-ui.js";
@@ -22,7 +23,7 @@ const joinCodeInput = $queryOneInput('#homeForm input[name="joinCode"]');
 const modeToggle = $('homeModeToggle');
 const submitContainer = $queryOne('#homeForm .submit');
 
-const chipsContainer = $queryOne('#homeView .home-chips');
+const cardsContainer = $queryOne('#homeView .home-cards');
 const homeSwitcherLabel = $queryOne('.home-switcher-name');
 const homeSwitcherCode = $queryOne('.home-switcher-code');
 
@@ -30,9 +31,24 @@ const categoriesList = $queryOne('#homeView .categories-list');
 const categoryForm = $form('categoryForm');
 const categoryNameInput = $queryOneInput('#categoryForm input[name="categoryName"]');
 
+const inviteHomeForm = $form('inviteHomeForm');
+const inviteEmailInput = $queryOneInput('#inviteHomeForm input[name="inviteEmail"]');
+
 /** The category currently open in the rename form, if any. */
 /** @type {import("../local-db/category-db.js").Category|null} */
 let categoryBeingEdited = null;
+
+/** The Home currently targeted by the invite form, if any. */
+/** @type {import("../local-db/home-db.js").Home|null} */
+let homeBeingInvited = null;
+
+/**
+ * A Home-invite link's ?joinCode= param, captured at boot (see
+ * captureJoinLinkCode()) before auth necessarily resolves, consumed once it
+ * does (see consumePendingJoin()).
+ * @type {string|null}
+ */
+let pendingJoinCode = null;
 
 /** @type {'create'|'join'} */
 let mode = 'create';
@@ -41,6 +57,7 @@ let mode = 'create';
 // doesn't navigate the browser away with the field as a GET query string.
 homeForm.addEventListener('submit', submitHomeForm);
 categoryForm.addEventListener('submit', submitCategoryForm);
+inviteHomeForm.addEventListener('submit', submitInviteForm);
 modeToggle.addEventListener('click', toggleMode);
 makeKeyboardActivatable(modeToggle);
 // Attached directly (not via the #app click-delegation used for
@@ -132,21 +149,144 @@ async function submitHomeForm(e) {
 }
 
 /**
- * Renders one chip per cached Home, for returning users who belong to more
- * than one and need to switch. Called whenever dbStore.homes changes.
+ * @param {import("../local-db/home-db.js").Home} home
  */
-function renderHomeChips() {
-  chipsContainer.innerHTML = '';
+function buildHomeCard(home) {
+  const isActive = home.id === dataState.currentHome?.id;
+
+  const header = $new({
+    class: 'home-card-header',
+    children: [$new({ class: 'home-card-name', text: home.name })],
+  });
+  if (isActive) {
+    header.append($new({ class: 'home-card-badge', text: 'Activo' }));
+  }
+
+  // stopPropagation on both action buttons - without it, a click bubbles up
+  // to the card's own data-click-action="switchHome" (see the delegation
+  // switch in ui.js), which would switch Homes as an unwanted side effect
+  // of tapping "Invitar"/"Copiar enlace". Same reasoning as copyJoinCode()'s
+  // own stopPropagation above.
+  const actions = $new({ class: 'home-card-actions' });
+  $button({
+    appendTo: actions,
+    svgFn: svg_mail,
+    label: 'Invitar',
+    class: 'horizontal',
+    listener: { fn: e => { e.stopPropagation(); openInviteForm(home); } },
+  });
+  $button({
+    appendTo: actions,
+    svgFn: svg_link,
+    label: 'Copiar enlace',
+    class: 'horizontal',
+    listener: { fn: e => { e.stopPropagation(); copyHomeJoinLink(home); } },
+  });
+
+  return $new({
+    class: 'home-card' + (isActive ? ' active' : ''),
+    dataset: [['clickAction', 'switchHome'], ['homeId', String(home.id)]],
+    children: [header, actions],
+  });
+}
+
+/**
+ * Renders one card per cached Home, for returning users who belong to more
+ * than one and need to switch - each with its own invite/copy-link actions.
+ * Called whenever dbStore.homes changes.
+ */
+function renderHomeCards() {
+  cardsContainer.innerHTML = '';
   if (!dbStore.homes.length) { return; }
 
-  const currentId = dataState.currentHome?.id;
   for (const home of dbStore.homes) {
-    chipsContainer.append($new({
-      class: 'home-chip' + (home.id === currentId ? ' active' : ''),
-      dataset: [['clickAction', 'switchHome'], ['homeId', String(home.id)]],
-      children: [$new({ class: 'homeName', text: home.name })],
-    }));
+    cardsContainer.append(buildHomeCard(home));
   }
+}
+
+/**
+ * Opens the email-invite form for a specific Home's card.
+ * @param {import("../local-db/home-db.js").Home} home
+ */
+function openInviteForm(home) {
+  homeBeingInvited = home;
+  inviteEmailInput.value = '';
+  setStateField('showInviteForm', true);
+  inviteEmailInput.focus();
+}
+
+/**
+ * @param {Event} e
+ */
+async function submitInviteForm(e) {
+  e.preventDefault();
+  const home = homeBeingInvited;
+  if (!home) { return; }
+
+  const email = inviteEmailInput.value.trim();
+  if (!email) { return showErrorToast('Ingresar un email'); }
+
+  const result = await apiInviteToHome(home.id, email);
+  if (!result.data) { return showErrorToast(result.error || 'No se pudo enviar la invitación'); }
+
+  homeBeingInvited = null;
+  inviteHomeForm.reset();
+  setStateField('showInviteForm', false);
+  showInfoToast('Invitación enviada');
+}
+
+/**
+ * Copies a one-click join link (not just the raw code, unlike
+ * copyJoinCode() above) for the given Home to the clipboard.
+ * @param {import("../local-db/home-db.js").Home} home
+ */
+async function copyHomeJoinLink(home) {
+  const link = `${window.location.origin}/?joinCode=${encodeURIComponent(home.joinCode)}`;
+  try {
+    await navigator.clipboard.writeText(link);
+    showInfoToast('Enlace copiado');
+  } catch {
+    showErrorToast('No se pudo copiar el enlace');
+  }
+}
+
+/**
+ * Captures a Home-invite link's ?joinCode= param (if present) for later
+ * consumption once auth resolves - joining requires a session, so this
+ * can't complete at boot time the way auth-ui.js's tryAutoVerifyFromLink()
+ * can (that one needs no prior session). Strips the query string either
+ * way so a reload doesn't re-trigger it. Called once from appBoot.js's
+ * bootApp().
+ * @returns {boolean} whether a join code was found and captured
+ */
+function captureJoinLinkCode() {
+  const params = new URLSearchParams(location.search);
+  const joinCode = params.get('joinCode');
+  if (!joinCode) { return false; }
+  history.replaceState(null, '', location.pathname);
+  pendingJoinCode = joinCode;
+  return true;
+}
+
+/**
+ * Consumes (and clears) a captured join code, actually joining that Home.
+ * Called from appBoot.js's afterLogin(), once a session is confirmed -
+ * takes priority over the normal "resolve last-used or first Home" logic,
+ * since arriving via an invite link means the user wants THAT Home
+ * specifically, not just whichever Home boot would otherwise land on.
+ * @returns {Promise<import("../local-db/home-db.js").Home|null>}
+ */
+async function consumePendingJoin() {
+  const code = pendingJoinCode;
+  pendingJoinCode = null;
+  if (!code) { return null; }
+
+  const result = await joinHome(code);
+  if (!result.data) {
+    showErrorToast(result.errorMsg || 'No se pudo unir al Hogar con el enlace');
+    return null;
+  }
+  return result.data;
 }
 
 /**
@@ -173,7 +313,7 @@ function openHomeManage() {
   setCurrentView('Home');
   pageTitle.innerText = 'Hogar';
   syncUrl('/hogar');
-  renderHomeChips();
+  renderHomeCards();
   renderCategoriesList();
   setMode('create');
 }
@@ -278,12 +418,12 @@ function closeHomeManage() {
 }
 
 /**
- * Keeps the chip list and the current-home label in sync with
+ * Keeps the card list and the current-home label in sync with
  * dataState.currentHome / dbStore.homes. Called after every Home
  * activation (create, join, switch).
  */
 function refreshHomeUi() {
-  renderHomeChips();
+  renderHomeCards();
   homeSwitcherLabel.innerText = dataState.currentHome?.name || '';
   homeSwitcherCode.innerText = dataState.currentHome?.joinCode
     ? `· Código: ${dataState.currentHome.joinCode}`
@@ -292,6 +432,6 @@ function refreshHomeUi() {
 
 
 export {
-  initHomeUi, renderHomeChips, switchHome, openHomeManage, closeHomeManage, refreshHomeUi,
-  submitCategoryForm,
+  initHomeUi, renderHomeCards, switchHome, openHomeManage, closeHomeManage, refreshHomeUi,
+  submitCategoryForm, submitInviteForm, captureJoinLinkCode, consumePendingJoin,
 };

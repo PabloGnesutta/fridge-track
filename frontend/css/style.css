@@ -607,7 +607,8 @@ svg {
 #app[data-show-location-form='true'] .modal,
 #app[data-show-item-form='true'] .modal,
 #app[data-show-food-name-history-form='true'] .modal,
-#app[data-show-category-form='true'] .modal {
+#app[data-show-category-form='true'] .modal,
+#app[data-show-invite-form='true'] .modal {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
@@ -617,14 +618,16 @@ svg {
 #app[data-show-location-form='true'] .modal .content,
 #app[data-show-item-form='true'] .modal .content,
 #app[data-show-food-name-history-form='true'] .modal .content,
-#app[data-show-category-form='true'] .modal .content {
+#app[data-show-category-form='true'] .modal .content,
+#app[data-show-invite-form='true'] .modal .content {
   transform: translateY(0);
 }
 
 #app[data-show-location-form='false'] #locationForm,
 #app[data-show-item-form='false'] #itemForm,
 #app[data-show-food-name-history-form='false'] #foodNameHistoryForm,
-#app[data-show-category-form='false'] #categoryForm {
+#app[data-show-category-form='false'] #categoryForm,
+#app[data-show-invite-form='false'] #inviteHomeForm {
   display: none;
 }
 

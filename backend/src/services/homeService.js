@@ -1,5 +1,8 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import { addAllowedEmail } from '../db/allowedEmails.js';
+import { getAppBaseUrl } from '../lib/appUrl.js';
 import { ServiceError } from './ServiceError.js';
+import { createEmailService } from './emailService.js';
 
 
 // The 3 built-in categories every new Home gets seeded with (see
@@ -22,6 +25,17 @@ function generateJoinCode() {
     code += ALPHABET[bytes[i] % ALPHABET.length];
   }
   return code;
+}
+
+/**
+ * Builds the "just click this" magic link alongside the join code - mirrors
+ * authService.js's buildVerificationLink, a distinct query param
+ * (?joinCode=) so the two link types never collide when the frontend reads
+ * location.search on boot.
+ * @param {string} joinCode
+ */
+function buildJoinLink(joinCode) {
+  return `${getAppBaseUrl()}/?joinCode=${encodeURIComponent(joinCode)}`;
 }
 
 /**
@@ -48,8 +62,12 @@ function assertHomeMembership(db, homeId, userId) {
 
 /**
  * @param {import('node:sqlite').DatabaseSync} db
+ * @param {{sendEmail: (opts: {to: string, subject: string, text: string, appName?: string}) => Promise<boolean>}} [emailService]
+ *   Injectable, same `create*Service` factory shape as authService.js's own
+ *   emailService param - production code gets the real emailService.js,
+ *   tests can pass a stub with no SMTP config required.
  */
-function createHomeService(db) {
+function createHomeService(db, emailService = createEmailService()) {
   /**
    * @param {number} userId
    * @param {string} name
@@ -115,7 +133,43 @@ function createHomeService(db) {
     return rows.map(row => ({ id: Number(row.id), name: row.name, joinCode: row.joinCode }));
   }
 
-  return { createHome, joinHome, listHomesForUser };
+  /**
+   * Emails a join invite for a Home. Also allow-lists the invited address
+   * (see db/allowedEmails.js) - signup is gated behind that list, so without
+   * this an invite to someone with no existing account would be a dead end:
+   * they'd get a link/code that works for joining, but couldn't create the
+   * account needed to use it in the first place.
+   * @param {number} userId
+   * @param {number} homeId
+   * @param {string} email
+   */
+  async function inviteToHome(userId, homeId, email) {
+    assertHomeMembership(db, homeId, userId);
+    email = String(email || '').trim().toLowerCase();
+    if (!email) { throw new ServiceError('Ingresar un email'); }
+
+    const home = db.prepare('SELECT * FROM homes WHERE id = ?').get(homeId);
+    if (!home) { throw new ServiceError('Hogar no encontrado'); }
+
+    const inviter = db.prepare('SELECT email, name FROM users WHERE id = ?').get(userId);
+    const inviterLabel = (inviter && (inviter.name || inviter.email)) || 'Alguien';
+
+    addAllowedEmail(db, email);
+
+    const link = buildJoinLink(home.join_code);
+    await emailService.sendEmail({
+      to: email,
+      subject: `Te invitaron al Hogar "${home.name}" - FridgeTrack`,
+      text: `${inviterLabel} te invitó a unirte al Hogar "${home.name}" en FridgeTrack.\n\n`
+        + `Código de invitación: ${home.join_code}\n\n`
+        + `O simplemente abrí este enlace para unirte con un solo toque:\n${link}\n\n`
+        + `Si no esperabas esta invitación, podés ignorar este mensaje.`,
+    });
+
+    return { ok: true };
+  }
+
+  return { createHome, joinHome, listHomesForUser, inviteToHome };
 }
 
 export { createHomeService, assertHomeMembership };

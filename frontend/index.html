@@ -108,7 +108,7 @@
 
       <!-- Home (create/join) -->
       <div id="homeView" class="page">
-        <div class="home-chips"><!--  --></div>
+        <div class="home-cards"><!--  --></div>
 
         <div class="categories-section">
           <h4 class="categories-section-title">Categorías</h4>
@@ -269,6 +269,20 @@
             <div class="form-control">
               <label for="categoryName">Nombre</label>
               <input type="text" name="categoryName" placeholder="ej. Alimentos" />
+            </div>
+            <div class="submit"><!--  --></div>
+          </div>
+        </form>
+
+        <!-- Home Invite Form -->
+        <form id="inviteHomeForm" class="base-form">
+          <h3 class="form-title">
+            <span class="form-title-text">Invitar a un Hogar</span>
+          </h3>
+          <div class="form-content">
+            <div class="form-control">
+              <label for="inviteEmail">Email</label>
+              <input type="email" name="inviteEmail" placeholder="email@ejemplo.com" autocomplete="off" />
             </div>
             <div class="submit"><!--  --></div>
           </div>

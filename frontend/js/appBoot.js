@@ -9,11 +9,11 @@ import { fetchFoodNameHistory } from "./local-db/food-name-db.js";
 import { fetchCategories } from "./local-db/category-db.js";
 import { syncHome } from "./sync/syncEngine.js";
 import { activateLocation, openLocationForm } from "./ui/location-ui.js";
-import { refreshHomeUi } from "./ui/home-ui.js";
-// Deliberate circular import with auth-ui.js (which imports afterLogin back
-// from this file), same pattern already used with home-ui.js above - safe
-// here for the same reason: neither module calls the other's export at
-// module top level, only from inside function bodies invoked later.
+// Deliberate circular import with home-ui.js (which imports afterHome back
+// from this file) and auth-ui.js (which imports afterLogin) - safe here for
+// the same reason both already document: neither module calls the other's
+// export at module top level, only from inside function bodies invoked later.
+import { refreshHomeUi, captureJoinLinkCode, consumePendingJoin } from "./ui/home-ui.js";
 import { tryAutoVerifyFromLink } from "./ui/auth-ui.js";
 import { renderSpecificRoute } from "./common/router.js";
 import { initPushNotifications } from "./pushNotifications.js";
@@ -48,6 +48,12 @@ async function bootApp(initialRoute) {
   // the auth stage (and calls afterLogin() itself on success) either way.
   if (await tryAutoVerifyFromLink()) { return; }
 
+  // A Home-invite link (?joinCode=...) needs an authenticated session to
+  // actually join - captured now (also stripping the query string so a
+  // reload can't re-trigger it), consumed by afterLogin() once auth
+  // resolves, which may mean showing the login screen first.
+  captureJoinLinkCode();
+
   if (!isLoggedIn()) {
     setAuthStage('login');
     return;
@@ -69,6 +75,17 @@ async function afterLogin() {
     // silent catch here is otherwise completely invisible).
     _error(' - syncHomesFromServer failed:', err);
   }
+
+  // A captured Home-invite link takes priority over the normal "resolve
+  // last-used or first Home" logic below - arriving via an invite link
+  // means the user wants THAT Home, whether or not they already belong to
+  // others. No-ops (returns null) when no link was involved in this boot.
+  const joinedHome = await consumePendingJoin();
+  if (joinedHome) {
+    await afterHome(joinedHome);
+    return;
+  }
+
   const homes = await fetchHomes();
   const home = resolveCurrentHome(homes);
   if (!home) {

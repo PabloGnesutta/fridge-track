@@ -3,16 +3,38 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { runMigrations } from '../src/db/migrate.js';
 import { migrations } from '../src/db/migrations/index.js';
-import { addAllowedEmail } from '../src/db/allowedEmails.js';
+import { addAllowedEmail, isEmailAllowed } from '../src/db/allowedEmails.js';
 import { createAuthService } from '../src/services/authService.js';
 import { createHomeService } from '../src/services/homeService.js';
 import { ServiceError } from '../src/services/ServiceError.js';
 
 
+/**
+ * Stub emailService - same shape/purpose as authService.test.js's own
+ * makeStubEmailService(): sendEmail() resolves `true` without touching real
+ * SMTP config, and captures the last sent message so invite tests can
+ * assert on its contents.
+ */
+function makeStubEmailService() {
+  /** @type {{to: string, subject: string, text: string}|null} */
+  let lastSent = null;
+  return {
+    emailService: {
+      async sendEmail(opts) { lastSent = opts; return true; },
+    },
+    getLastSent: () => lastSent,
+  };
+}
+
 function makeServices() {
   const db = new DatabaseSync(':memory:');
   runMigrations(db, migrations);
-  return { authService: createAuthService(db), homeService: createHomeService(db), db };
+  const { emailService, getLastSent } = makeStubEmailService();
+  return {
+    authService: createAuthService(db, emailService),
+    homeService: createHomeService(db, emailService),
+    db, getLastSent,
+  };
 }
 
 test('createHome returns a 6-char join code and adds the creator as a member', () => {
@@ -104,4 +126,47 @@ test('joinHome is case-insensitive', () => {
 
   const joined = homeService.joinHome(joiner.id, home.joinCode.toLowerCase());
   assert.equal(joined.id, home.id);
+});
+
+test('inviteToHome sends an email with the join code and a link, and allow-lists the invitee', async () => {
+  const { authService, homeService, db, getLastSent } = makeServices();
+  addAllowedEmail(db, 'owner@test.local');
+  const owner = authService.createUser('owner@test.local', 'password123');
+  const home = homeService.createHome(owner.id, 'Casa Compartida');
+
+  await homeService.inviteToHome(owner.id, home.id, 'Invitee@Test.Local');
+
+  const sent = getLastSent();
+  assert.equal(sent.to, 'invitee@test.local');
+  assert.match(sent.text, new RegExp(home.joinCode));
+  const [, linkUrl] = sent.text.match(/(https?:\/\/\S+)/) || [];
+  assert.ok(linkUrl, 'email body should contain a link');
+  assert.equal(new URL(linkUrl).searchParams.get('joinCode'), home.joinCode);
+
+  // The invite is a dead end for a brand-new email otherwise - signup is
+  // gated behind this same list.
+  assert.ok(isEmailAllowed(db, 'invitee@test.local'));
+});
+
+test('inviteToHome rejects a non-member', async () => {
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'owner@test.local');
+  addAllowedEmail(db, 'outsider@test.local');
+  const owner = authService.createUser('owner@test.local', 'password123');
+  const outsider = authService.createUser('outsider@test.local', 'password123');
+  const home = homeService.createHome(owner.id, 'Casa Compartida');
+
+  await assert.rejects(
+    () => homeService.inviteToHome(outsider.id, home.id, 'someone@test.local'),
+    ServiceError
+  );
+});
+
+test('inviteToHome rejects a missing email', async () => {
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'owner@test.local');
+  const owner = authService.createUser('owner@test.local', 'password123');
+  const home = homeService.createHome(owner.id, 'Casa Compartida');
+
+  await assert.rejects(() => homeService.inviteToHome(owner.id, home.id, '  '), ServiceError);
 });

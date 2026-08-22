@@ -17,6 +17,7 @@ import { _log } from "../lib/logger.js";
  * @property {boolean} showItemForm
  * @property {boolean} showFoodNameHistoryForm
  * @property {boolean} showCategoryForm
+ * @property {boolean} showInviteForm
  * @property {boolean} showSearch
  * @property {Views} currentView
  * @property {AuthStage} authStage
@@ -51,6 +52,7 @@ const appState = {
     showItemForm: false,
     showFoodNameHistoryForm: false,
     showCategoryForm: false,
+    showInviteForm: false,
     showSearch: false,
     currentView: 'ItemList',
     authStage: 'checking',
@@ -138,6 +140,7 @@ function initAppState() {
     setStateField('showItemForm', false);
     setStateField('showFoodNameHistoryForm', false);
     setStateField('showCategoryForm', false);
+    setStateField('showInviteForm', false);
     setStateField('showSearch', false);
     setCurrentView('ItemList');
     setAuthStage('checking');

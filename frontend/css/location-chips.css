@@ -1,5 +1,4 @@
-.location-chips,
-.home-chips {
+.location-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -94,8 +93,7 @@
   text-align: right;
 }
 
-.location-chip,
-.home-chip {
+.location-chip {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -107,25 +105,94 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
-.location-chip:active,
-.home-chip:active {
+.location-chip:active {
   background-color: var(--bg-surface-active);
 }
 
-.location-chip.active,
-.home-chip.active {
+.location-chip.active {
   background-color: var(--bg-surface-active);
   border-color: var(--accent);
   color: var(--text-primary);
 }
 
-.location-chip .locationName,
-.home-chip .homeName {
+.location-chip .locationName {
   font-size: 16px;
   max-width: 40vw;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Home cards - one per Home the user belongs to (see home-ui.js's
+   renderHomeCards()), replacing what used to be a horizontal row of plain
+   .home-chip pills. A vertical stack since each card now also carries the
+   invite/copy-link actions, which need real row space, not a pill's. */
+.home-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0.75rem;
+}
+
+.home-card {
+  padding: 0.75rem;
+  border-radius: 10px;
+  background-color: var(--bg-surface);
+  border: 1px solid transparent;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+.home-card:active {
+  background-color: var(--bg-surface-active);
+}
+
+.home-card.active {
+  border-color: var(--accent);
+}
+
+.home-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.home-card-name {
+  font-size: 18px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-card-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--text-primary);
+  background-color: var(--accent);
+}
+
+.home-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.home-card-actions .btn {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background-color: var(--bg-surface-raised);
+  font-size: 13px;
+}
+
+.home-card-actions .btn .icon {
+  width: 16px;
+  height: 16px;
 }
 
 .location-chip .icon-btn {
