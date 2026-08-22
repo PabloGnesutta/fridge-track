@@ -1,5 +1,5 @@
-import { db } from './db.js';
-import { addAllowedEmail, removeAllowedEmail, listAllowedEmails } from './allowedEmails.js';
+import { db } from '../db.js';
+import { addAllowedEmail, removeAllowedEmail, listAllowedEmails } from '../allowedEmails.js';
 
 
 function printUsage() {

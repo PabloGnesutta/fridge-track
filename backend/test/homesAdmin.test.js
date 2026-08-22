@@ -7,7 +7,7 @@ import { addAllowedEmail } from '../src/db/allowedEmails.js';
 import { createAuthService } from '../src/services/authService.js';
 import { createHomeService } from '../src/services/homeService.js';
 import { createSyncService } from '../src/services/syncService.js';
-import { listHomes, previewHomeCascade, deleteHomeCascade } from '../src/db/homesAdmin.js';
+import { listHomes, previewHomeCascade, deleteHomeCascade } from '../src/db/admin/homesAdmin.js';
 
 
 function makeServices() {
