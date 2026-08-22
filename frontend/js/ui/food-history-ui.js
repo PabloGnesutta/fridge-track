@@ -8,7 +8,6 @@ import { syncUrl } from "../common/router.js";
 import {
   deleteFoodNameHistory, fetchFoodNameHistory, updateFoodNameHistory,
 } from "../local-db/food-name-db.js";
-import { getKnownCategories } from "../lib/locationCategory.js";
 import { pageTitle } from "./ui.js";
 import { openItemList } from "./item-ui.js";
 
@@ -45,16 +44,17 @@ foodNameHistoryForm.addEventListener('submit', submitFoodNameHistoryForm);
 let allEntries = [];
 
 /** Which category tab is currently selected. */
-let selectedCategory = 'alimento';
+let selectedCategoryId = '';
 
 /**
- * A record's effective category - defaults to 'alimento' for entries
- * written before category-scoping existed (see food-name-db.js's
- * FoodNameHistory typedef).
+ * A record's effective categoryId - defaults to the Home's 'Alimentos'
+ * category for entries written before category-scoping existed (see
+ * food-name-db.js's FoodNameHistory typedef).
  * @param {FoodNameHistory} entry
  */
-function entryCategory(entry) {
-  return entry.category || 'alimento';
+function entryCategoryId(entry) {
+  if (entry.categoryId) { return entry.categoryId; }
+  return dbStore.categories.find(c => c.name === 'Alimentos')?._key || '';
 }
 
 /** Opens the food name history view */
@@ -67,7 +67,7 @@ async function openFoodHistory() {
   allEntries = homeId ? await fetchFoodNameHistory(homeId) : [];
   // Defaults to whichever category the user was just looking at, so opening
   // history from the medicine cabinet doesn't land on the food tab.
-  selectedCategory = dataState.currentLocation?.category || 'alimento';
+  selectedCategoryId = dataState.currentLocation?.categoryId || dbStore.categories[0]?._key || '';
 
   renderHistoryCategoryTabs();
   renderCurrentCategory();
@@ -76,11 +76,12 @@ async function openFoodHistory() {
 /** Renders the category tab row, highlighting the currently selected one. */
 function renderHistoryCategoryTabs() {
   historyTabs.innerHTML = '';
-  for (const { value, label } of getKnownCategories(dbStore.locations)) {
+  for (const category of dbStore.categories) {
+    const categoryId = category._key || '';
     historyTabs.append($new({
-      class: 'history-category-tab' + (value === selectedCategory ? ' active' : ''),
-      text: label,
-      dataset: [['clickAction', 'switchHistoryCategory'], ['category', value]],
+      class: 'history-category-tab' + (categoryId === selectedCategoryId ? ' active' : ''),
+      text: category.name,
+      dataset: [['clickAction', 'switchHistoryCategory'], ['categoryId', categoryId]],
     }));
   }
 }
@@ -88,18 +89,18 @@ function renderHistoryCategoryTabs() {
 /**
  * Switches the selected tab and re-renders from the already-fetched
  * allEntries - called via ui.js's click-delegation switch.
- * @param {string} category
+ * @param {string} categoryId
  */
-function switchHistoryCategory(category) {
-  if (category === selectedCategory) { return; }
-  selectedCategory = category;
+function switchHistoryCategory(categoryId) {
+  if (categoryId === selectedCategoryId) { return; }
+  selectedCategoryId = categoryId;
   renderHistoryCategoryTabs();
   renderCurrentCategory();
 }
 
 /** Filters allEntries down to the selected category and (re)renders both the stats line and the list. */
 function renderCurrentCategory() {
-  const entries = allEntries.filter(entry => entryCategory(entry) === selectedCategory);
+  const entries = allEntries.filter(entry => entryCategoryId(entry) === selectedCategoryId);
   renderHistoryStats(entries);
   renderFoodHistoryList(entries);
 }
@@ -144,7 +145,7 @@ async function submitFoodNameHistoryForm(e) {
   const rawShelfLife = formData.get('foodNameHistoryShelfLifeDays');
   const newShelfLifeDays = rawShelfLife ? Number(rawShelfLife) : null;
 
-  const result = await updateFoodNameHistory(homeId, entryCategory(entry), entry, newName, newShelfLifeDays);
+  const result = await updateFoodNameHistory(homeId, entryCategoryId(entry), entry, newName, newShelfLifeDays);
   if (!result.ok) { return showErrorToast(result.error); }
 
   entryBeingEdited = null;
@@ -160,7 +161,7 @@ function deleteFoodNameHistoryEntry(entry) {
   showConfirmDialog(`¿Seguro que querés borrar el historial de "${entry.name}"?`, async () => {
     const homeId = dataState.currentHome?.id;
     if (!homeId) { return; }
-    await deleteFoodNameHistory(homeId, entryCategory(entry), entry.normalizedName);
+    await deleteFoodNameHistory(homeId, entryCategoryId(entry), entry.normalizedName);
     await refreshAfterEdit();
   });
 }

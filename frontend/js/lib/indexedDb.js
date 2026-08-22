@@ -4,7 +4,7 @@ import { eventBus } from './utils.js';
 
 /**
  * Enums
- * @typedef {'locations'|'items'|'foodNameHistory'|'homes'} ObjectStores
+ * @typedef {'locations'|'items'|'foodNameHistory'|'homes'|'categories'} ObjectStores
  * @typedef {'locationKey'|'homeId'} Indexes
  *
  * @typedef {IDBValidKey | IDBKeyRange} StoreKey
@@ -12,7 +12,7 @@ import { eventBus } from './utils.js';
  */
 
 const dbName = 'FridgeTrack';
-const dbVersion = 4;
+const dbVersion = 5;
 
 
 /** @type {Record<ObjectStores, ObjectStores>} */
@@ -21,6 +21,7 @@ const _stores = {
   items: 'items',
   foodNameHistory: 'foodNameHistory',
   homes: 'homes',
+  categories: 'categories',
 };
 
 /** @type {IDBOpenDBRequest} */
@@ -79,6 +80,15 @@ function onDbUpgradeNeeded() {
     // Keyed explicitly by the server-issued home id, same style as
     // foodNameHistory above.
     db.createObjectStore(_stores.homes);
+  }
+
+  // Client-UUID keyed (passed explicitly to putOne/getOne, like locations),
+  // homeId-indexed the same way locations/foodNameHistory already are.
+  const categoriesStore = db.objectStoreNames.contains(_stores.categories)
+    ? openDbRequest.transaction.objectStore(_stores.categories)
+    : db.createObjectStore(_stores.categories);
+  if (!categoriesStore.indexNames.contains('homeId')) {
+    categoriesStore.createIndex('homeId', 'homeId', { unique: false });
   }
 
   _info(db.objectStoreNames);

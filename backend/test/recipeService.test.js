@@ -33,10 +33,14 @@ function makeUserAndHome(services, email = 'a@test.local') {
   addAllowedEmail(services.db, email);
   const user = services.authService.createUser(email, 'password123');
   const home = services.homeService.createHome(user.id, 'Casa de Prueba');
+  /** @type {{id: string}} */ // @ts-ignore
+  const category = services.db.prepare(
+    `SELECT id FROM categories WHERE home_id = ? AND name = 'Alimentos'`
+  ).get(home.id);
   services.db.prepare(
-    `INSERT INTO locations (id, home_id, name, created_at, updated_at, deleted_at)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).run('loc-1', home.id, 'Heladera', 1000, 1000, null);
+    `INSERT INTO locations (id, home_id, name, category_id, created_at, updated_at, deleted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run('loc-1', home.id, 'Heladera', category.id, 1000, 1000, null);
   return { user, home };
 }
 

@@ -36,6 +36,10 @@ export default async function globalTeardown() {
       db.prepare(`DELETE FROM items WHERE home_id IN (${homePlaceholders})`).run(...homeIds);
       db.prepare(`DELETE FROM locations WHERE home_id IN (${homePlaceholders})`).run(...homeIds);
       db.prepare(`DELETE FROM food_name_history WHERE home_id IN (${homePlaceholders})`).run(...homeIds);
+      // Added alongside the categories-table work - locations/food_name_history
+      // now hold a foreign key into categories, so this has to run before
+      // categories itself, and categories has to run before homes below.
+      db.prepare(`DELETE FROM categories WHERE home_id IN (${homePlaceholders})`).run(...homeIds);
     }
     db.prepare(`DELETE FROM sessions WHERE user_id IN (${placeholders})`).run(...userIds);
     db.prepare(`DELETE FROM home_members WHERE user_id IN (${placeholders})`).run(...userIds);

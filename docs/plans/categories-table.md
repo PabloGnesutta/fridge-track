@@ -1,10 +1,46 @@
 # Categories as a first-class database table
 
-**Status**: planned, not started. Written after a session that added free-text custom
-categories (`frontend/js/lib/locationCategory.js`'s `getKnownCategories`/`<input list>` datalist
-in the location form) and then found that renaming a location's category doesn't propagate to
-its history - see Context below. Picking this up in a later session should start by re-reading
-this file in full before touching code.
+**Status**: implemented. Written after a session that added free-text custom categories
+(`frontend/js/lib/locationCategory.js`'s `getKnownCategories`/`<input list>` datalist in the
+location form, since deleted) and then found that renaming a location's category doesn't
+propagate to its history - see Context below.
+
+Built close to this plan as written, with two corrections found during implementation, both
+worth knowing before touching this area again:
+- **Migration 008 (`locations` → `category_id`) can't use the plain RENAME-based recreate-table
+  technique migration 005/009 use.** `items.location_id REFERENCES locations(id)` is a real
+  incoming foreign key; `ALTER TABLE locations RENAME TO locations_old` silently rewrites
+  `items`' FK clause to follow the rename (confirmed empirically against `node:sqlite`), which
+  then either fails `DROP TABLE locations_old` outright or - worse, if foreign key enforcement is
+  off - leaves `items` permanently referencing a table that no longer exists. Migration 008
+  instead builds the new shape under a temporary name, drops the *original* `locations` (never
+  renamed away), then renames the new table into place - `items`' FK text is never touched. This
+  needed `migrate.js` itself to grow a `disableForeignKeys` migration flag (`PRAGMA foreign_keys`
+  is a documented no-op mid-transaction, so it has to toggle off before BEGIN / on after COMMIT,
+  with a `PRAGMA foreign_key_check` before COMMIT as a safety net) - see
+  `008_locations_category_id.js`'s header comment for the full reasoning and the exact SQLite
+  behavior that was tested to arrive at this.
+- **The autocomplete filter in `item-ui.js`'s `.name-suggestions` handler** (matching
+  `entry.categoryId === dataState.currentLocation?.categoryId`) needed the same string→id
+  migration as the write-side call sites - easy to miss since it's a read, not a call into
+  food-name-db.js.
+
+Verified: full backend (85) + frontend unit (62) + e2e (50/51, one unrelated pre-existing
+failure - see below) suites pass; the real dev `fridgetrack.db` migrated cleanly through
+007-010 with `PRAGMA foreign_key_check` reporting zero violations; a manual driver script
+(`.claude/skills/run-fridge-track/categories-check.mjs`) confirmed the location form's category
+`<select>`, "+ Nueva categoría", the Hogar page's Categorías management list, and a rename
+propagating live to both the location form and `/historial`'s tabs.
+
+**Found, not fixed (out of scope, pre-existing)**: `frontend/e2e/home.spec.js`'s "two Homes in
+one browser context keep their locations separate" test times out waiting for `#homeView` to
+hide. Root cause: `appBoot.js`'s `afterHome()` calls `openLocationForm(true)` (onboarding) for a
+Home with zero locations, but that path never calls `setCurrentView()` - if the Home switch was
+triggered *from the Hogar tab itself* (`currentView` already `'Home'`), `#homeView` stays visible
+underneath the onboarding modal forever, since its own visibility is gated purely on
+`data-current-view`. Confirmed via `git show HEAD:...` that this control flow predates this
+session's work entirely (unrelated to categories) - flagged here rather than silently fixed,
+since it's outside this plan's scope.
 
 ## Context
 

@@ -606,7 +606,8 @@ svg {
 /* Modal/Forms state */
 #app[data-show-location-form='true'] .modal,
 #app[data-show-item-form='true'] .modal,
-#app[data-show-food-name-history-form='true'] .modal {
+#app[data-show-food-name-history-form='true'] .modal,
+#app[data-show-category-form='true'] .modal {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
@@ -615,13 +616,15 @@ svg {
 
 #app[data-show-location-form='true'] .modal .content,
 #app[data-show-item-form='true'] .modal .content,
-#app[data-show-food-name-history-form='true'] .modal .content {
+#app[data-show-food-name-history-form='true'] .modal .content,
+#app[data-show-category-form='true'] .modal .content {
   transform: translateY(0);
 }
 
 #app[data-show-location-form='false'] #locationForm,
 #app[data-show-item-form='false'] #itemForm,
-#app[data-show-food-name-history-form='false'] #foodNameHistoryForm {
+#app[data-show-food-name-history-form='false'] #foodNameHistoryForm,
+#app[data-show-category-form='false'] #categoryForm {
   display: none;
 }
 
@@ -701,6 +704,25 @@ svg {
   margin-left: 0.35rem;
   text-decoration: underline dotted;
   cursor: pointer;
+}
+
+/* Categories management - reuses the exact .list/.row/.history-row-actions
+   pattern food-history-ui.js's buildHistoryRow() already established
+   (row-actions styling lives in btn.css, not scoped to #foodHistoryView).
+   Hidden during the pre-ready "pick a Home" step, since there's no Home yet
+   whose categories could be managed. */
+.categories-section {
+  padding: 0.5rem 0.75rem 0;
+}
+
+.categories-section-title {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+#app[data-auth-stage='chooseHome'] .categories-section {
+  display: none;
 }
 
 /* Go-back only shows once you've drilled into a non-list view - the food-

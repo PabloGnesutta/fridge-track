@@ -6,6 +6,7 @@ import {
 } from "./local-db/home-db.js";
 import { fetchLocations, resolveCurrentLocation } from "./local-db/location-db.js";
 import { fetchFoodNameHistory } from "./local-db/food-name-db.js";
+import { fetchCategories } from "./local-db/category-db.js";
 import { syncHome } from "./sync/syncEngine.js";
 import { activateLocation, openLocationForm } from "./ui/location-ui.js";
 import { refreshHomeUi } from "./ui/home-ui.js";
@@ -92,6 +93,10 @@ async function afterHome(home) {
     // Push not supported/available in this browser - the banner just never shows.
   }
 
+  // Categories fetched first - item-ui.js's page title / autocomplete
+  // filtering and location-ui.js's form both read dbStore.categories as soon
+  // as fetchLocations below resolves a current location and activates it.
+  await fetchCategories(home.id);
   const locations = await fetchLocations(home.id);
   await fetchFoodNameHistory(home.id);
   const currentLocation = resolveCurrentLocation(locations, home.id);
@@ -126,6 +131,7 @@ async function logout() {
   dataState.currentLocation = null;
   dataState.currentItem = null;
   clearArray(dbStore.homes);
+  clearArray(dbStore.categories);
   clearArray(dbStore.locations);
   clearArray(dbStore.items);
   clearArray(dbStore.foodNameHistory);

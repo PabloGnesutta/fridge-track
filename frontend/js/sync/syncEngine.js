@@ -14,20 +14,24 @@ function toMillis(value) {
 }
 
 /**
- * Reads every locations/items/foodNameHistory record for the Home directly
- * from IndexedDB (including tombstones - unlike fetchLocations/fetchItems,
- * which filter them out for display) and translates them into the wire
- * format the sync API expects. Also returns the IndexedDB keys of any
- * foodNameHistory records still sitting under the old, pre-category-scoping
- * 2-part key ([homeId, normalizedName]) - they're included in the pushed
- * snapshot below (category-defaulted to 'alimento') but syncHome() needs
- * their *old* key separately, to delete them locally once the round trip
- * lands their data under the new 3-part key. Without that cleanup they
+ * Reads every categories/locations/items/foodNameHistory record for the Home
+ * directly from IndexedDB (including tombstones - unlike fetchLocations/
+ * fetchItems/fetchCategories, which filter them out for display) and
+ * translates them into the wire format the sync API expects. Also returns
+ * the IndexedDB keys of any foodNameHistory records still sitting under a
+ * pre-categoryId key (either the original 2-part `[homeId, normalizedName]`
+ * key, or the intermediate 3-part `[homeId, categoryString, normalizedName]`
+ * key from before categories became a real table) - they're included in the
+ * pushed snapshot below (with a `category` string fallback the backend's
+ * resolveCategoryId can resolve server-side) but syncHome() needs their
+ * *old* key separately, to delete them locally once the round trip lands
+ * their data under the new categoryId-keyed key. Without that cleanup they
  * linger forever alongside the new-keyed record synced back down, showing up
  * as a duplicate entry in /historial.
  * @param {number} homeId
  */
 async function buildLocalSnapshot(homeId) {
+  const categories = await getAllWithIndex('categories', 'homeId', homeId);
   const locations = await getAllWithIndex('locations', 'homeId', homeId);
 
   const items = [];
@@ -37,15 +41,28 @@ async function buildLocalSnapshot(homeId) {
 
   const foodNameHistory = await getAllWithIndex('foodNameHistory', 'homeId', homeId);
   const legacyFoodNameHistoryKeys = foodNameHistory
-    .filter(entry => !entry.category)
+    .filter(entry => !entry.categoryId)
     .map(entry => entry._key);
 
   const snapshot = {
+    categories: categories.map(category => ({
+      id: category._key,
+      homeId,
+      name: category.name,
+      createdAt: toMillis(category.createdAt),
+      updatedAt: toMillis(category.updatedAt),
+      deletedAt: toMillis(category.deletedAt),
+    })),
     locations: locations.map(location => ({
       id: location._key,
       homeId,
       name: location.name,
-      category: location.category || 'alimento',
+      categoryId: location.categoryId,
+      // Legacy fallback for a pre-categoryId local record (predates this
+      // sync round entirely) - lets the backend's resolveCategoryId resolve
+      // a real categoryId server-side from the old string field. Only
+      // meaningful when categoryId is absent above.
+      category: location.categoryId ? undefined : (location.category || 'alimento'),
       createdAt: toMillis(location.createdAt),
       updatedAt: toMillis(location.updatedAt),
       deletedAt: toMillis(location.deletedAt),
@@ -67,10 +84,12 @@ async function buildLocalSnapshot(homeId) {
     })),
     foodNameHistory: foodNameHistory.map(entry => ({
       homeId,
-      // Defaults a legacy local record (written before category-scoping
-      // existed) to 'alimento' rather than pushing `category: undefined` -
-      // every such record predates location categories, so it's food.
-      category: entry.category || 'alimento',
+      categoryId: entry.categoryId,
+      // Same legacy-fallback reasoning as locations.category above - covers
+      // both a record written before category-scoping existed at all (no
+      // `category` field either, defaults to 'alimento') and one written
+      // during the string-category era.
+      category: entry.categoryId ? undefined : (entry.category || 'alimento'),
       normalizedName: entry.normalizedName,
       name: entry.name,
       firstCreatedAt: toMillis(entry.firstCreatedAt),
@@ -88,6 +107,23 @@ async function buildLocalSnapshot(homeId) {
 /**
  * @param {any} pulled
  */
+async function mergeCategory(pulled) {
+  const local = await getOne('categories', pulled.id);
+  if (!remoteWins(local, pulled)) { return; }
+
+  await putOne('categories', {
+    name: pulled.name,
+    homeId: pulled.homeId,
+    createdAt: new Date(pulled.createdAt),
+    updatedAt: new Date(pulled.updatedAt),
+    deletedAt: pulled.deletedAt != null ? new Date(pulled.deletedAt) : null,
+    _key: pulled.id,
+  }, pulled.id);
+}
+
+/**
+ * @param {any} pulled
+ */
 async function mergeLocation(pulled) {
   const local = await getOne('locations', pulled.id);
   if (!remoteWins(local, pulled)) { return; }
@@ -95,7 +131,7 @@ async function mergeLocation(pulled) {
   await putOne('locations', {
     name: pulled.name,
     homeId: pulled.homeId,
-    category: pulled.category || 'alimento',
+    categoryId: pulled.categoryId,
     createdAt: new Date(pulled.createdAt),
     updatedAt: new Date(pulled.updatedAt),
     deletedAt: pulled.deletedAt != null ? new Date(pulled.deletedAt) : null,
@@ -130,7 +166,7 @@ async function mergeItem(pulled) {
  * @param {any} pulled
  */
 async function mergeFoodNameHistory(pulled) {
-  const key = [pulled.homeId, pulled.category, pulled.normalizedName];
+  const key = [pulled.homeId, pulled.categoryId, pulled.normalizedName];
   const local = await getOne('foodNameHistory', key);
   if (!remoteWins(local, pulled)) { return; }
 
@@ -138,7 +174,7 @@ async function mergeFoodNameHistory(pulled) {
     name: pulled.name,
     normalizedName: pulled.normalizedName,
     homeId: pulled.homeId,
-    category: pulled.category,
+    categoryId: pulled.categoryId,
     firstCreatedAt: new Date(pulled.firstCreatedAt),
     shelfLifeDays: pulled.shelfLifeDays,
     timesDiscarded: pulled.timesDiscarded,
@@ -149,11 +185,12 @@ async function mergeFoodNameHistory(pulled) {
 }
 
 /**
- * Best-effort push-then-pull reconciliation of a Home's locations, items and
- * food-name-history against the server, applying last-write-wins per record.
- * Never throws - mirrors syncHomesFromServer()'s contract, so callers can
- * `try { await syncHome(id) } catch {}` and fall back to the local cache.
- * Does not touch dbStore or trigger any re-render - that's the caller's job.
+ * Best-effort push-then-pull reconciliation of a Home's categories,
+ * locations, items and food-name-history against the server, applying
+ * last-write-wins per record. Never throws - mirrors syncHomesFromServer()'s
+ * contract, so callers can `try { await syncHome(id) } catch {}` and fall
+ * back to the local cache. Does not touch dbStore or trigger any re-render -
+ * that's the caller's job.
  *
  * Failures are logged via _error (auto-opens the debug panel) rather than
  * swallowed silently or logged via _warn - this app has no manual "open
@@ -179,14 +216,19 @@ async function syncHome(homeId) {
       return;
     }
 
+    // Categories first - locations/foodNameHistory below are identified by
+    // categoryId, so merging categories first keeps IndexedDB's view of
+    // "what categories exist" ahead of whatever references them, mirroring
+    // the same ordering the backend's pushHomeSnapshot uses.
+    for (const category of pullResult.data.categories) { await mergeCategory(category); }
     for (const location of pullResult.data.locations) { await mergeLocation(location); }
     for (const item of pullResult.data.items) { await mergeItem(item); }
     for (const entry of pullResult.data.foodNameHistory) { await mergeFoodNameHistory(entry); }
 
     // Only reached once this record's data has definitely landed under its
-    // new 3-part key (already there locally, or just written by the merge
-    // loop above from the pull we just did) - safe to drop the old-keyed
-    // duplicate now.
+    // new categoryId-keyed key (already there locally, or just written by
+    // the merge loop above from the pull we just did) - safe to drop the
+    // old-keyed duplicate now.
     for (const legacyKey of legacyFoodNameHistoryKeys) { await deleteOne('foodNameHistory', legacyKey); }
   } catch (err) {
     _error(' - syncHome threw (offline or unreachable):', err);

@@ -40,6 +40,62 @@ test('running twice does not re-apply already-applied migrations', () => {
   assert.equal(count, migrations.length);
 });
 
+test('migrations 007-010 backfill every pre-existing location/food_name_history row with a correctly resolved category_id', () => {
+  const db = new DatabaseSync(':memory:');
+  // Apply only what predates the categories-table work (migrations 1-6),
+  // then hand-seed data in the exact pre-migration shape (raw
+  // locations.category / food_name_history.category strings, no categories
+  // table at all) - reproducing the real slug/label mismatch this migration
+  // series exists to guard against, plus the two trickiest cases: a
+  // tombstoned location (still needs a resolvable category_id) and a
+  // food_name_history entry referencing a custom category with zero
+  // currently-active locations.
+  runMigrations(db, migrations.slice(0, 6));
+
+  db.exec(`
+    INSERT INTO users (id, email, password_hash, created_at) VALUES (1, 'a@test.local', 'x', 1000);
+    INSERT INTO homes (id, name, join_code, created_by, created_at) VALUES (1, 'Casa', 'ABC123', 1, 1000);
+    INSERT INTO locations (id, home_id, name, category, created_at, updated_at, deleted_at) VALUES
+      ('loc-1', 1, 'Heladera', 'alimento', 1000, 1000, NULL),
+      ('loc-2', 1, 'Botiquin', 'medicamento', 1000, 1000, NULL),
+      ('loc-3', 1, 'Freezer', 'congelador', 1000, 1000, NULL),
+      ('loc-4', 1, 'Vieja Heladera', 'alimento', 1000, 1000, 5000);
+    INSERT INTO food_name_history (home_id, category, normalized_name, name, first_created_at, updated_at, deleted_at) VALUES
+      (1, 'alimento', 'leche', 'Leche', 1000, 1000, NULL),
+      (1, 'otro', 'pilas', 'Pilas', 1000, 1000, NULL);
+  `);
+
+  runMigrations(db, migrations);
+
+  /** @type {{id: string, category_id: string}[]} */ // @ts-ignore
+  const locationRows = db.prepare('SELECT id, category_id FROM locations ORDER BY id').all();
+  assert.equal(locationRows.length, 4, 'every pre-existing location, including the tombstoned one, survives');
+  assert.ok(locationRows.every(row => !!row.category_id), 'every location resolved a non-null category_id');
+
+  /** @type {{category_id: string}[]} */ // @ts-ignore
+  const foodNameHistoryRows = db.prepare('SELECT category_id FROM food_name_history').all();
+  assert.equal(foodNameHistoryRows.length, 2);
+  assert.ok(foodNameHistoryRows.every(row => !!row.category_id));
+
+  // No dangling references anywhere - the real risk this migration chain
+  // introduced (see 008_locations_category_id.js's header comment).
+  assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
+
+  /** @type {{id: string, name: string}[]} */ // @ts-ignore
+  const categoryById = Object.fromEntries(
+    db.prepare('SELECT id, name FROM categories WHERE home_id = 1').all().map(c => [c.id, c.name])
+  );
+  const nameByLocation = Object.fromEntries(
+    locationRows.map(row => [row.id, categoryById[row.category_id]])
+  );
+  assert.deepEqual(nameByLocation, {
+    'loc-1': 'Alimentos',
+    'loc-2': 'Medicamentos',
+    'loc-3': 'congelador', // custom category - untouched by migration 010's cosmetic builtin-only rename
+    'loc-4': 'Alimentos',
+  });
+});
+
 test('a later run only applies newly-added migrations, not ones already recorded', () => {
   const db = new DatabaseSync(':memory:');
   runMigrations(db, [migrations[0]]);

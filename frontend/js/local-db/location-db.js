@@ -14,7 +14,7 @@ import { syncHome } from "../sync/syncEngine.js";
  * @typedef {object} Location
  * @property {string} name
  * @property {number} homeId
- * @property {string} [category]
+ * @property {string} categoryId
  * @property {string} [_key]
  * @property {Date} [createdAt]
  * @property {Date} [updatedAt]
@@ -29,7 +29,10 @@ const LAST_USED_LOCATION_KEY_PREFIX = 'lastUsedLocationKey:';
  * deleted location doesn't sit unsynced until the next boot/Home-switch -
  * the scenario that otherwise leaves a Home looking empty to someone who
  * joins before the creating device happens to reload. Items and food-name-
- * history still only sync via that boot/Home-switch trigger.
+ * history still only sync via that boot/Home-switch trigger. Exported and
+ * reused by category-db.js's renameCategory()/deleteCategory() too - a
+ * category rename/delete needs the same "propagate soon, not just on next
+ * boot" treatment, and there's no reason to duplicate this function.
  * @param {number} homeId
  */
 function scheduleLocationSync(homeId) {
@@ -41,16 +44,16 @@ function scheduleLocationSync(homeId) {
  * Creates a new storage location (e.g. "Heladera", "Freezer") within a Home.
  * @param {string} name
  * @param {number} homeId
+ * @param {string} categoryId
  * @param {Date} [date]
- * @param {string} [category]
  * @returns {ServiceReturn<Location>}
  */
-async function createLocation(name, homeId, date = new Date(), category = 'alimento') {
+async function createLocation(name, homeId, categoryId, date = new Date()) {
   name = name.trim();
   if (!name) { return { errorMsg: 'Ingresar nombre' }; }
 
   /** @type {Location} */
-  const location = { name, homeId, category, createdAt: date, updatedAt: date, deletedAt: null };
+  const location = { name, homeId, categoryId, createdAt: date, updatedAt: date, deletedAt: null };
   const key = generateId();
   location._key = key;
   await putOne('locations', location, key);
@@ -65,17 +68,17 @@ async function createLocation(name, homeId, date = new Date(), category = 'alime
  * Renames/recategorizes a location. Mutates the given location.
  * @param {Location} location
  * @param {string} name
+ * @param {string} categoryId
  * @param {Date} [date]
- * @param {string} [category]
  * @returns {ServiceReturn<Location>}
  */
-async function updateLocation(location, name, date = new Date(), category = 'alimento') {
+async function updateLocation(location, name, categoryId, date = new Date()) {
   if (!location._key) { return { errorMsg: 'Llave no provista' }; }
   name = name.trim();
   if (!name) { return { errorMsg: 'Ingresar nombre' }; }
 
   location.name = name;
-  location.category = category;
+  location.categoryId = categoryId;
   location.updatedAt = date;
   await putOne('locations', location, location._key);
   scheduleLocationSync(location.homeId);
@@ -162,5 +165,5 @@ function resolveCurrentLocation(locations, homeId) {
 
 export {
   createLocation, updateLocation, deleteLocationAndItems, fetchLocations,
-  setLastUsedLocationKey, getLastUsedLocationKey, resolveCurrentLocation,
+  setLastUsedLocationKey, getLastUsedLocationKey, resolveCurrentLocation, scheduleLocationSync,
 };

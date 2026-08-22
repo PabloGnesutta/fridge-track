@@ -10,7 +10,7 @@ import {
   createItem, deleteItem, fetchAllItemsForHome, fetchItems, restoreItem, updateItem,
 } from "../local-db/item-db.js";
 import { adjustDiscardCount, adjustUsedCount, recordItemCreated } from "../local-db/food-name-db.js";
-import { getCategoryLabel } from "../lib/locationCategory.js";
+import { getCategoryName } from "../local-db/category-db.js";
 import { resetVoiceStatus } from "./voice-item-ui.js";
 import { computeStatus, formatDueDetail, getSoonestDays } from "../lib/freshnessStatus.js";
 import { apiRecipeSuggestions } from "../api-caller/apiCaller.js";
@@ -73,10 +73,10 @@ itemNameInput.addEventListener('input', () => {
   const query = itemNameInput.value.trim();
   if (!query) { return hideNameSuggestions(); }
   const normalizedQuery = normalize(query);
-  const currentCategory = dataState.currentLocation?.category || 'alimento';
+  const currentCategoryId = dataState.currentLocation?.categoryId;
   const suggestions = dbStore.foodNameHistory
     .filter(entry => matches(entry.normalizedName, normalizedQuery)
-      && (entry.category || 'alimento') === currentCategory)
+      && entry.categoryId === currentCategoryId)
     .slice(0, 6);
   renderNameSuggestions(suggestions);
 });
@@ -306,7 +306,7 @@ async function openRecipeSuggestions() {
 /** Open the item list view */
 function openItemList() {
   setCurrentView('ItemList');
-  pageTitle.innerText = getCategoryLabel(dataState.currentLocation?.category);
+  pageTitle.innerText = getCategoryName(dataState.currentLocation?.categoryId);
   syncUrl('/', { replace: true });
 }
 
@@ -451,7 +451,7 @@ async function submitItemForm(e) {
   } else {
     const result = await createItem(location._key || '', name, { quantity, addedDate, useByDate, shelfLifeDays, notes });
     if (!result.data) { return showErrorToast(result.errorMsg); }
-    await recordItemCreated(location.homeId, location.category, result.data.name, shelfLifeDays, addedDate);
+    await recordItemCreated(location.homeId, location.categoryId, result.data.name, shelfLifeDays, addedDate);
   }
 
   itemForm.reset();
@@ -475,7 +475,7 @@ async function openSingleItem(itemKey) {
   if (!item) { return showErrorToast('Alimento no encontrado'); }
 
   setCurrentView('SingleItem');
-  pageTitle.innerText = getCategoryLabel(dataState.currentLocation?.category);
+  pageTitle.innerText = getCategoryName(dataState.currentLocation?.categoryId);
   dataState.currentItem = item;
 
   renderItemDetail(item);
@@ -529,8 +529,8 @@ async function removeItem(item, toastMessage, { discarded = false, used = false 
   if (!itemKey) { return; }
 
   await deleteItem(item);
-  if (discarded) { await adjustDiscardCount(location.homeId, location.category, item.name, 1); }
-  if (used) { await adjustUsedCount(location.homeId, location.category, item.name, 1); }
+  if (discarded) { await adjustDiscardCount(location.homeId, location.categoryId, item.name, 1); }
+  if (used) { await adjustUsedCount(location.homeId, location.categoryId, item.name, 1); }
 
   closeSingleItem();
 
@@ -542,8 +542,8 @@ async function removeItem(item, toastMessage, { discarded = false, used = false 
 
   showUndoToast(toastMessage, async () => {
     await restoreItem(item);
-    if (discarded) { await adjustDiscardCount(location.homeId, location.category, item.name, -1); }
-    if (used) { await adjustUsedCount(location.homeId, location.category, item.name, -1); }
+    if (discarded) { await adjustDiscardCount(location.homeId, location.categoryId, item.name, -1); }
+    if (used) { await adjustUsedCount(location.homeId, location.categoryId, item.name, -1); }
     await fetchAndRenderItems(location);
   });
 }

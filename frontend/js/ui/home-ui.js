@@ -2,9 +2,12 @@ import {
   $, $button, $form, $getInner, $new, $queryOne, $queryOneInput, display, undisplay, makeKeyboardActivatable,
 } from "../lib/dom.js";
 import { showErrorToast, showInfoToast } from "../lib/toast.js";
-import { appState, dataState, dbStore, setCurrentView } from "../common/state.js";
+import { showConfirmDialog } from "../lib/confirmDialog.js";
+import { pen_solid, svg_trash } from "../svg/svgFn.js";
+import { appState, dataState, dbStore, setCurrentView, setStateField } from "../common/state.js";
 import { syncUrl } from "../common/router.js";
 import { createHome, joinHome, setCurrentHomeId } from "../local-db/home-db.js";
+import { deleteCategory, fetchCategories, renameCategory } from "../local-db/category-db.js";
 import { afterHome } from "../appBoot.js";
 import { pageTitle } from "./ui.js";
 import { openItemList } from "./item-ui.js";
@@ -23,12 +26,21 @@ const chipsContainer = $queryOne('#homeView .home-chips');
 const homeSwitcherLabel = $queryOne('.home-switcher-name');
 const homeSwitcherCode = $queryOne('.home-switcher-code');
 
+const categoriesList = $queryOne('#homeView .categories-list');
+const categoryForm = $form('categoryForm');
+const categoryNameInput = $queryOneInput('#categoryForm input[name="categoryName"]');
+
+/** The category currently open in the rename form, if any. */
+/** @type {import("../local-db/category-db.js").Category|null} */
+let categoryBeingEdited = null;
+
 /** @type {'create'|'join'} */
 let mode = 'create';
 
 // Intercept native form submission (e.g. pressing Enter in a field) so it
 // doesn't navigate the browser away with the field as a GET query string.
 homeForm.addEventListener('submit', submitHomeForm);
+categoryForm.addEventListener('submit', submitCategoryForm);
 modeToggle.addEventListener('click', toggleMode);
 makeKeyboardActivatable(modeToggle);
 // Attached directly (not via the #app click-delegation used for
@@ -162,7 +174,101 @@ function openHomeManage() {
   pageTitle.innerText = 'Hogar';
   syncUrl('/hogar');
   renderHomeChips();
+  renderCategoriesList();
   setMode('create');
+}
+
+/**
+ * Renders the categories list: one row per category (name + rename/delete
+ * row-action icons), mirroring food-history-ui.js's buildHistoryRow()
+ * pattern exactly. This is the actual surface a user renames or deletes a
+ * category from - without it, a rename propagating everywhere (the whole
+ * point of the categories-table refactor) would have no way to be triggered.
+ */
+function renderCategoriesList() {
+  categoriesList.innerHTML = '';
+  if (!dbStore.categories.length) { return; }
+
+  for (const category of dbStore.categories) {
+    categoriesList.append(buildCategoryRow(category));
+  }
+}
+
+/**
+ * @param {import("../local-db/category-db.js").Category} category
+ */
+function buildCategoryRow(category) {
+  const actions = $new({ class: 'history-row-actions' });
+  $button({
+    appendTo: actions,
+    svgFn: pen_solid,
+    ariaLabel: 'Editar categoría',
+    listener: { fn: () => openCategoryForm(category) },
+  });
+  $button({
+    appendTo: actions,
+    svgFn: svg_trash,
+    ariaLabel: 'Borrar categoría',
+    listener: { fn: () => deleteCategoryFromList(category) },
+  });
+
+  return $new({
+    class: 'row',
+    children: [
+      $new({ class: 'left-side', children: [$new({ class: 'itemName', text: category.name })] }),
+      actions,
+    ],
+  });
+}
+
+/**
+ * Opens the rename form, prefilled with the category's current name.
+ * @param {import("../local-db/category-db.js").Category} category
+ */
+function openCategoryForm(category) {
+  categoryBeingEdited = category;
+  categoryNameInput.value = category.name;
+  setStateField('showCategoryForm', true);
+  categoryNameInput.focus();
+  categoryNameInput.select();
+}
+
+/**
+ * @param {Event} e
+ */
+async function submitCategoryForm(e) {
+  e.preventDefault();
+  const category = categoryBeingEdited;
+  if (!category) { return; }
+
+  const newName = categoryNameInput.value.trim();
+  if (!newName) { return showErrorToast('Ingresar nombre'); }
+
+  const result = await renameCategory(category, newName);
+  if (!result.data) { return showErrorToast(result.errorMsg); }
+
+  categoryBeingEdited = null;
+  categoryForm.reset();
+  setStateField('showCategoryForm', false);
+  renderCategoriesList();
+}
+
+/**
+ * @param {import("../local-db/category-db.js").Category} category
+ */
+function deleteCategoryFromList(category) {
+  showConfirmDialog(`¿Seguro que querés borrar la categoría "${category.name}"?`, async () => {
+    const result = await deleteCategory(category);
+    if (!result.ok) { return showErrorToast(result.error); }
+
+    // Re-fetch (rather than manually splicing dbStore.categories) so the
+    // now-tombstoned record drops out via fetchCategories()' own
+    // deletedAt==null filter - same "refetch after a deliberate, infrequent
+    // edit/delete" pattern food-history-ui.js's refreshAfterEdit() uses.
+    const homeId = dataState.currentHome?.id;
+    if (homeId) { await fetchCategories(homeId); }
+    renderCategoriesList();
+  });
 }
 
 /** Mirrors closeFoodHistory() in food-history-ui.js - go-back from the Hogar tab returns to Lista. */
@@ -185,4 +291,7 @@ function refreshHomeUi() {
 }
 
 
-export { initHomeUi, renderHomeChips, switchHome, openHomeManage, closeHomeManage, refreshHomeUi };
+export {
+  initHomeUi, renderHomeChips, switchHome, openHomeManage, closeHomeManage, refreshHomeUi,
+  submitCategoryForm,
+};

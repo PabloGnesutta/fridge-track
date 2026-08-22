@@ -3,7 +3,7 @@ import { showErrorToast } from "../lib/toast.js";
 import { showConfirmDialog } from "../lib/confirmDialog.js";
 import { pen_solid, svg_trash } from "../svg/svgFn.js";
 import { dataState, dbStore, setStateField } from "../common/state.js";
-import { getKnownCategories } from "../lib/locationCategory.js";
+import { createCategory, FALLBACK_CATEGORY_NAMES } from "../local-db/category-db.js";
 import {
   createLocation, deleteLocationAndItems, resolveCurrentLocation, setLastUsedLocationKey, updateLocation,
 } from "../local-db/location-db.js";
@@ -15,10 +15,18 @@ import { fetchAndRenderItems, openItemList } from "./item-ui.js";
  * @typedef {import("../local-db/location-db.js").Location} Location
  */
 
+/** Sentinel <option> value meaning "create a brand-new category". */
+const NEW_CATEGORY_VALUE = '__new__';
+/** Sentinel <option> value prefix for the hardcoded fallback names shown
+ *  while dbStore.categories hasn't loaded yet - see category-db.js's
+ *  FALLBACK_CATEGORY_NAMES doc comment. */
+const FALLBACK_PREFIX = '__fallback__:';
+
 const locationForm = $form('locationForm');
 const locationNameInput = $queryOneInput('#locationForm input[name="locationName"]');
-const locationCategoryInput = $queryOneInput('#locationForm input[name="locationCategory"]');
-const locationCategoryOptions = $('locationCategoryOptions');
+/** @type {HTMLSelectElement} */ // @ts-ignore
+const locationCategorySelect = $queryOne('#locationForm select[name="locationCategory"]');
+const newCategoryNameInput = $queryOneInput('#locationForm input[name="newCategoryName"]');
 const formTitleText = $getInner(locationForm, '.form-title-text');
 const deleteLocationBtn = $('deleteLocationBtn');
 const submitLocationBtn = $queryOne('#locationForm .submit');
@@ -32,6 +40,17 @@ let locationBeingEdited = null;
 // Intercept native form submission (e.g. pressing Enter in a field) so it
 // doesn't navigate the browser away with the field as a GET query string.
 locationForm.addEventListener('submit', submitLocationForm);
+
+// Reveals the "new category name" text input only while "+ Nueva categoría"
+// is the selected option.
+locationCategorySelect.addEventListener('change', () => {
+  const isNew = locationCategorySelect.value === NEW_CATEGORY_VALUE;
+  newCategoryNameInput.classList.toggle('display-none', !isNew);
+  if (isNew) {
+    newCategoryNameInput.value = '';
+    newCategoryNameInput.focus();
+  }
+});
 
 
 /**
@@ -47,22 +66,21 @@ function openLocationForm(onboarding = false, editTarget = null) {
   const submitLabel = $getInner(submitLocationBtn, '.label');
   locationBeingEdited = editTarget;
   renderCategoryOptions();
+  newCategoryNameInput.classList.add('display-none');
+  newCategoryNameInput.value = '';
 
   if (editTarget) {
     locationNameInput.value = editTarget.name;
-    locationCategoryInput.value = editTarget.category || 'alimento';
+    locationCategorySelect.value = editTarget.categoryId;
     formTitleText.innerText = 'Editar Ubicación';
     submitLabel.innerText = 'Guardar Cambios';
     deleteLocationBtn.classList.remove('display-none');
   } else {
     locationForm.reset();
-    // Left empty (placeholder-only), not pre-filled with 'alimento' like the
-    // old <select> defaulted to - a native <input list> datalist filters its
-    // suggestions to whatever text is already in the box, so pre-filling it
-    // made every OTHER category (built-in or custom) invisible until the
-    // field was manually cleared, which looked like "alimento" was the only
-    // option. Submitting blank still defaults to 'alimento' (see
-    // submitLocationForm), so behavior is unchanged, just the display.
+    // The <select> defaults to its first option (typically the Home's
+    // "Alimentos" category, alphabetically first among the built-ins) -
+    // there's no datalist-style blank/placeholder state to preserve here
+    // like the old free-text field needed.
     formTitleText.innerText = 'Nueva Ubicación';
     submitLabel.innerText = 'Agregar Ubicación';
     deleteLocationBtn.classList.add('display-none');
@@ -74,17 +92,57 @@ function openLocationForm(onboarding = false, editTarget = null) {
 }
 
 /**
- * (Re)fills the category field's suggestion list from whatever's currently
- * known for this Home - the 3 built-ins plus any custom category a location
- * already uses (see locationCategory.js's getKnownCategories). Called each
- * time the form opens rather than kept continuously in sync, same as
- * renderHomeChips()/renderLocationChips() elsewhere in this app.
+ * (Re)fills the category <select> from dbStore.categories, plus a trailing
+ * "+ Nueva categoría" option. Called each time the form opens rather than
+ * kept continuously in sync, same as renderHomeChips()/renderLocationChips()
+ * elsewhere in this app.
+ *
+ * Falls back to the 3 hardcoded built-in names (see category-db.js's
+ * FALLBACK_CATEGORY_NAMES) when dbStore.categories is still empty - e.g.
+ * onboarding right after Home creation, before the first syncHome() pull
+ * has landed - so the select never shows nothing but "+ Nueva categoría".
+ * Picking a fallback option materializes a real Category record on submit
+ * (see resolveSelectedCategoryId), exactly like picking "+ Nueva categoría"
+ * itself does.
  */
 function renderCategoryOptions() {
-  locationCategoryOptions.innerHTML = '';
-  for (const { value, label } of getKnownCategories(dbStore.locations)) {
-    locationCategoryOptions.append($new({ tag: 'option', value, text: label }));
+  locationCategorySelect.innerHTML = '';
+
+  const options = dbStore.categories.length
+    ? dbStore.categories.map(c => ({ value: c._key || '', label: c.name }))
+    : FALLBACK_CATEGORY_NAMES.map(name => ({ value: FALLBACK_PREFIX + name, label: name }));
+
+  for (const { value, label } of options) {
+    locationCategorySelect.append($new({ tag: 'option', value, text: label }));
   }
+  locationCategorySelect.append($new({ tag: 'option', value: NEW_CATEGORY_VALUE, text: '+ Nueva categoría' }));
+}
+
+/**
+ * Resolves the category <select>'s current value into a real categoryId,
+ * creating a new Category record first if "+ Nueva categoría" (or one of
+ * the hardcoded fallback names) was picked - both cases need a real record
+ * to exist before a location can reference it. Shows an error toast and
+ * returns null if that creation fails (e.g. an empty typed name).
+ * @param {number} homeId
+ * @returns {Promise<string|null>}
+ */
+async function resolveSelectedCategoryId(homeId) {
+  const selected = locationCategorySelect.value;
+
+  if (selected === NEW_CATEGORY_VALUE) {
+    const result = await createCategory(newCategoryNameInput.value, homeId);
+    if (!result.data) { showErrorToast(result.errorMsg); return null; }
+    return result.data._key || null;
+  }
+
+  if (selected.startsWith(FALLBACK_PREFIX)) {
+    const result = await createCategory(selected.slice(FALLBACK_PREFIX.length), homeId);
+    if (!result.data) { showErrorToast(result.errorMsg); return null; }
+    return result.data._key || null;
+  }
+
+  return selected || null;
 }
 
 /**
@@ -97,10 +155,18 @@ async function submitLocationForm(e) {
   const formData = new FormData(locationForm);
   const name = formData.get('locationName') || '';
   if (typeof name !== 'string') { return; }
-  const category = formData.get('locationCategory')?.toString().trim() || 'alimento';
+
+  const homeId = dataState.currentHome?.id;
+  if (!homeId) { return; }
+
+  // Resolved up front (not just for the create path) - editing a location
+  // can also pick "+ Nueva categoría"/a fallback name, which needs the same
+  // create-then-reference treatment as a brand-new location does.
+  const categoryId = await resolveSelectedCategoryId(homeId);
+  if (!categoryId) { return; }
 
   if (locationBeingEdited) {
-    const result = await updateLocation(locationBeingEdited, name, new Date(), category);
+    const result = await updateLocation(locationBeingEdited, name, categoryId, new Date());
     if (!result.data) { return showErrorToast(result.errorMsg); }
     locationBeingEdited = null;
     locationForm.reset();
@@ -109,9 +175,7 @@ async function submitLocationForm(e) {
     return;
   }
 
-  const homeId = dataState.currentHome?.id;
-  if (!homeId) { return; }
-  const result = await createLocation(name, homeId, new Date(), category);
+  const result = await createLocation(name, homeId, categoryId, new Date());
   if (!result.data) {
     return showErrorToast(result.errorMsg);
   }

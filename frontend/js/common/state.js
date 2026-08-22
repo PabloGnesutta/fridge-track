@@ -16,6 +16,7 @@ import { _log } from "../lib/logger.js";
  * @property {boolean} showLocationForm
  * @property {boolean} showItemForm
  * @property {boolean} showFoodNameHistoryForm
+ * @property {boolean} showCategoryForm
  * @property {boolean} showSearch
  * @property {Views} currentView
  * @property {AuthStage} authStage
@@ -33,6 +34,7 @@ import { _log } from "../lib/logger.js";
  * Cached records from the db
  * @typedef {object} DBStore
  * @property {Home[]} homes
+ * @property {import("../local-db/category-db.js").Category[]} categories
  * @property {Location[]} locations
  * @property {Item[]} items
  * @property {import("../local-db/food-name-db.js").FoodNameHistory[]} foodNameHistory
@@ -48,6 +50,7 @@ const appState = {
     showLocationForm: false,
     showItemForm: false,
     showFoodNameHistoryForm: false,
+    showCategoryForm: false,
     showSearch: false,
     currentView: 'ItemList',
     authStage: 'checking',
@@ -69,6 +72,7 @@ const dataState = {
  */
 const dbStore = {
     homes: [],
+    categories: [],
     locations: [],
     items: [],
     foodNameHistory: [],
@@ -133,6 +137,7 @@ function initAppState() {
     setStateField('showLocationForm', false);
     setStateField('showItemForm', false);
     setStateField('showFoodNameHistoryForm', false);
+    setStateField('showCategoryForm', false);
     setStateField('showSearch', false);
     setCurrentView('ItemList');
     setAuthStage('checking');

@@ -66,6 +66,34 @@ test('joinHome with a bogus code throws', () => {
   assert.throws(() => homeService.joinHome(user.id, 'ZZZZZZ'), ServiceError);
 });
 
+test('createHome seeds the 3 built-in categories with display labels', () => {
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'a@test.local');
+  const user = authService.createUser('a@test.local', 'password123');
+  const home = homeService.createHome(user.id, 'Casa de Prueba');
+
+  /** @type {{name: string}[]} */ // @ts-ignore
+  const categories = db.prepare('SELECT name FROM categories WHERE home_id = ? ORDER BY name').all(home.id);
+  assert.deepEqual(categories.map(c => c.name), ['Alimentos', 'Medicamentos', 'Otros']);
+});
+
+test('each Home gets its own set of built-in categories', () => {
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'a@test.local');
+  const user = authService.createUser('a@test.local', 'password123');
+  const homeA = homeService.createHome(user.id, 'Casa A');
+  const homeB = homeService.createHome(user.id, 'Casa B');
+
+  /** @type {{id: string}[]} */ // @ts-ignore
+  const categoriesA = db.prepare('SELECT id FROM categories WHERE home_id = ?').all(homeA.id);
+  /** @type {{id: string}[]} */ // @ts-ignore
+  const categoriesB = db.prepare('SELECT id FROM categories WHERE home_id = ?').all(homeB.id);
+  assert.equal(categoriesA.length, 3);
+  assert.equal(categoriesB.length, 3);
+  const idsA = new Set(categoriesA.map(c => c.id));
+  assert.ok(categoriesB.every(c => !idsA.has(c.id)));
+});
+
 test('joinHome is case-insensitive', () => {
   const { authService, homeService, db } = makeServices();
   addAllowedEmail(db, 'owner@test.local');

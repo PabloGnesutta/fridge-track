@@ -9,16 +9,19 @@ import { getAllWithIndex, getOne, putOne } from "../lib/indexedDb.js";
  * category within a Home (e.g. every fridge/freezer, but not a medicine
  * cabinet) so autocomplete suggestions and stats stay relevant to what kind
  * of thing is actually being added, while staying separate between
- * households. Keyed `[homeId, category, normalizedName]` - see CLAUDE.md's
+ * households. Keyed `[homeId, categoryId, normalizedName]` - see CLAUDE.md's
  * "food-name-history category scoping" section for why category was added
- * on top of the original `[homeId, normalizedName]` key.
+ * on top of the original `[homeId, normalizedName]` key, and
+ * docs/plans/categories-table.md for why that scoping key is a real
+ * categoryId now instead of a bare string.
  * @typedef {object} FoodNameHistory
  * @property {string} name
  * @property {string} normalizedName
  * @property {number} homeId
- * @property {string} [category] Absent on records written before category
- *   scoping existed; treated as 'alimento' everywhere it's read, since every
- *   such record predates location categories entirely.
+ * @property {string} [categoryId] Absent on records written before category
+ *   scoping existed; treated as the Home's 'Alimentos' category everywhere
+ *   it's read, since every such record predates location categories
+ *   entirely.
  * @property {Date} firstCreatedAt
  * @property {number|null} shelfLifeDays Most recently used "days to expire"
  *   value for this name. Only ever set from shelfLifeDays-based items - a
@@ -44,16 +47,15 @@ import { getAllWithIndex, getOne, putOne } from "../lib/indexedDb.js";
  * history entry: first use creates the record, later uses only refresh
  * shelfLifeDays (and only when one was actually provided this time).
  * @param {number} homeId
- * @param {string} category The item's location's category (locations always
- *   have one, defaulting to 'alimento' - see location-db.js).
+ * @param {string} categoryId The item's location's categoryId.
  * @param {string} name
  * @param {number|null|undefined} shelfLifeDays
  * @param {Date} date
  * @returns {Promise<FoodNameHistory>}
  */
-async function recordItemCreated(homeId, category, name, shelfLifeDays, date) {
+async function recordItemCreated(homeId, categoryId, name, shelfLifeDays, date) {
   const normalizedName = normalize(name);
-  const key = [homeId, category, normalizedName];
+  const key = [homeId, categoryId, normalizedName];
   /** @type {FoodNameHistory|null} */ // @ts-ignore
   const existing = await getOne('foodNameHistory', key);
 
@@ -66,7 +68,7 @@ async function recordItemCreated(homeId, category, name, shelfLifeDays, date) {
       name,
       normalizedName,
       homeId,
-      category,
+      categoryId,
       firstCreatedAt: date,
       shelfLifeDays: shelfLifeDays ?? null,
       timesDiscarded: 0,
@@ -90,14 +92,14 @@ async function recordItemCreated(homeId, category, name, shelfLifeDays, date) {
  * Adjusts the discard count for a name (+1 when marked "Tirado", -1 if that
  * action is undone). No-ops if the name has no history entry.
  * @param {number} homeId
- * @param {string} category
+ * @param {string} categoryId
  * @param {string} name
  * @param {number} delta
  * @param {Date} [date]
  */
-async function adjustDiscardCount(homeId, category, name, delta, date = new Date()) {
+async function adjustDiscardCount(homeId, categoryId, name, delta, date = new Date()) {
   const normalizedName = normalize(name);
-  const key = [homeId, category, normalizedName];
+  const key = [homeId, categoryId, normalizedName];
   /** @type {FoodNameHistory|null} */ // @ts-ignore
   const existing = await getOne('foodNameHistory', key);
   if (!existing || existing.deletedAt) { return; }
@@ -115,14 +117,14 @@ async function adjustDiscardCount(homeId, category, name, delta, date = new Date
  * opposite outcomes a stats view needs to tell apart. No-ops if the name has
  * no history entry.
  * @param {number} homeId
- * @param {string} category
+ * @param {string} categoryId
  * @param {string} name
  * @param {number} delta
  * @param {Date} [date]
  */
-async function adjustUsedCount(homeId, category, name, delta, date = new Date()) {
+async function adjustUsedCount(homeId, categoryId, name, delta, date = new Date()) {
   const normalizedName = normalize(name);
-  const key = [homeId, category, normalizedName];
+  const key = [homeId, categoryId, normalizedName];
   /** @type {FoodNameHistory|null} */ // @ts-ignore
   const existing = await getOne('foodNameHistory', key);
   if (!existing || existing.deletedAt) { return; }
@@ -161,12 +163,12 @@ async function fetchFoodNameHistory(homeId) {
  * hit from a deliberate, infrequent user action on the history screen, not
  * a hot path like item creation.
  * @param {number} homeId
- * @param {string} category
+ * @param {string} categoryId
  * @param {string} normalizedName
  * @param {Date} [date]
  */
-async function deleteFoodNameHistory(homeId, category, normalizedName, date = new Date()) {
-  const key = [homeId, category, normalizedName];
+async function deleteFoodNameHistory(homeId, categoryId, normalizedName, date = new Date()) {
+  const key = [homeId, categoryId, normalizedName];
   /** @type {FoodNameHistory|null} */ // @ts-ignore
   const existing = await getOne('foodNameHistory', key);
   if (!existing) { return; }
@@ -187,7 +189,7 @@ async function deleteFoodNameHistory(homeId, category, normalizedName, date = ne
  * entry, since combining two different names' histories is a bigger,
  * unrequested decision than a rename should silently make.
  * @param {number} homeId
- * @param {string} category
+ * @param {string} categoryId
  * @param {FoodNameHistory} entry The entry being edited (as currently known
  *   to the caller - e.g. from the /historial list).
  * @param {string} newName
@@ -195,9 +197,9 @@ async function deleteFoodNameHistory(homeId, category, normalizedName, date = ne
  * @param {Date} [date]
  * @returns {Promise<{ok: true}|{ok: false, error: string}>}
  */
-async function updateFoodNameHistory(homeId, category, entry, newName, newShelfLifeDays, date = new Date()) {
+async function updateFoodNameHistory(homeId, categoryId, entry, newName, newShelfLifeDays, date = new Date()) {
   const newNormalizedName = normalize(newName);
-  const oldKey = [homeId, category, entry.normalizedName];
+  const oldKey = [homeId, categoryId, entry.normalizedName];
 
   if (newNormalizedName === entry.normalizedName) {
     const updated = { ...entry, name: newName, shelfLifeDays: newShelfLifeDays, updatedAt: date };
@@ -205,7 +207,7 @@ async function updateFoodNameHistory(homeId, category, entry, newName, newShelfL
     return { ok: true };
   }
 
-  const newKey = [homeId, category, newNormalizedName];
+  const newKey = [homeId, categoryId, newNormalizedName];
   /** @type {FoodNameHistory|null} */ // @ts-ignore
   const collision = await getOne('foodNameHistory', newKey);
   if (collision && !collision.deletedAt) {
@@ -233,7 +235,7 @@ async function updateFoodNameHistory(homeId, category, entry, newName, newShelfL
 function upsertCache(record) {
   const idx = dbStore.foodNameHistory.findIndex(
     e => e.normalizedName === record.normalizedName && e.homeId === record.homeId
-      && (e.category || 'alimento') === (record.category || 'alimento')
+      && e.categoryId === record.categoryId
   );
   if (idx === -1) {
     dbStore.foodNameHistory.push(record);

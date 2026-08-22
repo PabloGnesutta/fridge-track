@@ -4,26 +4,26 @@ import { ensureOnboarded, addItem } from './helpers.js';
 /**
  * @param {import('@playwright/test').Page} page
  * @param {string} name
- * @param {string} category
+ * @param {string} categoryLabel
  */
-async function addLocation(page, name, category) {
+async function addLocation(page, name, categoryLabel) {
   await page.click('.location-chips .add-chip');
   await page.fill('#locationForm input[name="locationName"]', name);
-  await page.fill('#locationForm input[name="locationCategory"]', category);
+  await page.selectOption('#locationForm select[name="locationCategory"]', { label: categoryLabel });
   await page.click('#locationForm .submit');
   await page.waitForSelector('#locationForm', { state: 'hidden' });
 }
 
 test('food-name history and autocomplete stay separate per location category', async ({ page }) => {
   await page.goto('/');
-  await ensureOnboarded(page); // creates "Heladera Test", category 'alimento'
+  await ensureOnboarded(page); // creates "Heladera Test", category 'Alimentos' (the Home's built-in default)
 
   await addItem(page, { name: 'Leche', shelfLifeDays: 5 });
   await page.click('.list .row', { hasText: 'Leche' });
   await page.click('#usedBtn');
   await page.waitForTimeout(200);
 
-  await addLocation(page, 'Botiquin Test', 'medicamento');
+  await addLocation(page, 'Botiquin Test', 'Medicamentos');
 
   // Autocomplete must not offer "Leche" (an 'alimento'-category name) while
   // adding an item in a 'medicamento' location - this is the exact

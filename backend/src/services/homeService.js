@@ -1,5 +1,12 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { ServiceError } from './ServiceError.js';
+
+
+// The 3 built-in categories every new Home gets seeded with (see
+// docs/plans/categories-table.md) - migration 007/010 backfill this same
+// set with these same display labels for Homes that existed before
+// categories became a real table.
+const BUILTIN_CATEGORIES = ['Alimentos', 'Medicamentos', 'Otros'];
 
 
 // Excludes visually-ambiguous characters (0/O, 1/I/L) since join-codes get
@@ -61,6 +68,14 @@ function createHomeService(db) {
         db.prepare(
           'INSERT INTO home_members (home_id, user_id, joined_at) VALUES (?, ?, ?)'
         ).run(homeId, userId, Date.now());
+
+        const now = Date.now();
+        for (const categoryName of BUILTIN_CATEGORIES) {
+          db.prepare(
+            'INSERT INTO categories (id, home_id, name, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, NULL)'
+          ).run(randomUUID(), homeId, categoryName, now, now);
+        }
+
         return { id: homeId, name, joinCode };
       } catch (err) {
         const isCollision = err instanceof Error && err.message.includes('UNIQUE');

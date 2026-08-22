@@ -93,6 +93,11 @@
       <div id="homeView" class="page">
         <div class="home-chips"><!--  --></div>
 
+        <div class="categories-section">
+          <h4 class="categories-section-title">Categorías</h4>
+          <div class="list categories-list"><!--  --></div>
+        </div>
+
         <form id="homeForm" class="base-form">
           <h3 class="form-title">
             <span class="form-title-text">Crear Hogar</span>
@@ -191,11 +196,11 @@
             </div>
             <div class="form-control">
               <label for="locationCategory">Qué guarda</label>
+              <select name="locationCategory"><!--  --></select>
               <input
-                type="text" name="locationCategory" list="locationCategoryOptions"
-                placeholder="ej. Alimentos" autocomplete="off"
+                type="text" name="newCategoryName" class="display-none"
+                placeholder="Nombre de la nueva categoría" autocomplete="off"
               />
-              <datalist id="locationCategoryOptions"><!--  --></datalist>
             </div>
             <div class="submit"><!--  --></div>
           </div>
@@ -233,6 +238,20 @@
             <div class="form-control">
               <label for="itemNotes">Notas</label>
               <textarea rows="3" name="itemNotes"></textarea>
+            </div>
+            <div class="submit"><!--  --></div>
+          </div>
+        </form>
+
+        <!-- Category Rename Form -->
+        <form id="categoryForm" class="base-form">
+          <h3 class="form-title">
+            <span class="form-title-text">Editar Categoría</span>
+          </h3>
+          <div class="form-content">
+            <div class="form-control">
+              <label for="categoryName">Nombre</label>
+              <input type="text" name="categoryName" placeholder="ej. Alimentos" />
             </div>
             <div class="submit"><!--  --></div>
           </div>
