@@ -686,12 +686,23 @@ svg {
   margin: 0 0 0.5rem;
 }
 
-#app:not([data-auth-stage='ready']) #mainHeader,
 #app:not([data-auth-stage='ready']) #itemListView,
 #app:not([data-auth-stage='ready']) #singleItemView,
 #app:not([data-auth-stage='ready']) #foodHistoryView,
 #app:not([data-auth-stage='ready']) #homeView,
 #app:not([data-auth-stage='ready']) #mainFooter {
+  display: none;
+}
+
+/* #mainHeader (and its hamburger menu - logout, notification toggles, the
+   logged-in email) is deliberately available a stage earlier than the rest
+   of the app: a brand-new account that already confirmed its email but
+   hasn't created/joined a Home yet still needs a way to sign out or check
+   which account it's on, so only the pre-verification stages hide it -
+   chooseHome (and ready) leave it at its own base `display: flex`. */
+#app[data-auth-stage='checking'] #mainHeader,
+#app[data-auth-stage='login'] #mainHeader,
+#app[data-auth-stage='verifyEmail'] #mainHeader {
   display: none;
 }
 

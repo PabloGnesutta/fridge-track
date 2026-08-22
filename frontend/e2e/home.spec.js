@@ -2,6 +2,18 @@ import { test, expect } from '@playwright/test';
 import { ensureAuth, ensureHome, ensureLocation, addItem, getJoinCode } from './helpers.js';
 
 
+test('the hamburger menu (logout, notifications, account email) is already available on the chooseHome screen', async ({ page }) => {
+  await page.goto('/');
+  const uniqueEmail = `e2e+${Date.now()}-${Math.random().toString(36).slice(2)}@test.local`;
+  await ensureAuth(page, { email: uniqueEmail });
+  await expect(page.locator('#homeView')).toBeVisible();
+
+  await expect(page.locator('#mainHeader')).toBeVisible();
+  await page.click('#headerMenuBtn .btn');
+  await expect(page.locator('#logoutBtn')).toBeVisible();
+  await expect(page.locator('#headerMenuUserEmail')).toHaveText(uniqueEmail);
+});
+
 test('joining with an invalid code shows an error', async ({ page }) => {
   await page.goto('/');
   await ensureAuth(page);
