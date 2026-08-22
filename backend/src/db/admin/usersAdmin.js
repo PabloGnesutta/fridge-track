@@ -19,6 +19,41 @@ function findUserByEmail(db, email) {
 
 /**
  * @param {import('node:sqlite').DatabaseSync} db
+ * @returns {{
+ *   id: number, email: string, name: string, createdAt: number, emailVerified: boolean,
+ *   homeCount: number, homesCreatedCount: number, sessionCount: number,
+ * }[]}
+ */
+function listUsers(db) {
+  /** @type {any[]} */
+  const rows = db.prepare(`
+    SELECT
+      users.id AS id,
+      users.email AS email,
+      users.name AS name,
+      users.created_at AS createdAt,
+      users.email_verified AS emailVerified,
+      (SELECT COUNT(*) FROM home_members WHERE home_members.user_id = users.id) AS homeCount,
+      (SELECT COUNT(*) FROM homes WHERE homes.created_by = users.id) AS homesCreatedCount,
+      (SELECT COUNT(*) FROM sessions WHERE sessions.user_id = users.id) AS sessionCount
+    FROM users
+    ORDER BY users.id
+  `).all();
+
+  return rows.map(row => ({
+    id: Number(row.id),
+    email: row.email,
+    name: row.name,
+    createdAt: Number(row.createdAt),
+    emailVerified: !!row.emailVerified,
+    homeCount: Number(row.homeCount),
+    homesCreatedCount: Number(row.homesCreatedCount),
+    sessionCount: Number(row.sessionCount),
+  }));
+}
+
+/**
+ * @param {import('node:sqlite').DatabaseSync} db
  * @param {number} userId
  * @returns {{id: number, name: string}[]}
  */
@@ -127,4 +162,4 @@ function deleteUserCascade(db, email) {
   }
 }
 
-export { findUserByEmail, previewUserCascade, deleteUserCascade };
+export { listUsers, findUserByEmail, previewUserCascade, deleteUserCascade };

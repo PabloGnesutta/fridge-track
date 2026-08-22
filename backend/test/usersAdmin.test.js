@@ -7,7 +7,7 @@ import { addAllowedEmail } from '../src/db/allowedEmails.js';
 import { createAuthService } from '../src/services/authService.js';
 import { createHomeService } from '../src/services/homeService.js';
 import { createPushService } from '../src/services/pushService.js';
-import { findUserByEmail, previewUserCascade, deleteUserCascade } from '../src/db/admin/usersAdmin.js';
+import { listUsers, findUserByEmail, previewUserCascade, deleteUserCascade } from '../src/db/admin/usersAdmin.js';
 
 
 function makeServices() {
@@ -25,6 +25,34 @@ function makeUser(services, email = 'a@test.local') {
   addAllowedEmail(services.db, email);
   return services.authService.createUser(email, 'password123');
 }
+
+test('listUsers reflects verification state, Home membership/creation, and active sessions', () => {
+  const services = makeServices();
+  const verified = makeUser(services, 'verified@test.local');
+  /** @type {{verification_code: string}} */ // @ts-ignore
+  const { verification_code: code } = services.db.prepare(
+    'SELECT verification_code FROM users WHERE id = ?'
+  ).get(verified.id);
+  services.authService.verifyEmailCode('verified@test.local', code);
+  services.homeService.createHome(verified.id, 'Casa de Prueba');
+  services.authService.createSession(verified.id);
+
+  const unverified = makeUser(services, 'unverified@test.local');
+
+  const users = listUsers(services.db);
+  const verifiedRow = users.find(u => u.id === verified.id);
+  const unverifiedRow = users.find(u => u.id === unverified.id);
+
+  assert.equal(verifiedRow.emailVerified, true);
+  assert.equal(verifiedRow.homeCount, 1);
+  assert.equal(verifiedRow.homesCreatedCount, 1);
+  assert.equal(verifiedRow.sessionCount, 1);
+
+  assert.equal(unverifiedRow.emailVerified, false);
+  assert.equal(unverifiedRow.homeCount, 0);
+  assert.equal(unverifiedRow.homesCreatedCount, 0);
+  assert.equal(unverifiedRow.sessionCount, 0);
+});
 
 test('findUserByEmail is case-insensitive, mirroring allowedEmails.js', () => {
   const services = makeServices();

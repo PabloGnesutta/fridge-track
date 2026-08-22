@@ -1,9 +1,10 @@
 import { db } from '../db.js';
-import { previewUserCascade, deleteUserCascade } from './usersAdmin.js';
+import { listUsers, previewUserCascade, deleteUserCascade } from './usersAdmin.js';
 
 
 function printUsage() {
   console.log('Uso:');
+  console.log('  node manageUsers.js list');
   console.log('  node manageUsers.js delete <email>          (dry run - muestra qué se borraría)');
   console.log('  node manageUsers.js delete <email> --yes    (borra de verdad)');
 }
@@ -11,6 +12,25 @@ function printUsage() {
 const [, , command, email, flag] = process.argv;
 
 switch (command) {
+  case 'list': {
+    const users = listUsers(db);
+    if (!users.length) {
+      console.log('No hay usuarios.');
+      break;
+    }
+    for (const user of users) {
+      console.log(
+        `#${user.id}  ${user.email}${user.name ? ` (${user.name})` : ''}  `
+        + `${user.emailVerified ? 'verificado' : 'SIN VERIFICAR'}  `
+        + `el ${new Date(user.createdAt).toISOString()}`
+      );
+      console.log(
+        `      Hogares: ${user.homeCount} (creó ${user.homesCreatedCount})  sesiones activas: ${user.sessionCount}`
+      );
+    }
+    break;
+  }
+
   case 'delete': {
     if (!email) { printUsage(); process.exit(1); }
 
