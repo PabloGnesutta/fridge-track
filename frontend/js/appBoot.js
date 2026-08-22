@@ -1,5 +1,5 @@
 import { apiLogout, isLoggedIn } from "./api-caller/apiCaller.js";
-import { dataState, dbStore, setAuthStage } from "./common/state.js";
+import { dataState, dbStore, setAuthStage, setCurrentView } from "./common/state.js";
 import { clearArray } from "./lib/utils.js";
 import {
   fetchHomes, resolveCurrentHome, setCurrentHomeId, syncHomesFromServer,
@@ -115,6 +115,15 @@ async function afterHome(home) {
   const currentLocation = resolveCurrentLocation(locations, home.id);
 
   if (!currentLocation) {
+    // Reset away from whatever view was showing before this Home was
+    // activated - reachable not just on a genuine first boot (where
+    // currentView already defaults to 'ItemList', so this is a no-op) but
+    // also via the Home switcher's openHomeManage(), which sets currentView
+    // to 'Home' to render the Hogar tab as a full page. Without this,
+    // switching to a brand-new, location-less Home left #homeView's
+    // visibility (driven by data-current-view === 'Home') stuck on,
+    // wedged open underneath the onboarding form this line opens next.
+    setCurrentView('ItemList');
     openLocationForm(true);
   } else {
     await activateLocation(currentLocation);
