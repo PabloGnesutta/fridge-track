@@ -162,6 +162,36 @@ test('inviteToHome rejects a non-member', async () => {
   );
 });
 
+test('inviteToHome rejects a member who did not create the Home', async () => {
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'owner@test.local');
+  addAllowedEmail(db, 'joiner@test.local');
+  const owner = authService.createUser('owner@test.local', 'password123');
+  const joiner = authService.createUser('joiner@test.local', 'password123');
+  const home = homeService.createHome(owner.id, 'Casa Compartida');
+  homeService.joinHome(joiner.id, home.joinCode);
+
+  // The joiner is a real member (unlike the outsider test above), just not
+  // the creator - invites are the one action gated by that distinction.
+  await assert.rejects(
+    () => homeService.inviteToHome(joiner.id, home.id, 'someone@test.local'),
+    ServiceError
+  );
+});
+
+test('listHomesForUser reports which member created the Home', () => {
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'owner@test.local');
+  addAllowedEmail(db, 'joiner@test.local');
+  const owner = authService.createUser('owner@test.local', 'password123');
+  const joiner = authService.createUser('joiner@test.local', 'password123');
+  const home = homeService.createHome(owner.id, 'Casa Compartida');
+  homeService.joinHome(joiner.id, home.joinCode);
+
+  assert.equal(homeService.listHomesForUser(owner.id)[0].createdBy, owner.id);
+  assert.equal(homeService.listHomesForUser(joiner.id)[0].createdBy, owner.id);
+});
+
 test('inviteToHome rejects a missing email', async () => {
   const { authService, homeService, db } = makeServices();
   addAllowedEmail(db, 'owner@test.local');
@@ -169,4 +199,72 @@ test('inviteToHome rejects a missing email', async () => {
   const home = homeService.createHome(owner.id, 'Casa Compartida');
 
   await assert.rejects(() => homeService.inviteToHome(owner.id, home.id, '  '), ServiceError);
+});
+
+test('deleteHome removes the Home and every member\'s access to it', () => {
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'owner@test.local');
+  addAllowedEmail(db, 'joiner@test.local');
+  const owner = authService.createUser('owner@test.local', 'password123');
+  const joiner = authService.createUser('joiner@test.local', 'password123');
+  const home = homeService.createHome(owner.id, 'Casa Compartida');
+  homeService.joinHome(joiner.id, home.joinCode);
+
+  const result = homeService.deleteHome(owner.id, home.id);
+
+  assert.deepEqual(result, { id: home.id, name: 'Casa Compartida' });
+  assert.equal(homeService.listHomesForUser(owner.id).length, 0);
+  assert.equal(homeService.listHomesForUser(joiner.id).length, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM homes WHERE id = ?').get(home.id).c, 0);
+  assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
+});
+
+test('deleteHome does not require ownership - any member can delete, matching the app\'s flat trust model', () => {
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'owner@test.local');
+  addAllowedEmail(db, 'joiner@test.local');
+  const owner = authService.createUser('owner@test.local', 'password123');
+  const joiner = authService.createUser('joiner@test.local', 'password123');
+  const home = homeService.createHome(owner.id, 'Casa Compartida');
+  homeService.joinHome(joiner.id, home.joinCode);
+
+  // The joiner, not the creator, deletes it - this must succeed, the same
+  // way any member can already invite or edit/delete items in this Home.
+  const result = homeService.deleteHome(joiner.id, home.id);
+  assert.equal(result.id, home.id);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM homes WHERE id = ?').get(home.id).c, 0);
+});
+
+test('deleteHome rejects a non-member', () => {
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'owner@test.local');
+  addAllowedEmail(db, 'outsider@test.local');
+  const owner = authService.createUser('owner@test.local', 'password123');
+  const outsider = authService.createUser('outsider@test.local', 'password123');
+  const home = homeService.createHome(owner.id, 'Casa Compartida');
+
+  assert.throws(() => homeService.deleteHome(outsider.id, home.id), ServiceError);
+  // Rejected - the Home must still exist.
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM homes WHERE id = ?').get(home.id).c, 1);
+});
+
+test('deleteHome throws for a nonexistent Home id', () => {
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'owner@test.local');
+  const owner = authService.createUser('owner@test.local', 'password123');
+  assert.throws(() => homeService.deleteHome(owner.id, 999999), ServiceError);
+});
+
+test('deleteHome leaves another Home (and a shared user\'s membership in it) untouched', () => {
+  const { authService, homeService, db } = makeServices();
+  addAllowedEmail(db, 'a@test.local');
+  const user = authService.createUser('a@test.local', 'password123');
+  const homeA = homeService.createHome(user.id, 'Casa A');
+  const homeB = homeService.createHome(user.id, 'Casa B');
+
+  homeService.deleteHome(user.id, homeA.id);
+
+  const remaining = homeService.listHomesForUser(user.id);
+  assert.equal(remaining.length, 1);
+  assert.equal(remaining[0].id, homeB.id);
 });

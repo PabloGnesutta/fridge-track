@@ -1,8 +1,14 @@
+import { deleteHomeCascade } from '../homeCascadeDelete.js';
+
 /**
  * Admin-only helpers for inspecting/deleting Homes directly against the
  * database - not exposed via the API, only through manageHomes.js. Mirrors
  * allowedEmails.js's shape (plain `(db, ...)` functions, no service-layer
  * ceremony) since these are one-off operator tools, not app-facing logic.
+ * deleteHomeCascade itself lives in db/homeCascadeDelete.js (re-exported
+ * below) rather than here, since homeService.js's in-app "Borrar Hogar"
+ * feature needs it too and app-facing services shouldn't depend on
+ * admin-only tooling to get it.
  */
 
 /**
@@ -74,57 +80,6 @@ function previewHomeCascade(db, homeId) {
     members: count('home_members'),
     notificationLog: count('push_notification_log'),
   };
-}
-
-/**
- * Deletes a Home and every row that references it, in the order its foreign
- * keys require (child tables before the tables they reference):
- * `items` (references `locations`) before `locations`/`food_name_history`
- * (both reference `categories`) before `categories`, and `home_members`/
- * `push_notification_log` (leaf tables, nothing references them) anywhere
- * before `homes` itself. Wrapped in a single transaction so a failure midway
- * leaves the Home fully intact rather than partially deleted.
- *
- * Deliberately hard-deletes (not the soft-delete/tombstone convention the
- * app's own sync engine uses for locations/items) - this is an out-of-band
- * admin operation with no client expecting to sync a "Home deleted"
- * tombstone; any device still holding this Home locally simply stops being
- * able to sync/rejoin it.
- * @param {import('node:sqlite').DatabaseSync} db
- * @param {number} homeId
- * @returns {{
- *   home: {id: number, name: string},
- *   items: number, locations: number, foodNameHistory: number, categories: number,
- *   members: number, notificationLog: number,
- * }|null} null if no Home with that id exists.
- */
-function deleteHomeCascade(db, homeId) {
-  /** @type {any} */
-  const home = db.prepare('SELECT id, name FROM homes WHERE id = ?').get(homeId);
-  if (!home) { return null; }
-
-  const del = (table) =>
-    /** @type {any} */ (db.prepare(`DELETE FROM ${table} WHERE home_id = ?`).run(homeId)).changes;
-
-  db.exec('BEGIN');
-  try {
-    const items = del('items');
-    const locations = del('locations');
-    const foodNameHistory = del('food_name_history');
-    const categories = del('categories');
-    const members = del('home_members');
-    const notificationLog = del('push_notification_log');
-    db.prepare('DELETE FROM homes WHERE id = ?').run(homeId);
-    db.exec('COMMIT');
-
-    return {
-      home: { id: Number(home.id), name: home.name },
-      items, locations, foodNameHistory, categories, members, notificationLog,
-    };
-  } catch (err) {
-    db.exec('ROLLBACK');
-    throw err;
-  }
 }
 
 export { listHomes, previewHomeCascade, deleteHomeCascade };

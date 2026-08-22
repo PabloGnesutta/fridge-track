@@ -135,6 +135,12 @@ function getUserEmail() {
   return localStorage.getItem(USER_EMAIL_KEY);
 }
 
+/** @returns {number|null} */
+function getUserId() {
+  const raw = localStorage.getItem(USER_ID_KEY);
+  return raw === null ? null : Number(raw);
+}
+
 /** @returns {boolean} */
 function isLoggedIn() {
   return !!getAccessToken();
@@ -207,6 +213,11 @@ async function apiInviteToHome(homeId, email) {
 }
 
 /** @param {number} homeId */
+async function apiDeleteHome(homeId) {
+  return apiCall('homes/delete', { homeId });
+}
+
+/** @param {number} homeId */
 async function apiSyncPull(homeId) {
   return apiCall('sync/pull', { homeId });
 }
@@ -249,8 +260,8 @@ async function apiUpdateNotificationPreferences(prefs) {
 
 export {
   apiSignup, apiLogin, apiVerifyEmail, apiResendVerification, apiLogout,
-  apiCreateHome, apiJoinHome, apiListHomes, apiInviteToHome,
+  apiCreateHome, apiJoinHome, apiListHomes, apiInviteToHome, apiDeleteHome,
   apiSyncPull, apiSyncPush, apiPushVapidKey, apiPushSubscribe, apiPushUnsubscribe,
-  apiRecipeSuggestions, apiUpdateNotificationPreferences, isLoggedIn, getAccessToken, getUserEmail, clearSession,
-  getNotificationPreferences, persistNotificationPreferences,
+  apiRecipeSuggestions, apiUpdateNotificationPreferences, isLoggedIn, getAccessToken, getUserEmail, getUserId,
+  clearSession, getNotificationPreferences, persistNotificationPreferences,
 };

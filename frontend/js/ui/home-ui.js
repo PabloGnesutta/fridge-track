@@ -6,10 +6,10 @@ import { showConfirmDialog } from "../lib/confirmDialog.js";
 import { pen_solid, svg_trash, svg_mail, svg_link } from "../svg/svgFn.js";
 import { appState, dataState, dbStore, setCurrentView, setStateField } from "../common/state.js";
 import { syncUrl } from "../common/router.js";
-import { createHome, joinHome, setCurrentHomeId } from "../local-db/home-db.js";
+import { createHome, joinHome, deleteHome, setCurrentHomeId } from "../local-db/home-db.js";
 import { deleteCategory, fetchCategories, renameCategory } from "../local-db/category-db.js";
-import { apiInviteToHome } from "../api-caller/apiCaller.js";
-import { afterHome } from "../appBoot.js";
+import { apiInviteToHome, getUserId } from "../api-caller/apiCaller.js";
+import { afterLogin, afterHome } from "../appBoot.js";
 import { pageTitle } from "./ui.js";
 import { openItemList } from "./item-ui.js";
 
@@ -168,19 +168,36 @@ function buildHomeCard(home) {
   // of tapping "Invitar"/"Copiar enlace". Same reasoning as copyJoinCode()'s
   // own stopPropagation above.
   const actions = $new({ class: 'home-card-actions' });
-  $button({
-    appendTo: actions,
-    svgFn: svg_mail,
-    label: 'Invitar',
-    class: 'horizontal',
-    listener: { fn: e => { e.stopPropagation(); openInviteForm(home); } },
-  });
+  // Invites are creator-only server-side (homeService.js's inviteToHome) -
+  // hiding the button for everyone else avoids a round-trip just to show an
+  // error toast for an action that was never going to succeed.
+  if (home.createdBy === getUserId()) {
+    $button({
+      appendTo: actions,
+      svgFn: svg_mail,
+      label: 'Invitar',
+      class: 'horizontal',
+      listener: { fn: e => { e.stopPropagation(); openInviteForm(home); } },
+    });
+  }
   $button({
     appendTo: actions,
     svgFn: svg_link,
     label: 'Copiar enlace',
     class: 'horizontal',
     listener: { fn: e => { e.stopPropagation(); copyHomeJoinLink(home); } },
+  });
+  // Deletion stays open to every member, not just the creator (unlike
+  // Invitar above) - see homeService.js's deleteHome() for why: it wasn't
+  // the feature that got abused, and restricting it would be this app's
+  // first ownership-gated action for something every member can otherwise
+  // already do freely (edit/delete any item, location, category).
+  $button({
+    appendTo: actions,
+    svgFn: svg_trash,
+    label: 'Borrar',
+    class: 'horizontal',
+    listener: { fn: e => { e.stopPropagation(); deleteHomeFromCard(home); } },
   });
 
   return $new({
@@ -248,6 +265,30 @@ async function copyHomeJoinLink(home) {
   } catch {
     showErrorToast('No se pudo copiar el enlace');
   }
+}
+
+/**
+ * Deletes a Home for every member, not just this device - there's no undo,
+ * so this is the one confirm dialog in the app using the `danger` (red OK
+ * button) option. Re-runs afterLogin() afterward regardless of whether the
+ * deleted Home was the active one: it re-syncs the Home list and lands the
+ * user somewhere valid either way (another Home, or the chooseHome screen
+ * if none remain) rather than needing separate "was it the active one?"
+ * branches here.
+ * @param {import("../local-db/home-db.js").Home} home
+ */
+function deleteHomeFromCard(home) {
+  showConfirmDialog(
+    `¿Seguro que querés borrar el Hogar "${home.name}"? Se van a borrar todos sus alimentos, `
+    + 'ubicaciones e historial para TODOS sus miembros. Esta acción no se puede deshacer.',
+    async () => {
+      const result = await deleteHome(home.id);
+      if (!result.data) { return showErrorToast(result.errorMsg); }
+      showInfoToast('Hogar borrado');
+      await afterLogin();
+    },
+    { danger: true }
+  );
 }
 
 /**

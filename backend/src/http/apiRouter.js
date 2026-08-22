@@ -86,6 +86,7 @@ export async function handleApiRequest(req, res, segments) {
     if (route === 'homes/invite') {
       return successResponse(res, await homeService.inviteToHome(user.id, body.homeId, body.email));
     }
+    if (route === 'homes/delete') { return successResponse(res, homeService.deleteHome(user.id, body.homeId)); }
     if (route === 'sync/pull') { return successResponse(res, syncService.pullHomeSnapshot(user.id, body.homeId)); }
     if (route === 'sync/push') { return successResponse(res, syncService.pushHomeSnapshot(user.id, body.homeId, body.snapshot)); }
     if (route === 'push/vapid-public-key') { return successResponse(res, { publicKey: process.env.VAPID_PUBLIC_KEY }); }

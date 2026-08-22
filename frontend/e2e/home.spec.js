@@ -13,6 +13,19 @@ function homeCard(page, name) {
   return page.locator('.home-card', { has: page.locator('.home-card-name', { hasText: name }) });
 }
 
+/**
+ * Scoped to `.home-card-actions` rather than the whole card, so a button's
+ * label text (e.g. "Borrar") can never collide with a substring of the
+ * Home's own name (e.g. a Home literally named "Casa Para Borrar").
+ * @param {import('@playwright/test').Page} page
+ * @param {string} name
+ * @param {string} actionText
+ * @returns {import('@playwright/test').Locator}
+ */
+function homeCardAction(page, name, actionText) {
+  return homeCard(page, name).locator('.home-card-actions').getByText(actionText);
+}
+
 
 test('the hamburger menu (logout, notifications, account email) is already available on the chooseHome screen', async ({ page }) => {
   await page.goto('/');
@@ -124,7 +137,7 @@ test.describe('Home card actions', () => {
 
     const joinCode = await getJoinCode(page);
     await page.click('.home-switcher');
-    await homeCard(page, 'Casa Enlace').getByText('Copiar enlace').click();
+    await homeCardAction(page, 'Casa Enlace', 'Copiar enlace').click();
 
     await expect(page.locator('#infoToast .message')).toHaveText('Enlace copiado');
     const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
@@ -139,7 +152,7 @@ test.describe('Home card actions', () => {
 
     const inviteeEmail = `e2e+invitee-${Date.now()}@test.local`;
     await page.click('.home-switcher');
-    await homeCard(page, 'Casa Invitación').getByText('Invitar').click();
+    await homeCardAction(page, 'Casa Invitación', 'Invitar').click();
     await page.fill('#inviteHomeForm input[name="inviteEmail"]', inviteeEmail);
     await page.click('#inviteHomeForm .submit');
 
@@ -160,6 +173,90 @@ test.describe('Home card actions', () => {
       await expect(inviteePage.locator('#verifyEmailForm')).toBeVisible();
     } finally {
       await inviteeContext.close();
+    }
+  });
+});
+
+test.describe('deleting a Home', () => {
+  test('cancelling the confirm dialog leaves the Home intact', async ({ page }) => {
+    await page.goto('/');
+    await ensureAuth(page);
+    await ensureHome(page, 'Casa a Conservar');
+    await ensureLocation(page, 'Heladera a Conservar');
+
+    await page.click('.home-switcher');
+    await homeCardAction(page, 'Casa a Conservar', 'Borrar').click();
+    await expect(page.locator('#confirmDialog')).toHaveClass(/open/);
+    await expect(page.locator('#confirmOkBtn')).toHaveClass(/danger/);
+    await page.click('#confirmCancelBtn');
+
+    await expect(page.locator('#confirmDialog')).not.toHaveClass(/open/);
+    await expect(homeCard(page, 'Casa a Conservar')).toBeVisible();
+  });
+
+  test('deleting the only Home lands back on the chooseHome screen', async ({ page }) => {
+    await page.goto('/');
+    await ensureAuth(page);
+    await ensureHome(page, 'Casa Única');
+    await ensureLocation(page, 'Heladera Única');
+
+    await page.click('.home-switcher');
+    await homeCardAction(page, 'Casa Única', 'Borrar').click();
+    await page.click('#confirmOkBtn');
+
+    await expect(page.locator('#infoToast .message')).toHaveText('Hogar borrado');
+    await expect(page.locator('#homeForm')).toBeVisible();
+  });
+
+  test('deleting the active Home while another exists switches to the remaining one', async ({ page }) => {
+    await page.goto('/');
+    await ensureAuth(page);
+    await ensureHome(page, 'Casa Para Borrar');
+    await ensureLocation(page, 'Heladera Para Borrar');
+    await page.click('.home-switcher');
+    await ensureHome(page, 'Casa Que Queda');
+    await ensureLocation(page, 'Heladera Que Queda');
+
+    // "Casa Que Queda" is active now - delete the OTHER one from its card.
+    await page.click('.home-switcher');
+    await homeCardAction(page, 'Casa Para Borrar', 'Borrar').click();
+    await page.click('#confirmOkBtn');
+
+    await expect(page.locator('#infoToast .message')).toHaveText('Hogar borrado');
+    await expect(page.locator('.home-switcher-name')).toHaveText('Casa Que Queda');
+  });
+
+  test('deleting a Home shared with another device removes it there too on next sync', async ({ browser }) => {
+    const ownerContext = await browser.newContext();
+    const joinerContext = await browser.newContext();
+    const ownerPage = await ownerContext.newPage();
+    const joinerPage = await joinerContext.newPage();
+
+    try {
+      await ownerPage.goto('/');
+      await ensureAuth(ownerPage);
+      await ensureHome(ownerPage, 'Casa Compartida A Borrar');
+      await ensureLocation(ownerPage, 'Heladera Compartida A Borrar');
+      const joinCode = await getJoinCode(ownerPage);
+
+      await joinerPage.goto('/');
+      await ensureAuth(joinerPage);
+      await ensureHome(joinerPage, 'Casa Del Joiner'); // so the joiner has a fallback Home too
+      await joinerPage.goto(`/?joinCode=${joinCode}`);
+      await expect(joinerPage.locator('.home-switcher-name')).toHaveText('Casa Compartida A Borrar');
+
+      await ownerPage.click('.home-switcher');
+      await homeCardAction(ownerPage, 'Casa Compartida A Borrar', 'Borrar').click();
+      await ownerPage.click('#confirmOkBtn');
+      await expect(ownerPage.locator('#infoToast .message')).toHaveText('Hogar borrado');
+
+      // The joiner has no way to know in real time (no push sync) - only
+      // reflected once their own device re-syncs, e.g. on reload.
+      await joinerPage.reload();
+      await expect(joinerPage.locator('.home-switcher-name')).toHaveText('Casa Del Joiner');
+    } finally {
+      await ownerContext.close();
+      await joinerContext.close();
     }
   });
 });

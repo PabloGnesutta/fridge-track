@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { addAllowedEmail } from '../db/allowedEmails.js';
+import { deleteHomeCascade } from '../db/homeCascadeDelete.js';
 import { getAppBaseUrl } from '../lib/appUrl.js';
 import { ServiceError } from './ServiceError.js';
 import { createEmailService } from './emailService.js';
@@ -94,7 +95,7 @@ function createHomeService(db, emailService = createEmailService()) {
           ).run(randomUUID(), homeId, categoryName, now, now);
         }
 
-        return { id: homeId, name, joinCode };
+        return { id: homeId, name, joinCode, createdBy: userId };
       } catch (err) {
         const isCollision = err instanceof Error && err.message.includes('UNIQUE');
         if (!isCollision) { throw err; }
@@ -118,7 +119,7 @@ function createHomeService(db, emailService = createEmailService()) {
         'INSERT INTO home_members (home_id, user_id, joined_at) VALUES (?, ?, ?)'
       ).run(home.id, userId, Date.now());
     }
-    return { id: Number(home.id), name: home.name, joinCode: home.join_code };
+    return { id: Number(home.id), name: home.name, joinCode: home.join_code, createdBy: Number(home.created_by) };
   }
 
   /**
@@ -126,11 +127,13 @@ function createHomeService(db, emailService = createEmailService()) {
    */
   function listHomesForUser(userId) {
     const rows = db.prepare(
-      `SELECT homes.id, homes.name, homes.join_code as joinCode FROM homes
+      `SELECT homes.id, homes.name, homes.join_code as joinCode, homes.created_by as createdBy FROM homes
        JOIN home_members ON home_members.home_id = homes.id
        WHERE home_members.user_id = ?`
     ).all(userId);
-    return rows.map(row => ({ id: Number(row.id), name: row.name, joinCode: row.joinCode }));
+    return rows.map(row => ({
+      id: Number(row.id), name: row.name, joinCode: row.joinCode, createdBy: Number(row.createdBy),
+    }));
   }
 
   /**
@@ -139,6 +142,12 @@ function createHomeService(db, emailService = createEmailService()) {
    * this an invite to someone with no existing account would be a dead end:
    * they'd get a link/code that works for joining, but couldn't create the
    * account needed to use it in the first place.
+   *
+   * Restricted to the Home's creator (`homes.created_by`), unlike every other
+   * membership-gated action here (see deleteHome's comment on this app's flat
+   * trust model) - a deliberate, narrow exception added after real invite
+   * spam/abuse exhausted the outbound email quota, so only the one person who
+   * made the Home can send mail on its behalf.
    * @param {number} userId
    * @param {number} homeId
    * @param {string} email
@@ -150,6 +159,9 @@ function createHomeService(db, emailService = createEmailService()) {
 
     const home = db.prepare('SELECT * FROM homes WHERE id = ?').get(homeId);
     if (!home) { throw new ServiceError('Hogar no encontrado'); }
+    if (home.created_by !== userId) {
+      throw new ServiceError('Solo quien creó el Hogar puede enviar invitaciones');
+    }
 
     const inviter = db.prepare('SELECT email, name FROM users WHERE id = ?').get(userId);
     const inviterLabel = (inviter && (inviter.name || inviter.email)) || 'Alguien';
@@ -169,7 +181,28 @@ function createHomeService(db, emailService = createEmailService()) {
     return { ok: true };
   }
 
-  return { createHome, joinHome, listHomesForUser, inviteToHome };
+  /**
+   * Deletes a Home and everything in it, for every member - not just this
+   * user's own access to it. Gated by membership, not ownership: any member
+   * can already edit or delete every item/location/category in a shared
+   * Home, so requiring only membership here matches that same flat trust
+   * model rather than introducing a role-based permission. inviteToHome
+   * above is the one deliberate exception to this (creator-only, to stop
+   * invite-driven email abuse) - deletion wasn't part of that problem, so it
+   * stays open to every member. The confirm dialog on the client is what
+   * actually carries the "this affects everyone" warning - there's no undo
+   * once this returns.
+   * @param {number} userId
+   * @param {number} homeId
+   */
+  function deleteHome(userId, homeId) {
+    assertHomeMembership(db, homeId, userId);
+    const result = deleteHomeCascade(db, homeId);
+    if (!result) { throw new ServiceError('Hogar no encontrado'); }
+    return { id: result.home.id, name: result.home.name };
+  }
+
+  return { createHome, joinHome, listHomesForUser, inviteToHome, deleteHome };
 }
 
 export { createHomeService, assertHomeMembership };

@@ -1,7 +1,7 @@
 import { dbStore } from "../common/state.js";
 import { clearArray } from "../lib/utils.js";
-import { getAll, putOne } from "../lib/indexedDb.js";
-import { apiCreateHome, apiJoinHome, apiListHomes } from "../api-caller/apiCaller.js";
+import { getAll, putOne, deleteOne } from "../lib/indexedDb.js";
+import { apiCreateHome, apiJoinHome, apiListHomes, apiDeleteHome } from "../api-caller/apiCaller.js";
 
 
 /**
@@ -17,6 +17,8 @@ import { apiCreateHome, apiJoinHome, apiListHomes } from "../api-caller/apiCalle
  * @property {number} id
  * @property {string} name
  * @property {string} joinCode
+ * @property {number} createdBy - id of the member who created the Home; the
+ *   only member allowed to send email invites for it (see homeService.js).
  */
 
 const CURRENT_HOME_ID_KEY = 'currentHomeId';
@@ -56,7 +58,42 @@ async function joinHome(joinCode) {
 async function syncHomesFromServer() {
   const result = await apiListHomes();
   if (!result.data) { throw new Error(result.error); }
+
+  const serverIds = new Set(result.data.map(home => home.id));
   for (const home of result.data) { await cacheHome(home); }
+
+  // Prune any locally-cached Home no longer in the server's list - it was
+  // deleted (see deleteHome() below, possibly from a different device
+  // entirely) or this device's membership was otherwise removed. The server
+  // list is authoritative and pulled fresh on every boot/Home switch (see
+  // appBoot.js), so anything missing from it is gone for real; leaving it
+  // cached would let a stale, unreachable Home linger in the switcher.
+  //
+  // Diffed against a fresh IndexedDB read, not dbStore.homes - on a fresh
+  // boot/reload this runs before fetchHomes() has populated dbStore.homes,
+  // so the in-memory array is still empty here and a stale Home sitting
+  // only in IndexedDB would never get caught.
+  /** @type {Home[]} */ // @ts-ignore
+  const locallyCached = await getAll('homes');
+  for (const cached of locallyCached) {
+    if (!serverIds.has(cached.id)) { await uncacheHome(cached.id); }
+  }
+}
+
+/**
+ * Deletes a Home on the server, for every member - and removes it from this
+ * device's local cache. Does not re-resolve which Home should be active
+ * afterward if this was the current one; that's the caller's job
+ * (appBoot.js's afterLogin() already does exactly that on every boot/Home
+ * switch, so callers just re-run that).
+ * @param {number} homeId
+ * @returns {ServiceReturn<{id: number, name: string}>}
+ */
+async function deleteHome(homeId) {
+  const result = await apiDeleteHome(homeId);
+  if (!result.data) { return { errorMsg: result.error }; }
+  await uncacheHome(homeId);
+  return { data: result.data };
 }
 
 /**
@@ -73,6 +110,18 @@ async function cacheHome(home) {
   } else {
     dbStore.homes[idx] = home;
   }
+}
+
+/**
+ * The inverse of cacheHome() - used both by deleteHome() above (this device
+ * did the deleting) and syncHomesFromServer()'s pruning (some other device
+ * did, or the membership otherwise disappeared server-side).
+ * @param {number} homeId
+ */
+async function uncacheHome(homeId) {
+  await deleteOne('homes', homeId);
+  const idx = dbStore.homes.findIndex(h => h.id === homeId);
+  if (idx !== -1) { dbStore.homes.splice(idx, 1); }
 }
 
 /**
@@ -112,6 +161,6 @@ function resolveCurrentHome(homes) {
 
 
 export {
-  createHome, joinHome, syncHomesFromServer, fetchHomes,
+  createHome, joinHome, deleteHome, syncHomesFromServer, fetchHomes,
   setCurrentHomeId, getCurrentHomeId, resolveCurrentHome,
 };
