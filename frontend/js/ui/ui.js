@@ -4,7 +4,7 @@ import { _info, _log, _warn, openLogs } from "../lib/logger.js";
 import { showConfirmDialog } from "../lib/confirmDialog.js";
 import { showErrorToast } from "../lib/toast.js";
 import { clearAllData } from "../lib/indexedDb.js";
-import { apiUpdateNotificationPreferences, getNotificationPreferences } from "../api-caller/apiCaller.js";
+import { apiUpdateNotificationPreferences, getNotificationPreferences, getUserEmail } from "../api-caller/apiCaller.js";
 import { hasActiveSubscription, isPushSupported, subscribeToPush } from "../pushNotifications.js";
 import {
   arrow_left, pen_solid, svg_check, svg_home, svg_list, svg_logout, svg_menu, svg_notes, svg_search,
@@ -34,7 +34,20 @@ function toggleHeaderMenu() {
   // Refreshed on every open, not just once at boot - browser permission can
   // change underneath the app (revoked/granted via browser site settings)
   // with nothing to notify the page when it does.
-  if (opening) { refreshPushToggleState(); }
+  if (opening) {
+    refreshPushToggleState();
+    refreshHeaderMenuEmail();
+  }
+}
+
+/**
+ * Shows the currently logged-in user's email at the bottom of the menu -
+ * refreshed on every open (not just once at boot) since login/logout/Home
+ * switching never reload the page, so a stale email could otherwise linger
+ * across a login as a different user in the same tab.
+ */
+function refreshHeaderMenuEmail() {
+  $('headerMenuUserEmail').innerText = getUserEmail() || '';
 }
 
 function closeHeaderMenu() {

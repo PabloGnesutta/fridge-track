@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ensureOnboarded } from './helpers.js';
+import { ensureAuth, ensureHome, ensureLocation, ensureOnboarded } from './helpers.js';
 
 
 test('the header menu panel is hidden by default and opens on the hamburger button', async ({ page }) => {
@@ -25,6 +25,17 @@ test('clicking outside the menu closes it', async ({ page }) => {
 
   await page.locator('.page-title').click();
   await expect(panel).toHaveClass(/display-none/);
+});
+
+test('the menu shows the logged-in user\'s email at the bottom', async ({ page }) => {
+  await page.goto('/');
+  const uniqueEmail = `e2e+${Date.now()}-${Math.random().toString(36).slice(2)}@test.local`;
+  await ensureAuth(page, { email: uniqueEmail });
+  await ensureHome(page);
+  await ensureLocation(page);
+
+  await page.click('#headerMenuBtn .btn');
+  await expect(page.locator('#headerMenuUserEmail')).toHaveText(uniqueEmail);
 });
 
 test('opening logs from the menu shows the debug panel and closes the menu', async ({ page }) => {

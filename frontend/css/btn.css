@@ -94,6 +94,14 @@
   height: 20px;
 }
 
+.header-menu-email {
+  padding: 0.5rem 1rem 0.75rem;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--bg-surface-active);
+  word-break: break-all;
+}
+
 .edit-btn .btn {
   padding: 0.75rem;
 }

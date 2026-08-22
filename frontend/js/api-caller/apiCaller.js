@@ -130,6 +130,11 @@ function getAccessToken() {
   return localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
+/** @returns {string|null} */
+function getUserEmail() {
+  return localStorage.getItem(USER_EMAIL_KEY);
+}
+
 /** @returns {boolean} */
 function isLoggedIn() {
   return !!getAccessToken();
@@ -238,6 +243,6 @@ export {
   apiSignup, apiLogin, apiVerifyEmail, apiResendVerification, apiLogout,
   apiCreateHome, apiJoinHome, apiListHomes,
   apiSyncPull, apiSyncPush, apiPushVapidKey, apiPushSubscribe, apiPushUnsubscribe,
-  apiRecipeSuggestions, apiUpdateNotificationPreferences, isLoggedIn, getAccessToken, clearSession,
+  apiRecipeSuggestions, apiUpdateNotificationPreferences, isLoggedIn, getAccessToken, getUserEmail, clearSession,
   getNotificationPreferences, persistNotificationPreferences,
 };
