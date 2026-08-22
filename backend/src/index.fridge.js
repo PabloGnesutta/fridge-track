@@ -8,8 +8,13 @@ configEnv({ path: join(__dirname, '../', '.env') });
 import { handleRequest } from './http/requestHandler.js';
 import { log } from './logger/logger.js';
 import { db } from './db/db.js';
+import { addAllowedEmail } from './db/allowedEmails.js';
 import { startExpiryNotificationScheduler } from './scheduler/expiryNotifier.js';
 
+// Testing address - always allow-listed on boot so signup never blocks it
+// waiting on a manual manageAllowedEmails.js call. addAllowedEmail() is
+// `INSERT OR IGNORE`, so this is a no-op once the row already exists.
+addAllowedEmail(db, 'arg.maccraft@gmail.com');
 
 createServer(
   handleRequest
