@@ -10,7 +10,7 @@ const EMAIL_ENABLED_KEY = 'emailEnabled';
  * @typedef {{
  *   data: T, error?: undefined, status?: undefined, detail?: undefined
  * } | {
- *   data?: undefined, error: string, status?: number, detail?: string
+ *   data?: undefined, error: string, status?: number, detail?: string, requiresVerification?: boolean
  * }} ApiResult<T>
  */
 
@@ -73,7 +73,7 @@ async function apiCall(path, payload) {
 
   if (json.error) {
     console.warn('error', json.error);
-    return { error: json.error, status: response.status };
+    return { error: json.error, status: response.status, requiresVerification: json.requiresVerification };
   }
 
   return { data: json.data };
@@ -136,14 +136,16 @@ function isLoggedIn() {
 }
 
 /**
+ * Unlike login, signup no longer returns an accessToken directly - the
+ * account exists but is unverified, so there's no session to persist yet.
+ * The caller (auth-ui.js) reads `result.data.requiresVerification` and
+ * routes to the code-entry screen instead.
  * @param {string} email
  * @param {string} password
  * @param {string} [name]
  */
 async function apiSignup(email, password, name) {
-  const result = await apiCall('signup', { email, password, name });
-  if (result.data) { persistSession(result.data); }
-  return result;
+  return apiCall('signup', { email, password, name });
 }
 
 /**
@@ -154,6 +156,21 @@ async function apiLogin(email, password) {
   const result = await apiCall('login', { email, password });
   if (result.data) { persistSession(result.data); }
   return result;
+}
+
+/**
+ * @param {string} email
+ * @param {string} code
+ */
+async function apiVerifyEmail(email, code) {
+  const result = await apiCall('verify-email', { email, code });
+  if (result.data) { persistSession(result.data); }
+  return result;
+}
+
+/** @param {string} email */
+async function apiResendVerification(email) {
+  return apiCall('resend-verification', { email });
 }
 
 async function apiLogout() {
@@ -218,7 +235,8 @@ async function apiUpdateNotificationPreferences(prefs) {
 }
 
 export {
-  apiSignup, apiLogin, apiLogout, apiCreateHome, apiJoinHome, apiListHomes,
+  apiSignup, apiLogin, apiVerifyEmail, apiResendVerification, apiLogout,
+  apiCreateHome, apiJoinHome, apiListHomes,
   apiSyncPull, apiSyncPush, apiPushVapidKey, apiPushSubscribe, apiPushUnsubscribe,
   apiRecipeSuggestions, apiUpdateNotificationPreferences, isLoggedIn, getAccessToken, clearSession,
   getNotificationPreferences, persistNotificationPreferences,

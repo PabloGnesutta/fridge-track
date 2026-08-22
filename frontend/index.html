@@ -87,6 +87,22 @@
             <div id="authModeToggle" class="mode-toggle" role="button" tabindex="0">¿No tenés cuenta? Creá una</div>
           </div>
         </form>
+
+        <form id="verifyEmailForm" class="base-form">
+          <h3 class="form-title">
+            <span class="form-title-text">Confirmá tu email</span>
+          </h3>
+          <div class="form-content">
+            <p id="verifyEmailHint" class="verify-email-hint"><!--  --></p>
+            <div class="form-control">
+              <label for="verifyCode">Código</label>
+              <input type="text" name="verifyCode" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" maxlength="6" />
+            </div>
+            <div class="submit"><!--  --></div>
+            <div id="resendCodeBtn" class="mode-toggle" role="button" tabindex="0">Reenviar código</div>
+            <div id="backToLoginBtn" class="mode-toggle" role="button" tabindex="0">Volver a iniciar sesión</div>
+          </div>
+        </form>
       </div>
 
       <!-- Home (create/join) -->

@@ -23,6 +23,24 @@ export function allowTestEmail(email) {
 }
 
 /**
+ * Reads a user's still-pending email-verification code straight out of the
+ * same sqlite file allowTestEmail() already opens directly - there's no real
+ * inbox reachable from e2e, so this stands in for "checking your email".
+ * @param {string} email
+ * @returns {string|undefined}
+ */
+export function readVerificationCode(email) {
+  const db = new DatabaseSync(DB_PATH);
+  try {
+    /** @type {{verification_code: string}|undefined} */ // @ts-ignore
+    const row = db.prepare('SELECT verification_code FROM users WHERE email = ?').get(email);
+    return row?.verification_code;
+  } finally {
+    db.close();
+  }
+}
+
+/**
  * Signs up (never logs in) if the app is showing the auth screen. Every test
  * starts from a fresh browser context (empty IndexedDB, no cached session),
  * so this always runs on the very first navigation. Always creates a brand
@@ -46,7 +64,19 @@ export async function ensureAuth(page, { email, password = 'e2e-test-password' }
   await emailInput.fill(uniqueEmail);
   await page.fill('#authForm input[name="authPassword"]', password);
   await page.click('#authForm .submit');
-  await page.waitForSelector('#authForm', { state: 'hidden' });
+
+  // Signup no longer signs the user in directly - it requires confirming a
+  // code emailed to the new address first (see authService.js). There's no
+  // real inbox reachable here, so read the code straight out of the same
+  // sqlite file allowTestEmail() already talks to. Waiting on #authView
+  // (not #authForm) below is deliberate: #authForm itself is hidden for the
+  // whole verifyEmail stage too, not just once fully logged in.
+  const codeInput = page.locator('#verifyEmailForm input[name="verifyCode"]');
+  await codeInput.waitFor({ state: 'visible', timeout: 5000 });
+  await codeInput.fill(readVerificationCode(uniqueEmail));
+  await page.click('#verifyEmailForm .submit');
+
+  await page.waitForSelector('#authView', { state: 'hidden' });
 }
 
 /**

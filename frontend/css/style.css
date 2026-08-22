@@ -660,8 +660,30 @@ svg {
   display: none;
 }
 
-#app[data-auth-stage='login'] #authView {
+#app[data-auth-stage='login'] #authView,
+#app[data-auth-stage='verifyEmail'] #authView {
   display: block;
+}
+
+/* Inside #authView, only one of the two forms shows at a time - default to
+   the login/signup form, swap to the code-entry one during verifyEmail. */
+#verifyEmailForm {
+  display: none;
+}
+
+#app[data-auth-stage='verifyEmail'] #authForm {
+  display: none;
+}
+
+#app[data-auth-stage='verifyEmail'] #verifyEmailForm {
+  display: block;
+}
+
+.verify-email-hint {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: 0 0 0.5rem;
 }
 
 #app:not([data-auth-stage='ready']) #mainHeader,

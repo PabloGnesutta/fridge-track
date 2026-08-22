@@ -10,6 +10,11 @@ import { fetchCategories } from "./local-db/category-db.js";
 import { syncHome } from "./sync/syncEngine.js";
 import { activateLocation, openLocationForm } from "./ui/location-ui.js";
 import { refreshHomeUi } from "./ui/home-ui.js";
+// Deliberate circular import with auth-ui.js (which imports afterLogin back
+// from this file), same pattern already used with home-ui.js above - safe
+// here for the same reason: neither module calls the other's export at
+// module top level, only from inside function bodies invoked later.
+import { tryAutoVerifyFromLink } from "./ui/auth-ui.js";
 import { renderSpecificRoute } from "./common/router.js";
 import { initPushNotifications } from "./pushNotifications.js";
 import { _error } from "./lib/logger.js";
@@ -35,6 +40,14 @@ let pendingInitialRoute = null;
  */
 async function bootApp(initialRoute) {
   pendingInitialRoute = initialRoute;
+
+  // Landing here via the one-click link in a verification email
+  // (?email=...&code=...) takes priority over the normal isLoggedIn()
+  // check below - a fresh signup on this same device has no session yet
+  // for isLoggedIn() to find, and tryAutoVerifyFromLink() already drives
+  // the auth stage (and calls afterLogin() itself on success) either way.
+  if (await tryAutoVerifyFromLink()) { return; }
+
   if (!isLoggedIn()) {
     setAuthStage('login');
     return;

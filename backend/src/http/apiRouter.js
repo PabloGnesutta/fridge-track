@@ -38,12 +38,10 @@ export async function handleApiRequest(req, res, segments) {
     const body = await readJsonBody(req);
 
     if (route === 'signup') {
-      const user = authService.createUser(body.email, body.password, body.name);
-      const accessToken = authService.createSession(user.id);
-      return successResponse(res, {
-        accessToken, userId: user.id, email: user.email, name: user.name,
-        pushEnabled: user.pushEnabled, emailEnabled: user.emailEnabled,
-      });
+      // No accessToken yet - the account exists but is unverified, so no
+      // session is created until verify-email succeeds below.
+      const user = await authService.createUser(body.email, body.password, body.name);
+      return successResponse(res, { email: user.email, requiresVerification: true });
     }
     if (route === 'login') {
       // verifyLogin returns the raw `users` row (snake_case columns,
@@ -55,6 +53,21 @@ export async function handleApiRequest(req, res, segments) {
         accessToken, userId: user.id, email: user.email, name: user.name,
         pushEnabled: !!user.push_enabled, emailEnabled: !!user.email_enabled,
       });
+    }
+    if (route === 'verify-email') {
+      const user = authService.verifyEmailCode(body.email, body.code);
+      const accessToken = authService.createSession(user.id);
+      // pushEnabled/emailEnabled hardcoded true, same reasoning as
+      // createUser()'s own response above - a not-yet-verified user has no
+      // way to have flipped either preference yet, so these can only still
+      // be at their DEFAULT 1.
+      return successResponse(res, {
+        accessToken, userId: user.id, email: user.email, name: user.name,
+        pushEnabled: true, emailEnabled: true,
+      });
+    }
+    if (route === 'resend-verification') {
+      return successResponse(res, await authService.resendVerificationCode(body.email));
     }
 
     // Every route below requires a valid bearer token.
@@ -92,7 +105,10 @@ export async function handleApiRequest(req, res, segments) {
 
     return errorResponse(res, 'Ruta de API no encontrada: ' + route, 404);
   } catch (err) {
-    if (err instanceof ServiceError) { return errorResponse(res, err.message, 400); }
+    if (err instanceof ServiceError) {
+      const extra = /** @type {*} */ (err).requiresVerification ? { requiresVerification: true } : undefined;
+      return errorResponse(res, err.message, 400, extra);
+    }
     if (err instanceof Error && err.message === INVALID_JSON_MESSAGE) {
       return errorResponse(res, err.message, 400);
     }

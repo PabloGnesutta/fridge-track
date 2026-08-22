@@ -22,7 +22,7 @@ import { _log } from "../lib/logger.js";
  * @property {AuthStage} authStage
  *
  * @typedef {'ItemList'|'SingleItem'|'FoodHistory'|'Home'} Views
- * @typedef {'checking'|'login'|'chooseHome'|'ready'} AuthStage
+ * @typedef {'checking'|'login'|'verifyEmail'|'chooseHome'|'ready'} AuthStage
  *
  * @typedef {object} DataState
  * @property {Home|null} currentHome
