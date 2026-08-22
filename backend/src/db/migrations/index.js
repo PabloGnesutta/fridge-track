@@ -9,6 +9,7 @@ import { sql as locationsCategoryId } from './008_locations_category_id.js';
 import { sql as foodNameHistoryCategoryId } from './009_food_name_history_category_id.js';
 import { sql as categoriesBuiltinLabels } from './010_categories_builtin_labels.js';
 import { sql as emailVerification } from './011_email_verification.js';
+import { sql as verificationAttempts } from './012_verification_attempts.js';
 
 /**
  * Ordered, explicit registry (no directory-scanning) - add new migrations
@@ -33,6 +34,7 @@ const migrations = [
   { version: 9, name: 'food_name_history_category_id', sql: foodNameHistoryCategoryId },
   { version: 10, name: 'categories_builtin_labels', sql: categoriesBuiltinLabels },
   { version: 11, name: 'email_verification', sql: emailVerification },
+  { version: 12, name: 'verification_attempts', sql: verificationAttempts },
 ];
 
 export { migrations };

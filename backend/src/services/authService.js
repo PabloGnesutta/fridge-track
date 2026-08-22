@@ -12,6 +12,13 @@ import { createEmailService } from './emailService.js';
 const VERIFICATION_CODE_TTL_MS = 15 * 60 * 1000;
 const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000;
 
+// A 6-digit code is only 1,000,000 possibilities - with no cap on wrong
+// guesses, a scripted attacker could brute-force it well within the 15-
+// minute TTL. After this many wrong guesses the code is invalidated
+// outright (see verifyEmailCode), forcing a resend rather than just
+// resetting the counter and leaving the same code guessable at the same rate.
+const MAX_VERIFICATION_ATTEMPTS = 5;
+
 /**
  * @returns {string} a zero-padded 6-digit code, e.g. "004213"
  */
@@ -117,9 +124,26 @@ function createAuthService(db, emailService = createEmailService()) {
     email = String(email || '').trim().toLowerCase();
     code = String(code || '').trim();
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-    if (!user) { throw new ServiceError('No existe una cuenta con ese email'); }
-    if (user.email_verified) { throw new ServiceError('Este email ya fue confirmado'); }
+
+    // A missing account and an already-verified one both collapse into the
+    // same generic "wrong code" error as an actual bad guess - keeping them
+    // distinct (as this used to) let this unauthenticated route be probed
+    // with a throwaway code to enumerate which emails have a FridgeTrack
+    // account, or which are already verified, with no credentials at all.
+    if (!user || user.email_verified) {
+      throw new ServiceError('Código incorrecto');
+    }
+
     if (!user.verification_code || !code || user.verification_code !== code) {
+      const attempts = (user.verification_code_attempts || 0) + 1;
+      if (attempts >= MAX_VERIFICATION_ATTEMPTS) {
+        db.prepare(
+          `UPDATE users SET verification_code = NULL, verification_code_attempts = 0,
+           verification_code_sent_at = NULL, verification_code_expires_at = NULL WHERE id = ?`
+        ).run(user.id);
+        throw new ServiceError('Demasiados intentos incorrectos - pedí un código nuevo');
+      }
+      db.prepare('UPDATE users SET verification_code_attempts = ? WHERE id = ?').run(attempts, user.id);
       throw new ServiceError('Código incorrecto');
     }
     if (!user.verification_code_expires_at || Date.now() > user.verification_code_expires_at) {
@@ -127,7 +151,7 @@ function createAuthService(db, emailService = createEmailService()) {
     }
 
     db.prepare(
-      `UPDATE users SET email_verified = 1, verification_code = NULL,
+      `UPDATE users SET email_verified = 1, verification_code = NULL, verification_code_attempts = 0,
        verification_code_sent_at = NULL, verification_code_expires_at = NULL WHERE id = ?`
     ).run(user.id);
 
@@ -135,22 +159,28 @@ function createAuthService(db, emailService = createEmailService()) {
   }
 
   /**
+   * Always resolves `{ok: true}`, whether or not anything was actually
+   * sent - unauthenticated and pre-verification by design (a user re-
+   * requesting a code they didn't get), so a distinct response for "no
+   * account", "already verified", or "still in cooldown" would let this
+   * route be used to enumerate which emails have a FridgeTrack account (or
+   * their verification state) with no credentials at all. A genuine user
+   * gets the same experience either way: "check your email."
    * @param {string} email
    */
   async function resendVerificationCode(email) {
     email = String(email || '').trim().toLowerCase();
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-    if (!user) { throw new ServiceError('No existe una cuenta con ese email'); }
-    if (user.email_verified) { throw new ServiceError('Este email ya fue confirmado'); }
+    if (!user || user.email_verified) { return { ok: true }; }
     if (user.verification_code_sent_at && Date.now() - user.verification_code_sent_at < VERIFICATION_RESEND_COOLDOWN_MS) {
-      throw new ServiceError('Esperá un momento antes de pedir otro código');
+      return { ok: true };
     }
 
     const code = generateVerificationCode();
     const now = Date.now();
     db.prepare(
       `UPDATE users SET verification_code = ?, verification_code_sent_at = ?,
-       verification_code_expires_at = ? WHERE id = ?`
+       verification_code_expires_at = ?, verification_code_attempts = 0 WHERE id = ?`
     ).run(code, now, now + VERIFICATION_CODE_TTL_MS, user.id);
 
     await sendVerificationEmail(email, code);

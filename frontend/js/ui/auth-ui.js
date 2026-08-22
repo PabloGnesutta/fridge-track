@@ -122,7 +122,7 @@ async function tryAutoVerifyFromLink() {
   // Strip the query string immediately, before even attempting the request -
   // a code is single-use, so a reload after landing here (or the browser
   // re-requesting the page) must not silently retry it and show a
-  // confusing "ya fue confirmado"/"código incorrecto" for no user action.
+  // confusing "código incorrecto" for no user action.
   history.replaceState(null, '', location.pathname);
 
   const result = await apiVerifyEmail(email, code);

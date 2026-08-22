@@ -140,6 +140,46 @@ test('verifyEmailCode rejects a wrong code', () => {
   );
 });
 
+test('verifyEmailCode gives the same generic error for a nonexistent account as for a wrong code (no account enumeration)', () => {
+  const { authService } = makeAuthService();
+  let messageForMissing;
+  try { authService.verifyEmailCode('nobody@test.local', '000000'); } catch (err) { messageForMissing = err.message; }
+  assert.equal(messageForMissing, 'Código incorrecto');
+});
+
+test('verifyEmailCode gives the same generic error for an already-verified account as for a wrong code (no account enumeration)', () => {
+  const { authService, db } = makeAuthService();
+  addAllowedEmail(db, 'a@test.local');
+  authService.createUser('a@test.local', 'password123');
+  authService.verifyEmailCode('a@test.local', readVerificationCode(db, 'a@test.local'));
+
+  let messageForVerified;
+  try { authService.verifyEmailCode('a@test.local', '000000'); } catch (err) { messageForVerified = err.message; }
+  assert.equal(messageForVerified, 'Código incorrecto');
+});
+
+test('verifyEmailCode invalidates the code after 5 wrong attempts, requiring a resend', () => {
+  const { authService, db } = makeAuthService();
+  addAllowedEmail(db, 'a@test.local');
+  authService.createUser('a@test.local', 'password123');
+  const correctCode = readVerificationCode(db, 'a@test.local');
+
+  for (let i = 0; i < 4; i++) {
+    assert.throws(() => authService.verifyEmailCode('a@test.local', '000000'), ServiceError);
+  }
+
+  // The 5th wrong guess invalidates the code outright, with a distinct
+  // message telling the user to request a new one.
+  assert.throws(
+    () => authService.verifyEmailCode('a@test.local', '000000'),
+    (err) => err instanceof ServiceError && err.message === 'Demasiados intentos incorrectos - pedí un código nuevo'
+  );
+
+  // Even the originally-correct code no longer works - it was cleared, not
+  // just locked behind the attempt counter.
+  assert.throws(() => authService.verifyEmailCode('a@test.local', correctCode), ServiceError);
+});
+
 test('verifyEmailCode accepts the right code and lets verifyLogin through afterwards', () => {
   const { authService, db } = makeAuthService();
   addAllowedEmail(db, 'a@test.local');
@@ -148,6 +188,37 @@ test('verifyEmailCode accepts the right code and lets verifyLogin through afterw
   authService.verifyEmailCode('a@test.local', code);
   const loggedIn = authService.verifyLogin('a@test.local', 'password123');
   assert.equal(loggedIn.email, 'a@test.local');
+});
+
+test('resendVerificationCode always resolves ok, even for a nonexistent or already-verified account (no account enumeration)', async () => {
+  const { authService, db } = makeAuthService();
+  addAllowedEmail(db, 'a@test.local');
+  authService.createUser('a@test.local', 'password123');
+  authService.verifyEmailCode('a@test.local', readVerificationCode(db, 'a@test.local'));
+
+  assert.deepEqual(await authService.resendVerificationCode('nobody@test.local'), { ok: true });
+  assert.deepEqual(await authService.resendVerificationCode('a@test.local'), { ok: true }); // already verified
+});
+
+test('resendVerificationCode resets the attempt counter for the fresh code', () => {
+  const { authService, db } = makeAuthService();
+  addAllowedEmail(db, 'a@test.local');
+  authService.createUser('a@test.local', 'password123');
+
+  for (let i = 0; i < 4; i++) {
+    assert.throws(() => authService.verifyEmailCode('a@test.local', '000000'), ServiceError);
+  }
+
+  // Force the resend past its own cooldown by backdating when the first
+  // code was sent, rather than sleeping in the test.
+  db.prepare('UPDATE users SET verification_code_sent_at = 0 WHERE email = ?').run('a@test.local');
+  authService.resendVerificationCode('a@test.local');
+  const newCode = readVerificationCode(db, 'a@test.local');
+
+  // The new code gets a fresh budget of 5 guesses, not one already 4/5 used
+  // up by the old code's failed attempts.
+  assert.throws(() => authService.verifyEmailCode('a@test.local', '111111'), ServiceError);
+  authService.verifyEmailCode('a@test.local', newCode); // succeeds - not locked out
 });
 
 test('resendVerificationCode issues a new code that verifyEmailCode accepts', () => {
