@@ -2,9 +2,33 @@ import { createHomeService } from '../services/homeService.js';
 import { createPushService } from '../services/pushService.js';
 import { getWebPush } from '../services/webPushClient.js';
 import { computeItemStatus } from '../lib/itemStatus.js';
+import { createEmailService } from '../services/emailService.js';
 import { error } from '../logger/logger.js';
 
 const DEFAULT_INTERVAL_MS = 60 * 60 * 1000;
+
+// Hardcoded rather than an env var: this is a diagnostic alert to the single
+// operator running this instance, not a per-deployment/multi-tenant setting.
+const ADMIN_ALERT_EMAIL = 'pablo.gnesutta@gmail.com';
+
+const { sendEmail } = createEmailService();
+
+/**
+ * Best-effort admin alert for push-scheduler failures - sendEmail() never
+ * throws (see emailService.js), so no try/catch needed here; if SMTP isn't
+ * configured this just logs and no-ops, same as every other silent-failure
+ * path in this scheduler.
+ * @param {string} context
+ * @param {unknown} err
+ */
+function alertPushFailure(context, err) {
+  const message = err instanceof Error ? err.message : String(err);
+  return sendEmail({
+    to: ADMIN_ALERT_EMAIL,
+    subject: 'FridgeTrack: push notification failure',
+    text: `${context}\n\n${message}`,
+  });
+}
 
 /** @param {Date} date */
 function toYYYYMMDD(date) {
@@ -67,6 +91,7 @@ async function runNotificationTick(db) {
             pushService.removeSubscriptionByEndpoint(subscription.endpoint);
           } else {
             error('---Error @runNotificationTick sendNotification', err);
+            await alertPushFailure(`sendNotification failed for user ${userId}, home ${home.id}`, err);
           }
         }
       }
@@ -82,7 +107,12 @@ async function runNotificationTick(db) {
 function startExpiryNotificationScheduler(db) {
   const intervalMs = Number(process.env.NOTIFICATION_CHECK_INTERVAL_MS) || DEFAULT_INTERVAL_MS;
 
-  const tick = () => { runNotificationTick(db).catch(err => error('---Error @expiryNotifier tick', err)); };
+  const tick = () => {
+    runNotificationTick(db).catch(err => {
+      error('---Error @expiryNotifier tick', err);
+      alertPushFailure('expiryNotifier tick failed', err);
+    });
+  };
   tick();
   setInterval(tick, intervalMs);
 }
