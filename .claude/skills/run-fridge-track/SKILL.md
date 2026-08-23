@@ -102,9 +102,15 @@ appears is where to diverge.
 - **Fresh signup vs. existing Home branch differently** - a brand-new email lands on `#homeView`
   (must create a Home); an email that already has one goes straight to `#itemListView`. `drive.mjs`
   handles both via `Promise.race`, but a custom driver assuming only one path will hang.
-- **The service worker is intentionally inert in dev** (`INTERCEPT_FETCH_REQUESTS = false` in
-  `cacheServiceWorker.js`) - don't expect offline behavior or cache hits while testing locally;
-  this is deliberate, not a bug.
+- **The service worker caches everything cache-first, in dev too** - `cacheServiceWorker.js` has
+  no dev/prod split (see "Service worker caching" in CLAUDE.md). A driver script that reloads the
+  page mid-test WILL get served from cache, not fresh from the dev server - expected, not a bug,
+  but worth knowing if a script's assertions assume every reload re-fetches from disk.
+- **A fresh signup always requires email verification** (`requiresVerification: true`
+  unconditionally, per `apiRouter.js`'s `signup` route) before it reaches Home/item-list. `drive.mjs`
+  reads the code straight out of `backend/data/fridgetrack.db` (`readVerificationCode()`) rather
+  than needing real inbox access for a `@test.local` address - copy that helper into any custom
+  driver that also signs up fresh, or it'll hang waiting for a view that never appears.
 
 ## Troubleshooting
 

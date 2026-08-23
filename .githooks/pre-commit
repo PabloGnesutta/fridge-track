@@ -1,0 +1,89 @@
+#!/usr/bin/env node
+// Auto-bumps frontend/cacheServiceWorker.js's cacheVersion whenever the files it actually caches
+// change - see the comment above that const in cacheServiceWorker.js for why. Deliberately plain
+// CommonJS, not ESM: it runs as a shebang'd executable with no controlling package.json in scope
+// (it lives outside both frontend/ and backend/), so there's no reliable signal telling Node to
+// parse it as a module - CommonJS is Node's unambiguous default for that case. Installed via
+// `git config core.hooksPath .githooks` (frontend/package.json's "prepare" script does this
+// automatically on `npm install`; see frontend/js/README.md for the one-time manual fallback).
+// Ported from the sibling sonar project's own .githooks/pre-commit - same mechanism, single cache
+// here instead of sonar's js/wav split (fridge-track has no equivalent large-binary asset type).
+
+const { execFileSync } = require('node:child_process');
+const { createHash } = require('node:crypto');
+const { readFileSync, writeFileSync } = require('node:fs');
+const path = require('node:path');
+
+const repoRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+const swPath = path.join(repoRoot, 'frontend', 'cacheServiceWorker.js');
+
+/** @param {string[]} pathspecs */
+function gitLsFiles(...pathspecs) {
+  const out = execFileSync('git', ['ls-files', '--', ...pathspecs], { cwd: repoRoot, encoding: 'utf8' });
+  return out.split('\n').filter(Boolean);
+}
+
+/** Reads a path's *staged* content (index, not working tree) - what will actually be committed. */
+function stagedContent(relPath) {
+  return execFileSync('git', ['show', ':' + relPath], { cwd: repoRoot });
+}
+
+/**
+ * A single deterministic hash across the whole fileset the service worker caches: path and
+ * content both feed the hash (not just content) so a same-content rename still counts as a
+ * change, and the result never depends on filesystem/git listing order since paths are sorted
+ * first.
+ * @param {string[]} relPaths
+ */
+function hashFiles(relPaths) {
+  const hash = createHash('sha256');
+  for (const p of [...relPaths].sort()) {
+    hash.update(p);
+    hash.update('\0');
+    hash.update(stagedContent(p));
+    hash.update('\0');
+  }
+  return 'v' + hash.digest('hex').slice(0, 12);
+}
+
+/**
+ * @param {string} sw
+ * @param {string} constName
+ * @param {string} newValue
+ * @returns {{ sw: string, changed: boolean }}
+ */
+function bumpConst(sw, constName, newValue) {
+  const re = new RegExp(`(const ${constName} = ')[^']*(';)`);
+  if (!re.test(sw)) {
+    console.warn(`[pre-commit] could not find "const ${constName} = '...'" in cacheServiceWorker.js - skipping`);
+    return { sw, changed: false };
+  }
+  const next = sw.replace(re, `$1${newValue}$2`);
+  return { sw: next, changed: next !== sw };
+}
+
+try {
+  // Everything requestHandler.js's static-asset paths actually serve (see CLAUDE.md's "Service
+  // worker caching" section) - index.html, css/**, js/**, static/** (icons/manifest.json/
+  // favicon.ico). cacheServiceWorker.js itself is deliberately NOT included: it's the file being
+  // written to here, and browsers already re-check a service worker script's own bytes on every
+  // navigation regardless of any caching strategy, so it doesn't need to be part of this hash for
+  // updates to be detected (see cacheServiceWorker.js's own top comment).
+  const appFiles = gitLsFiles('frontend/index.html', 'frontend/css', 'frontend/js', 'frontend/static');
+  const appHash = hashFiles(appFiles);
+
+  let sw = readFileSync(swPath, 'utf8');
+  const result = bumpConst(sw, 'cacheVersion', appHash);
+
+  if (result.changed) {
+    writeFileSync(swPath, result.sw);
+    execFileSync('git', ['add', 'frontend/cacheServiceWorker.js'], { cwd: repoRoot });
+    console.log('[pre-commit] frontend/cacheServiceWorker.js cache version updated and staged.');
+  }
+} catch (e) {
+  // Never block a commit over this - manual bumping is still possible as a fallback, and a
+  // broken hook shouldn't become an obstacle to getting real work committed.
+  console.warn('[pre-commit] cacheServiceWorker.js cache version bump skipped (' + e.message + ')');
+}
+
+process.exit(0);

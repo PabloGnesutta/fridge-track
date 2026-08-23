@@ -1,0 +1,226 @@
+# Global rate-limiting zones - defined once here since this whole file is
+# your /etc/nginx/sites-available/default, loaded directly inside nginx's
+# `http {}` context (via sites-enabled) - no separate conf.d/snippets file
+# needed for a single-file setup like this one. `limit_req_zone`/
+# `limit_conn_zone` MUST live at this top level (illegal inside a `server{}`
+# block); the `limit_conn`/`limit_req` USAGE lines below, inside each server
+# block, are what actually turns a zone on for that app.
+#
+# perip_general: a generous per-IP baseline (30 req/s, burst=80 nodelay) so
+#   one real page load never trips it. These apps have no bundler - a single
+#   load fires off a couple dozen requests nearly simultaneously (every JS
+#   module as its own file, CSS, manifest/icons/service worker, plus several
+#   boot-time /api/* calls) all counted against the same per-IP bucket. An
+#   earlier, tighter version of this zone (10r/s, burst=20) actually broke
+#   every app's page load - real traffic exhausted the burst instantly and
+#   got 429'd along with any bots, so a page would start rendering and then
+#   stall on whatever requests landed past the limit. This zone is meant to
+#   only catch a sustained flood, not a real browser's one-time burst -
+#   don't tighten it back down without testing an actual page load against
+#   it first. A script hammering one endpoint in a loop still gets
+#   throttled well before 30r/s sustained. Applied to EVERY app below.
+# perip_strict: a tight per-IP limit (5 req/MIN) for routes that cost real
+#   money/quota per hit (email) or are just abuse-prone (login/signup) -
+#   applied below to fridge-track's auth/email routes and car-track's
+#   signup/login. Safe to keep tight since these routes are only ever hit a
+#   handful of times per real user session, unlike general page/asset loads.
+#   Add a matching location block to any other app's own auth routes the
+#   same way if they see similar abuse.
+# perip_conn: caps concurrent connections per IP (40), independent of
+#   request rate - cheap insurance against connection-flood-style abuse,
+#   loosened alongside perip_general above for the same reason (a real page
+#   load with several boot-time API calls plus asset requests can briefly
+#   hold more than a couple connections open at once, especially over
+#   HTTP/1.1).
+limit_req_zone $binary_remote_addr zone=perip_general:10m rate=30r/s;
+limit_req_zone $binary_remote_addr zone=perip_strict:10m rate=5r/m;
+limit_conn_zone $binary_remote_addr zone=perip_conn:10m;
+
+# 429 instead of nginx's default 503 when a limit trips, and log it at `warn`
+# (not the default `error`) so a real traffic spike doesn't read as a server
+# fault when you're scanning logs later.
+limit_req_status 429;
+limit_conn_status 429;
+limit_req_log_level warn;
+
+
+map $http_x_forwarded_proto $redirect_scheme {
+    default $scheme;
+    https https;
+}
+
+server {
+        listen 80 default_server;
+        server_name _;
+        return 301 https://$host$request_uri;
+}
+
+# ROOT
+server {
+        listen 443 ssl;
+        server_name pablognesutta.com;
+        ssl_certificate /etc/letsencrypt/live/pablognesutta.com-0001/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com-0001/privkey.pem;
+
+        limit_conn perip_conn 40;
+        limit_req zone=perip_general burst=80 nodelay;
+
+        location / {
+                proxy_pass http://localhost:3004;
+        }
+}
+
+# Websynth
+server {
+        listen 443 ssl;
+        server_name    websynth.pablognesutta.com;
+        proxy_ssl_name websynth.pablognesutta.com;
+        ssl_certificate /etc/letsencrypt/live/pablognesutta.com/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com/privkey.pem;
+
+        limit_conn perip_conn 40;
+        limit_req zone=perip_general burst=80 nodelay;
+
+        location / {
+                proxy_pass http://localhost:3001;
+        }
+
+}
+
+# Habit tracker
+server {
+        listen 443 ssl;
+        server_name    tracker.pablognesutta.com;
+        proxy_ssl_name tracker.pablognesutta.com;
+        ssl_certificate /etc/letsencrypt/live/pablognesutta.com/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com/privkey.pem;
+
+        limit_conn perip_conn 40;
+        limit_req zone=perip_general burst=80 nodelay;
+
+        location / {
+                proxy_pass http://localhost:3123;
+        }
+
+}
+
+# Car tracker
+server {
+        listen 443 ssl;
+        server_name    car.pablognesutta.com;
+        proxy_ssl_name car.pablognesutta.com;
+        ssl_certificate /etc/letsencrypt/live/pablognesutta.com-0002/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com-0002/privkey.pem;
+
+        limit_conn perip_conn 40;
+        limit_req zone=perip_general burst=80 nodelay;
+
+        # car-track's own auth is just signup/login (no email-verification
+        # flow, no invites - see backend/src/http/apiRouter.js there), so
+        # those are the only two routes worth the strict zone.
+        location ~ ^/api/(signup|login)$ {
+                limit_req zone=perip_strict burst=3 nodelay;
+                proxy_pass http://localhost:3201;
+        }
+
+        location / {
+                proxy_pass http://localhost:3201;
+        }
+}
+
+# Fridge tracker
+server {
+        listen 443 ssl;
+        server_name    fridge.pablognesutta.com;
+        proxy_ssl_name fridge.pablognesutta.com;
+        ssl_certificate /etc/letsencrypt/live/pablognesutta.com-0002/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com-0002/privkey.pem;
+
+        limit_conn perip_conn 40;
+        limit_req zone=perip_general burst=80 nodelay;
+
+        # Tighter limit specifically on the routes that send email or touch
+        # auth - signup/resend-verification/verify-email can all trigger an
+        # outbound email, and homes/invite is the admin-only invite route
+        # (see backend/src/services/homeService.js). This is the directive
+        # that actually stops a bot from re-exhausting the SMTP quota; the
+        # baseline above only guards against raw request-flooding.
+        location ~ ^/api/(signup|login|resend-verification|verify-email|homes/invite)$ {
+                limit_req zone=perip_strict burst=3 nodelay;
+                proxy_pass http://localhost:3202;
+        }
+
+        location / {
+                proxy_pass http://localhost:3202;
+        }
+
+}
+
+# Chess
+#server {
+#        listen 443 ssl;
+#        server_name   chess.pablognesutta.com;
+#        proxy_ssl_name chess.pablognesutta.com/;
+#        ssl_certificate /etc/letsencrypt/live/pablognesutta.com/fullchain.pem;
+#        ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com/privkey.pem;
+#        location / {
+#                proxy_pass http://localhost:3010;
+#                proxy_http_version 1.1;
+#                proxy_cache_bypass $http_upgrade;
+#                proxy_set_header Upgrade $http_upgrade;
+#                proxy_set_header Connection "upgrade";
+#                proxy_set_header Host $host;
+#        }
+#}
+
+# Snap
+server {
+        listen 443 ssl;
+        server_name snap.pablognesutta.com;
+        proxy_ssl_name snap.pablognesutta.com;
+        ssl_certificate /etc/letsencrypt/live/pablognesutta.com/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com/privkey.pem;
+
+        limit_conn perip_conn 40;
+        limit_req zone=perip_general burst=80 nodelay;
+
+        location / {
+                proxy_pass http://localhost:3007;
+        }
+}
+# Calc Sueldo Fijo
+server {
+        listen 443 ssl;
+        server_name sueldo.pablognesutta.com;
+        proxy_ssl_name request-data.pablognesutta.com;
+        ssl_certificate /etc/letsencrypt/live/sueldo.pablognesutta.com/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/sueldo.pablognesutta.com/privkey.pem;
+
+        limit_conn perip_conn 40;
+        limit_req zone=perip_general burst=80 nodelay;
+
+        location / {
+                proxy_pass http://localhost:3120;
+        }
+}
+
+
+
+#Sonar (mobile)
+server {
+        listen 443 ssl;
+        server_name sonar.pablognesutta.com;
+        proxy_ssl_name sonar.pablognesutta.com;
+        ssl_certificate /etc/letsencrypt/live/pablognesutta.com-0001/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com-0001/privkey.pem;
+
+        limit_conn perip_conn 40;
+        limit_req zone=perip_general burst=80 nodelay;
+
+        location / {
+                proxy_pass http://localhost:3125;
+        }
+        proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+}

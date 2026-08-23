@@ -1,6 +1,7 @@
 {
   "type": "module",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
     "test": "node --test",
     "test:e2e": "playwright test"
   },

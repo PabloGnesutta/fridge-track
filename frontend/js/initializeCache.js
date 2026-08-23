@@ -20,13 +20,21 @@ function initializeCache() {
           if (!installedCache) {
             _info(' - installing cache for the first time...');
             localStorage.setItem('installedCache', 'INSTALLED');
+            // cacheServiceWorker.js's activate handler calls clients.claim(), so this fires once
+            // that lands - do one silent reload so THIS visit's own page load actually goes
+            // through the service worker (the first load never did, since no SW controlled the
+            // page yet) and gets cache-first populated. Without this, offline support would only
+            // start working on a later, separate visit.
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              window.location.reload();
+            }, { once: true });
           } else {
             _info(' - updating...');
             navigator.serviceWorker.onmessage = e => {
               _log(' - msg received from worker:', e.data.msg);
-              deleteOldCaches(e.data.msg.CACHE_WHITELIST);
-              localStorage.setItem('cacheMajorVersion', e.data.msg.MAJOR_VERSION)
-              $('cacheMajorVersion').innerText = e.data.msg.MAJOR_VERSION
+              deleteOldCaches(e.data.msg.cacheWhitelist);
+              localStorage.setItem('cacheMajorVersion', e.data.msg.cacheVersion)
+              $('cacheMajorVersion').innerText = e.data.msg.cacheVersion
             };
           }
         });
@@ -37,15 +45,15 @@ function initializeCache() {
 
 
 /**
- * @param {string} CACHE_WHITELIST
+ * @param {string[]} cacheWhitelist
  */
-async function deleteOldCaches(CACHE_WHITELIST) {
+async function deleteOldCaches(cacheWhitelist) {
   try {
     const existingCaches = await caches.keys();
     _log(' - deleting old caches: ' + existingCaches.toString());
-    _log(' - cache whitelist: ' + CACHE_WHITELIST.toString());
+    _log(' - cache whitelist: ' + cacheWhitelist.toString());
     for (const cacheName of existingCaches) {
-      if (CACHE_WHITELIST.includes(cacheName)) {
+      if (cacheWhitelist.includes(cacheName)) {
         continue;
       }
       const success = await caches.delete(cacheName);

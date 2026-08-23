@@ -24,6 +24,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DatabaseSync } from 'node:sqlite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
@@ -35,6 +36,26 @@ const ITEM_NAME = process.env.ITEM_NAME || 'Leche';
 const SHOTS_DIR = process.env.SHOTS_DIR || join(__dirname, 'shots');
 
 mkdirSync(SHOTS_DIR, { recursive: true });
+
+/**
+ * A fresh signup always comes back with requiresVerification: true (see
+ * apiRouter.js's 'signup' route) - read the code straight out of the sqlite
+ * file rather than needing real inbox access for a @test.local address.
+ * Single quick read, opened and closed immediately to minimize overlap with
+ * the running server's own connection (see the concurrent-db-access gotcha
+ * in SKILL.md).
+ * @param {string} email
+ */
+function readVerificationCode(email) {
+  const dbPath = join(__dirname, '..', '..', '..', 'backend', 'data', 'fridgetrack.db');
+  const db = new DatabaseSync(dbPath, { readOnly: true });
+  try {
+    const row = db.prepare('SELECT verification_code FROM users WHERE email = ?').get(email);
+    return row?.verification_code || null;
+  } finally {
+    db.close();
+  }
+}
 
 const errors = [];
 const browser = await chromium.launch();
@@ -52,6 +73,17 @@ await page.click('#authModeToggle');
 await page.fill('#authForm input[name="authEmail"]', EMAIL);
 await page.fill('#authForm input[name="authPassword"]', PASSWORD);
 await page.click('#authForm .submit .base-button');
+
+// A fresh signup always requires email verification first - handle that
+// screen if it shows up (an existing/already-verified EMAIL skips straight
+// past it, logging in directly instead).
+const verifyView = await page.waitForSelector('#verifyEmailForm:not(.display-none)', { timeout: 10000 }).catch(() => null);
+if (verifyView) {
+  const code = readVerificationCode(EMAIL);
+  console.log('[drive] verification code read from db:', code);
+  await page.fill('#verifyEmailForm input[name="verifyCode"]', code);
+  await page.click('#verifyEmailForm .submit .base-button');
+}
 
 // Either a fresh signup lands on Home creation, or (if EMAIL already has a
 // Home) it goes straight to the item list - handle both.
