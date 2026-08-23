@@ -83,9 +83,12 @@ async function runNotificationTick(db) {
         body: `${count} alimento${count === 1 ? '' : 's'} vence${count === 1 ? '' : 'n'} pronto`,
       });
 
+      let sentToAnySubscription = false;
+
       for (const subscription of subscriptions) {
         try {
           await getWebPush().sendNotification(subscription, payload);
+          sentToAnySubscription = true;
         } catch (err) {
           if (err?.statusCode === 404 || err?.statusCode === 410) {
             pushService.removeSubscriptionByEndpoint(subscription.endpoint);
@@ -96,7 +99,12 @@ async function runNotificationTick(db) {
         }
       }
 
-      pushService.recordSent(userId, home.id, today);
+      // Only dedup the day if something actually got through - a total
+      // failure (e.g. bad VAPID keys) should retry next tick, not silently
+      // wait until tomorrow while push_notification_log implies it worked.
+      if (sentToAnySubscription) {
+        pushService.recordSent(userId, home.id, today);
+      }
     }
   }
 }

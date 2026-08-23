@@ -522,6 +522,15 @@ revoked/expired browser subscription, deleted after its first 404/410) just sile
 that's not an error case — check `push_subscriptions` directly if the alert never fires but notifications
 still aren't arriving.
 
+**`push_notification_log` is only written on an actual successful send now** - a real incident (VAPID
+keys the deployed server no longer had valid credentials for, so every `sendNotification` call failed the
+same way, day after day) showed that recording the day as "sent" unconditionally let a total failure hide
+behind a log row that looked identical to a real delivery, silently skipping every retry until the next
+day rolled over. `runNotificationTick()` now only calls `pushService.recordSent()` if at least one
+subscription in the loop actually succeeded - a total failure (e.g. every subscription throwing the same
+non-404/410 error) leaves the day unmarked, so the next hourly tick retries automatically instead of
+waiting a full day, and each retry re-fires `alertPushFailure()` too.
+
 Three new bearer-auth-gated routes in `apiRouter.js`, following the exact existing POST-only pattern:
 `push/vapid-public-key`, `push/subscribe`, `push/unsubscribe` — mirrored on the client as
 `apiPushVapidKey`/`apiPushSubscribe`/`apiPushUnsubscribe` in `apiCaller.js`.
