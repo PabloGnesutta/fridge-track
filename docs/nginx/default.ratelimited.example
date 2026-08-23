@@ -43,6 +43,49 @@ limit_req_status 429;
 limit_conn_status 429;
 limit_req_log_level warn;
 
+##########################
+# General hardening/perf #
+##########################
+# Hides the nginx version from the `Server:` response header and default
+# error pages - free fingerprinting removed, costs nothing.
+server_tokens off;
+
+# gzip text-ish assets - these apps ship many small separate JS/CSS files
+# (no bundler), so compressing them is a direct, cheap complement to the
+# service-worker caching work: smaller transfers on top of fewer repeat
+# fetches. Safe for any real client in 2026; no compatibility concerns.
+# NOTE: `gzip on;` itself is deliberately NOT repeated here - your
+# nginx.conf's http{} block already sets it (Debian/Ubuntu's stock default),
+# and this file's top-level directives load into that exact same http{}
+# context via sites-enabled, so redefining it is a hard "duplicate
+# directive" error, not an override. Only the settings nginx.conf leaves
+# commented out are added here.
+gzip_vary on;
+gzip_min_length 256;
+gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+# TLS hardening. ssl_ciphers/session cache/timeout/tickets are safe to set
+# here (nginx.conf doesn't touch them) - an ECDHE/CHACHA20-only cipher list
+# (works with both RSA and ECDSA certs, deliberately excludes DHE suites so
+# this doesn't depend on a `ssl_dhparam` file existing/being strong - none
+# was configured before this change), a shared session cache/timeout to
+# speed up repeat visits, and session tickets turned off since they can
+# weaken forward secrecy unless the key is rotated, which nothing here does.
+#
+# ssl_protocols and ssl_prefer_server_ciphers are NOT set here, unlike the
+# first draft of this file - your nginx.conf's http{} block already sets
+# both (`ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;` and
+# `ssl_prefer_server_ciphers on;`), so redefining them here hits the same
+# duplicate-directive error gzip did. Fixing those two for real means
+# editing nginx.conf directly (see docs/nginx/README.md's "nginx.conf
+# changes" section) - dropping TLSv1/TLSv1.1 there is the actual point of
+# this hardening pass; leaving this file's copy in would have silently
+# failed to achieve it even if nginx.conf's duplicate weren't a hard error.
+ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+ssl_session_cache shared:SSL:10m;
+ssl_session_timeout 1d;
+ssl_session_tickets off;
+
 
 map $http_x_forwarded_proto $redirect_scheme {
     default $scheme;
@@ -55,31 +98,79 @@ server {
         return 301 https://$host$request_uri;
 }
 
-# ROOT
+# Every real vhost this box serves, explicitly listed (not `server_name _;`)
+# - this is what makes `$host` in the redirect below safe. The original
+# single `server_name _;` catch-all matched (and 301-redirected using)
+# *any* Host header a request came in with, including one an attacker sets
+# by hand when hitting the bare IP directly - a classic Host-header-trust
+# footgun (nginx will happily reply "301 https://evil.com/..." to a request
+# whose Host header says "evil.com", even though this server has nothing to
+# do with that domain). Restricting server_name to the known list means
+# this block is only ever reached for one of these exact hosts, so `$host`
+# here can only ever be one of them by the time nginx gets this far.
 server {
-        listen 443 ssl;
+        listen 80;
+        server_name pablognesutta.com websynth.pablognesutta.com tracker.pablognesutta.com
+                    car.pablognesutta.com fridge.pablognesutta.com snap.pablognesutta.com
+                    sueldo.pablognesutta.com sonar.pablognesutta.com;
+        return 301 https://$host$request_uri;
+}
+
+# Add any new vhost's domain to the list above BEFORE pointing DNS at this
+# box, or its first requests will 444 here instead of redirecting.
+
+########
+# ROOT #
+########
+server {
+        listen 443 ssl http2;
         server_name pablognesutta.com;
         ssl_certificate /etc/letsencrypt/live/pablognesutta.com-0001/fullchain.pem;
         ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com-0001/privkey.pem;
 
+        # HSTS on the bare domain only (not includeSubDomains) - deliberately
+        # scoped narrow since several unrelated hobby-project subdomains live
+        # under pablognesutta.com and includeSubDomains would force ALL of
+        # them (including any not-yet-created one) into HTTPS-only for as
+        # long as a visiting browser remembers this header, which is hard to
+        # walk back quickly if a future subdomain isn't HTTPS-ready yet.
+        add_header Strict-Transport-Security "max-age=31536000" always;
+
         limit_conn perip_conn 40;
         limit_req zone=perip_general burst=80 nodelay;
+
+        access_log /var/log/nginx/root.access.log;
+        error_log /var/log/nginx/root.error.log warn;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $redirect_scheme;
 
         location / {
                 proxy_pass http://localhost:3004;
         }
 }
 
-# Websynth
+############
+# Websynth #
+############
 server {
-        listen 443 ssl;
+        listen 443 ssl http2;
         server_name    websynth.pablognesutta.com;
-        proxy_ssl_name websynth.pablognesutta.com;
         ssl_certificate /etc/letsencrypt/live/pablognesutta.com/fullchain.pem;
         ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com/privkey.pem;
 
         limit_conn perip_conn 40;
         limit_req zone=perip_general burst=80 nodelay;
+
+        access_log /var/log/nginx/websynth.access.log;
+        error_log /var/log/nginx/websynth.error.log warn;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $redirect_scheme;
 
         location / {
                 proxy_pass http://localhost:3001;
@@ -87,16 +178,25 @@ server {
 
 }
 
-# Habit tracker
+#################
+# Habit tracker #
+#################
 server {
-        listen 443 ssl;
+        listen 443 ssl http2;
         server_name    tracker.pablognesutta.com;
-        proxy_ssl_name tracker.pablognesutta.com;
         ssl_certificate /etc/letsencrypt/live/pablognesutta.com/fullchain.pem;
         ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com/privkey.pem;
 
         limit_conn perip_conn 40;
         limit_req zone=perip_general burst=80 nodelay;
+
+        access_log /var/log/nginx/tracker.access.log;
+        error_log /var/log/nginx/tracker.error.log warn;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $redirect_scheme;
 
         location / {
                 proxy_pass http://localhost:3123;
@@ -104,16 +204,25 @@ server {
 
 }
 
-# Car tracker
+###############
+# Car tracker #
+###############
 server {
-        listen 443 ssl;
+        listen 443 ssl http2;
         server_name    car.pablognesutta.com;
-        proxy_ssl_name car.pablognesutta.com;
         ssl_certificate /etc/letsencrypt/live/pablognesutta.com-0002/fullchain.pem;
         ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com-0002/privkey.pem;
 
         limit_conn perip_conn 40;
         limit_req zone=perip_general burst=80 nodelay;
+
+        access_log /var/log/nginx/car.access.log;
+        error_log /var/log/nginx/car.error.log warn;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $redirect_scheme;
 
         # car-track's own auth is just signup/login (no email-verification
         # flow, no invites - see backend/src/http/apiRouter.js there), so
@@ -128,16 +237,25 @@ server {
         }
 }
 
-# Fridge tracker
+##################
+# Fridge tracker #
+##################
 server {
-        listen 443 ssl;
+        listen 443 ssl http2;
         server_name    fridge.pablognesutta.com;
-        proxy_ssl_name fridge.pablognesutta.com;
         ssl_certificate /etc/letsencrypt/live/pablognesutta.com-0002/fullchain.pem;
         ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com-0002/privkey.pem;
 
         limit_conn perip_conn 40;
         limit_req zone=perip_general burst=80 nodelay;
+
+        access_log /var/log/nginx/fridge.access.log;
+        error_log /var/log/nginx/fridge.error.log warn;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $redirect_scheme;
 
         # Tighter limit specifically on the routes that send email or touch
         # auth - signup/resend-verification/verify-email can all trigger an
@@ -156,71 +274,99 @@ server {
 
 }
 
-# Chess
-#server {
-#        listen 443 ssl;
-#        server_name   chess.pablognesutta.com;
-#        proxy_ssl_name chess.pablognesutta.com/;
-#        ssl_certificate /etc/letsencrypt/live/pablognesutta.com/fullchain.pem;
-#        ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com/privkey.pem;
-#        location / {
-#                proxy_pass http://localhost:3010;
-#                proxy_http_version 1.1;
-#                proxy_cache_bypass $http_upgrade;
-#                proxy_set_header Upgrade $http_upgrade;
-#                proxy_set_header Connection "upgrade";
-#                proxy_set_header Host $host;
-#        }
-#}
-
-# Snap
+########
+# Snap #
+########
 server {
-        listen 443 ssl;
+        listen 443 ssl http2;
         server_name snap.pablognesutta.com;
-        proxy_ssl_name snap.pablognesutta.com;
         ssl_certificate /etc/letsencrypt/live/pablognesutta.com/fullchain.pem;
         ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com/privkey.pem;
 
         limit_conn perip_conn 40;
         limit_req zone=perip_general burst=80 nodelay;
 
+        access_log /var/log/nginx/snap.access.log;
+        error_log /var/log/nginx/snap.error.log warn;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $redirect_scheme;
+
         location / {
                 proxy_pass http://localhost:3007;
         }
 }
-# Calc Sueldo Fijo
+
+####################
+# Calc Sueldo Fijo #
+####################
 server {
-        listen 443 ssl;
+        listen 443 ssl http2;
         server_name sueldo.pablognesutta.com;
-        proxy_ssl_name request-data.pablognesutta.com;
         ssl_certificate /etc/letsencrypt/live/sueldo.pablognesutta.com/fullchain.pem;
         ssl_certificate_key /etc/letsencrypt/live/sueldo.pablognesutta.com/privkey.pem;
 
         limit_conn perip_conn 40;
         limit_req zone=perip_general burst=80 nodelay;
 
+        access_log /var/log/nginx/sueldo.access.log;
+        error_log /var/log/nginx/sueldo.error.log warn;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $redirect_scheme;
+
         location / {
                 proxy_pass http://localhost:3120;
         }
 }
 
-
-
-#Sonar (mobile)
+#################
+#Sonar (mobile) #
+#################
 server {
-        listen 443 ssl;
+        listen 443 ssl http2;
         server_name sonar.pablognesutta.com;
-        proxy_ssl_name sonar.pablognesutta.com;
         ssl_certificate /etc/letsencrypt/live/pablognesutta.com-0001/fullchain.pem;
         ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com-0001/privkey.pem;
 
         limit_conn perip_conn 40;
         limit_req zone=perip_general burst=80 nodelay;
 
+        access_log /var/log/nginx/sonar.access.log;
+        error_log /var/log/nginx/sonar.error.log warn;
+
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $redirect_scheme;
+
         location / {
                 proxy_pass http://localhost:3125;
         }
         proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-    proxy_set_header Host $host;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+}
+
+# Catch-all for any TLS handshake whose SNI/Host doesn't match one of the
+# vhosts above (a bot scanning the bare IP directly, mostly) - without this,
+# nginx silently falls back to whichever 443 block appears first in this
+# file (ROOT) as the default for the socket, quietly serving that site's
+# real content to traffic that was never addressed to it. `default_server`
+# here overrides that implicit choice. A cert is still required to complete
+# *any* TLS handshake on this socket regardless of SNI match, so this reuses
+# ROOT's own cert purely to have something to present - `return 444` then
+# closes the connection immediately with no HTTP response at all. (Newer
+# nginx (1.19.4+) can skip presenting a cert entirely via
+# `ssl_reject_handshake on;` instead - not used here since this box is on an
+# older version; revisit if nginx is ever upgraded.)
+server {
+        listen 443 ssl http2 default_server;
+        server_name _;
+        ssl_certificate /etc/letsencrypt/live/pablognesutta.com-0001/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com-0001/privkey.pem;
+        return 444;
 }
