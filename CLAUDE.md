@@ -12,7 +12,7 @@ was built against 24.19.0 via `nvm4w` on Windows) if your global Node is older.
 
 **Backend (`backend/`)** — serves the frontend and hosts the accounts/Home API (see Architecture below):
 ```
-npm run serve          # nodemon on src/index.js, reads PORT from backend/.env (currently 3001)
+npm run serve          # nodemon on src/index.fridge.js, reads PORT from backend/.env (currently 3001)
 npm test                # unit tests: node --test (backend/test/*.test.js) - service-layer logic only
 ```
 `backend/.env` also needs `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` for push notifications
@@ -484,7 +484,7 @@ shelf-life-days are editable - not the category, since that's a property of *whe
 A background scheduler on the backend, not a client-side timer, since the whole point is alerting users
 who don't have the app open. Follows the sync engine's "best-effort, no outbox" philosophy rather than
 building real cron infra: `backend/src/scheduler/expiryNotifier.js`'s `startExpiryNotificationScheduler(db)`
-(started from `index.js`'s `listen()` callback) runs an immediate tick, then a `setInterval` every
+(started from `index.fridge.js`'s `listen()` callback) runs an immediate tick, then a `setInterval` every
 `NOTIFICATION_CHECK_INTERVAL_MS` (env, default 1h). **v1 is deliberately one digest notification per user
 per Home per day** ("N alimentos vencen pronto"), not per-item tracking — a `push_notification_log` row
 keyed by `(user_id, home_id, sent_date)` (migration `002_push_subscriptions`, alongside `push_subscriptions`
@@ -503,12 +503,24 @@ because the two npm projects share no code; if the threshold/logic ever changes,
 same device doesn't duplicate) and the log table above. `backend/src/services/webPushClient.js` wraps the
 new `web-push` npm dependency (the backend's **first real runtime `dependencies` entry** — previously only
 `devDependencies` existed) and **configures VAPID lazily** (`getWebPush()`, memoized on first call) rather
-than at module top level: this module is statically imported (via `expiryNotifier.js`) from `index.js`,
-and ES module imports are hoisted and evaluated *before* any of `index.js`'s own body runs — including its
+than at module top level: this module is statically imported (via `expiryNotifier.js`) from `index.fridge.js`,
+and ES module imports are hoisted and evaluated *before* any of `index.fridge.js`'s own body runs — including its
 `configEnv()` dotenv call — so reading `process.env.VAPID_*` at import time would always see `undefined`.
-This is the same ESM-ordering quirk `index.js`'s own header comment already warns about, just tripped in a
+This is the same ESM-ordering quirk `index.fridge.js`'s own header comment already warns about, just tripped in a
 new way. VAPID keys live in `backend/.env` (`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`,
 generated once via `npx web-push generate-vapid-keys`), loaded the same way `PORT` already is.
+
+**A scheduler failure emails an admin alert**, added after a real incident where the digest silently
+stopped for over a day with zero signal anywhere (the droplet's process just wasn't running, and nothing
+short of manually diffing `push_notification_log` against expected dates would have caught it).
+`expiryNotifier.js`'s `alertPushFailure()` fires `emailService.js`'s `sendEmail()` (see "Email sending"
+below) to a hardcoded address on two paths: a `sendNotification` failure that isn't a normal 404/410
+"subscription gone" case, and any uncaught error in the tick itself. The address is a plain module
+constant, not an env var — this is a diagnostic alert to the one operator running this instance, not a
+per-deployment setting. Doesn't catch every failure mode: a Home with zero `push_subscriptions` rows (a
+revoked/expired browser subscription, deleted after its first 404/410) just silently sends nothing, since
+that's not an error case — check `push_subscriptions` directly if the alert never fires but notifications
+still aren't arriving.
 
 Three new bearer-auth-gated routes in `apiRouter.js`, following the exact existing POST-only pattern:
 `push/vapid-public-key`, `push/subscribe`, `push/unsubscribe` — mirrored on the client as
@@ -566,13 +578,13 @@ split three ways:
   like SES/SendGrid, so switching providers later is just env vars) behind `getMailTransport()`, memoized
   and configured lazily on first call for the same ESM-import-hoisting reason `webPushClient.js`/
   `edamamClient.js` already document — reading `process.env.SMTP_*` at module top level would always see
-  `undefined`, since this module loads before `index.js`'s `configEnv()` dotenv call runs.
+  `undefined`, since this module loads before `index.fridge.js`'s `configEnv()` dotenv call runs.
 - `backend/src/services/emailService.js` — `createEmailService(mailClient = {getMailTransport})` exposes
   `sendEmail({to, subject, text, html?, appName?})`, auto-generating the HTML via `emailTemplate.js` unless
-  the caller already supplies `html`. Unlike the push scheduler's fire-and-forget/log-and-continue calls,
-  `sendEmail()` is always caller-invoked (nothing triggers it automatically yet), so it deliberately
-  **rejects** on missing SMTP config or a transport failure instead of swallowing the error — the caller
-  is in the best position to decide whether that should surface, retry, or be ignored.
+  the caller already supplies `html`. `sendEmail()` **never throws** — it logs and returns `false` on
+  missing SMTP config or a transport failure, so a caller can fire-and-forget without a try/catch. This
+  is what `expiryNotifier.js` now relies on (see "Push notifications" below) to email an admin alert on
+  scheduler failures without risking the scheduler itself on a broken SMTP config.
 
 Config lives in `backend/.env` (`SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASS`/`MAIL_FROM`/
 `MAIL_APP_NAME`, all optional/blank in `.env.example`) the same way `PORT`/`VAPID_*` already are. Not
