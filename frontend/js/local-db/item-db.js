@@ -121,6 +121,7 @@ async function updateItem(item, data, date = new Date()) {
     item.normalizedName = normalize(data.name);
   }
   if ('quantity' in data) { item.quantity = data.quantity || ''; }
+  if (data.addedDate) { item.addedDate = data.addedDate; }
   if ('useByDate' in data) { item.useByDate = data.useByDate || null; }
   if ('shelfLifeDays' in data) { item.shelfLifeDays = data.shelfLifeDays || null; }
   if ('notes' in data) { item.notes = data.notes || ''; }

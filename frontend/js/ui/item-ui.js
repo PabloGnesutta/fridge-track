@@ -454,9 +454,8 @@ async function submitItemForm(e) {
   const notes = formData.get('itemNotes')?.toString() || '';
 
   if (appState.editingItem === true && dataState.currentItem) {
-    const result = await updateItem(dataState.currentItem, { name, quantity, useByDate, shelfLifeDays, notes });
+    const result = await updateItem(dataState.currentItem, { name, quantity, addedDate, useByDate, shelfLifeDays, notes });
     if (!result.data) { return showErrorToast(result.errorMsg); }
-    dataState.currentItem.addedDate = addedDate;
     setStateField('editingItem', false);
   } else {
     const result = await createItem(location._key || '', name, { quantity, addedDate, useByDate, shelfLifeDays, notes });
