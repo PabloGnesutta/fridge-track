@@ -343,10 +343,6 @@ function initUi() {
   $('app').addEventListener('click', e => {
     const target = e.target;
     if (!target) { return; }
-    if (target instanceof HTMLInputElement) {
-      target.select();
-      return;
-    }
     // Note: `instanceof Element` (not HTMLElement) so clicks landing on an
     // inline <svg>/<path> icon (an SVGElement) aren't silently dropped.
     if (!(target instanceof Element)) { return; }

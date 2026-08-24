@@ -64,6 +64,16 @@ const itemNotesInput = $queryOneInput('#itemForm textarea[name="itemNotes"]');
 const submitItemBtn = $queryOne('#itemForm .submit');
 const nameSuggestionsEl = $queryOne('#itemForm .name-suggestions');
 
+// useByDate and shelfLifeDays are two alternate ways of expressing the same
+// thing (an absolute date vs. a days-from-now duration) - only the last one
+// the user actually typed into should stick, so each clears the other.
+useByDateInput.addEventListener('input', () => {
+  if (useByDateInput.value) { shelfLifeDaysInput.value = ''; }
+});
+shelfLifeDaysInput.addEventListener('input', () => {
+  if (shelfLifeDaysInput.value) { useByDateInput.value = ''; }
+});
+
 // Intercept native form submission (e.g. pressing Enter in a field) so it
 // doesn't navigate the browser away with the field as a GET query string.
 itemForm.addEventListener('submit', submitItemForm);
