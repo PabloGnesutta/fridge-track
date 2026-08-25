@@ -99,6 +99,7 @@ svg {
 }
 
 .views .page {
+  min-height: calc(100vh - var(--header-heigt) - var(--footer-heigt));
   min-height: calc(100dvh - var(--header-heigt) - var(--footer-heigt));
 }
 
@@ -189,6 +190,7 @@ svg {
 #newItemBtn {
   position: fixed;
   bottom: calc(var(--footer-heigt) + 1rem);
+  right: 3vw;
   right: 3dvw;
   width: 60px;
   height: 60px;
@@ -208,6 +210,7 @@ svg {
 #newItemVoiceBtn {
   position: fixed;
   bottom: calc(var(--footer-heigt) + 1rem);
+  right: calc(3vw + 72px);
   right: calc(3dvw + 72px);
   z-index: 1;
 }
@@ -387,6 +390,7 @@ svg {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 2vw;
   gap: 2dvw;
   color: white;
   padding: 0.5rem;
@@ -581,6 +585,7 @@ svg {
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 1vw;
   padding: 1dvw;
 
   /* Hidden by default via opacity (not display:none) so it can transition -
@@ -603,7 +608,9 @@ svg {
 
 .modal .close-modal {
   position: absolute;
+  top: 1vh;
   top: 1dvh;
+  right: 5vw;
   right: 5dvw;
   font-size: 42px;
 }
@@ -614,6 +621,7 @@ svg {
   width: 90%;
   max-width: 600px;
   border-radius: 8px;
+  max-height: 85vh;
   max-height: 85dvh;
   overflow-y: auto;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);

@@ -11,6 +11,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 1vw;
   padding: 1dvw;
 
   /* Same opacity+delayed-visibility fade as .modal (style.css), so a
