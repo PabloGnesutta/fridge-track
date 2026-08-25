@@ -4,13 +4,14 @@
  * Pure and DOM-free so it's unit-testable without a browser - the mic
  * button/status UI lives in ui/voice-item-ui.js instead.
  *
- * Grammar: [nombre] (cantidad [cantidad]) (vencimiento (en [N] días | el
- * [día] de [mes])). Only "nombre" is required; "cantidad"/"vencimiento" are
- * each independently optional and detected by keyword, not position, so a
- * transcript missing one (or with them said out of order) still parses the
+ * Grammar: [nombre] (cantidad [cantidad]) ((vencimiento|vence) (en [N] días |
+ * el [día] de [mes])). Only "nombre" is required; "cantidad"/"vencimiento"
+ * are each independently optional and detected by keyword, not position, so
+ * a transcript missing one (or with them said out of order) still parses the
  * pieces it does have instead of failing outright. Speech recognition
  * doesn't produce punctuation, so these are spoken keywords, not the
- * literal words with a trailing colon.
+ * literal words with a trailing colon. "vence" is accepted as a shorter
+ * alternative to "vencimiento" - same due-phrase keyword either way.
  */
 import { parseSpanishNumber, stripAccents } from './spanishNumbers.js';
 import { MONTHS } from './date.js';
@@ -79,7 +80,8 @@ function parseItemDictation(transcript, currentDate = new Date()) {
   /** @type {{key: 'cantidad'|'vencimiento', idx: number}[]} */
   const keywords = [];
   normWords.forEach((word, idx) => {
-    if (word === 'cantidad' || word === 'vencimiento') { keywords.push({ key: word, idx }); }
+    if (word === 'cantidad') { keywords.push({ key: word, idx }); }
+    else if (word === 'vencimiento' || word === 'vence') { keywords.push({ key: 'vencimiento', idx }); }
   });
 
   const nameEnd = keywords.length ? keywords[0].idx : rawWords.length;

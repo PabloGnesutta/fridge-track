@@ -399,8 +399,11 @@ function appendItemRow(item) {
 /**
  * Open create/edit item modal.
  * @param {boolean} isEdit
+ * @param {boolean} [focusName] - false for the voice-entry FAB, which starts
+ *   dictation immediately instead - focusing/selecting itemName would pop
+ *   the on-screen keyboard open on mobile for no reason right before that.
  */
-function openItemForm(isEdit) {
+function openItemForm(isEdit, focusName = true) {
   const submitLabel = $getInner(submitItemBtn, '.label');
   const formTitle = $getInner(itemForm, '.form-title');
   const location = dataState.currentLocation;
@@ -429,8 +432,10 @@ function openItemForm(isEdit) {
   hideNameSuggestions();
   resetVoiceStatus();
   setStateField('showItemForm', true);
-  itemNameInput.focus();
-  itemNameInput.select();
+  if (focusName) {
+    itemNameInput.focus();
+    itemNameInput.select();
+  }
 }
 
 /**

@@ -155,6 +155,7 @@
           <!--  -->
         </div>
         <div class="btns">
+          <div id="newItemVoiceBtn" class="display-none"><!--  --></div>
           <div id="newItemBtn" role="button" tabindex="0" aria-label="Agregar alimento" class="base-button">&plus;</div>
         </div>
       </div>
@@ -236,7 +237,7 @@
               <div class="name-suggestions"><!--  --></div>
               <div class="voice-status"><!--  --></div>
             </div>
-            <div class="form-control">
+            <div class="form-control display-none">
               <label for="quantity">Cantidad</label>
               <input type="text" name="quantity" placeholder="ej. 1 litro" />
             </div>
@@ -244,17 +245,17 @@
               <label for="useByDate">Vencimiento</label>
               <div class="due-inputs">
                 <input type="date" name="useByDate" />
-                <span class="due-divider">o en</span>
+                <span class="due-divider">o en días</span>
                 <input type="number" step="1" min="0" name="shelfLifeDays" placeholder="días" />
               </div>
             </div>
             <div class="form-control">
-              <label for="addedDate">Fecha agregado</label>
-              <input type="date" name="addedDate" />
-            </div>
-            <div class="form-control">
               <label for="itemNotes">Notas</label>
               <textarea rows="3" name="itemNotes"></textarea>
+            </div>
+            <div class="form-control">
+              <label for="addedDate">Fecha agregado</label>
+              <input type="date" name="addedDate" />
             </div>
             <div class="submit"><!--  --></div>
           </div>

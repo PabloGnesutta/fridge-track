@@ -205,6 +205,27 @@ svg {
   background-color: var(--accent-text);
 }
 
+#newItemVoiceBtn {
+  position: fixed;
+  bottom: calc(var(--footer-heigt) + 1rem);
+  right: calc(3dvw + 72px);
+  z-index: 1;
+}
+
+#newItemVoiceBtn .btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 1px solid var(--accent-border);
+  background-color: var(--bg-surface-raised);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+#newItemVoiceBtn .icon {
+  width: 22px;
+  height: 22px;
+}
+
 .status-badge {
   padding: 2px 8px;
   border-radius: 999px;

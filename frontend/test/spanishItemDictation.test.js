@@ -76,6 +76,13 @@ test('a transcript starting with a keyword yields an empty name', () => {
   assert.equal(result.quantity, 'dos litros');
 });
 
+test('"vence" works as a shorter alternative to "vencimiento"', () => {
+  const result = parseItemDictation('Leche vence en cinco dias');
+  assert.equal(result.name, 'Leche');
+  assert.equal(result.shelfLifeDays, 5);
+  assert.equal(result.useByDate, null);
+});
+
 test('vencimiento with no day or month recognized leaves both due fields null', () => {
   const result = parseItemDictation('Leche vencimiento pronto');
   assert.equal(result.shelfLifeDays, null);

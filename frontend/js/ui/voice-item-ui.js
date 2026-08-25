@@ -4,9 +4,11 @@ import { parseItemDictation } from "../lib/spanishItemDictation.js";
 import { toYYYYMMDD } from "../lib/date.js";
 import { svg_mic } from "../svg/svgFn.js";
 import { haptic } from "../lib/haptics.js";
+import { openItemForm } from "./item-ui.js";
 
 
 const micBtnContainer = $queryOne('#itemForm .mic-btn');
+const newItemVoiceBtnContainer = $queryOne('#newItemVoiceBtn');
 const statusEl = $getInner($queryOne('#itemForm .name-field'), '.voice-status');
 const itemNameInput = $queryOneInput('#itemForm input[name="itemName"]');
 const quantityInput = $queryOneInput('#itemForm input[name="quantity"]');
@@ -37,6 +39,17 @@ function initVoiceItemUi() {
     ariaLabel: 'Dictar por voz',
     appendTo: micBtnContainer,
     listener: { fn: () => (activeStop ? activeStop() : startListening()) },
+  });
+
+  // Floating button next to "newItemBtn" - opens the item form straight into
+  // dictation instead of focusing itemName first (which would pop the
+  // on-screen keyboard open on mobile right before voice input takes over).
+  newItemVoiceBtnContainer.classList.remove('display-none');
+  $button({
+    svgFn: svg_mic,
+    ariaLabel: 'Agregar alimento por voz',
+    appendTo: newItemVoiceBtnContainer,
+    listener: { fn: () => { openItemForm(false, false); startListening(); } },
   });
 }
 
