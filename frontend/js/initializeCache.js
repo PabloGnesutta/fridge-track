@@ -14,6 +14,22 @@ function initializeCache() {
       .then(registration => {
         _info(' - service worker registered');
 
+        // Browsers only check cacheServiceWorker.js's own bytes for changes
+        // on a real navigation, and even then at most once per ~24h per
+        // registration - an installed PWA that's just resumed from the
+        // background (no navigation, no reload) can go a long time without
+        // that check ever firing on its own. registration.update() forces
+        // the same check on demand, so wire it to the moment a backgrounded
+        // PWA becomes foreground again - the one real gap this leaves is a
+        // session that's *never* backgrounded/foregrounded (stays open and
+        // in-focus the whole time), which still relies on the browser's own
+        // eventual check.
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+            registration.update();
+          }
+        });
+
         // Listen for updates
         registration.addEventListener('updatefound', () => {
           _info(' - update found');
