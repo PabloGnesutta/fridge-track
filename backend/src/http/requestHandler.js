@@ -52,7 +52,16 @@ export async function handleRequest(req, res) {
     }
 
     else if (pathBase === 'cacheServiceWorker.js') {
-      return sendAssetFile(res, ['cacheServiceWorker.js'], 'application/javascript');
+      // Must never be cached by anything between the browser and this server (a mobile carrier's
+      // transparent proxy, in particular - a very plausible reason one Android device sees the
+      // update banner while another on a different network doesn't). Chrome's SW "soft update"
+      // check (fired on every navigation, and what a manual refresh triggers) only force-bypasses
+      // HTTP caching once every ~24h; the rest of the time a stale cached copy here means the
+      // byte-diff check compares against old bytes and never finds an update, no matter how many
+      // times the page is refreshed.
+      return sendAssetFile(res, ['cacheServiceWorker.js'], 'application/javascript', {
+        'cache-control': 'no-store',
+      });
     }
     else if (pathBase === 'favicon.ico') {
       return sendAssetFile(res, ['static', pathBase], 'image/x-icon');
@@ -76,19 +85,20 @@ export async function handleRequest(req, res) {
 }
 
 /**
- * Uses the response object to stream static files. 
+ * Uses the response object to stream static files.
  * Returns null.
  * @param {import('./types').ApiResponse} res - response object
  * @param {string[]} fileRoute
  * @param {string} contentType - Should pobably be an enum
+ * @param {Record<string, string>} [extraHeaders]
  * @returns {null}
  */
-function sendAssetFile(res, fileRoute, contentType) {
+function sendAssetFile(res, fileRoute, contentType, extraHeaders) {
   // TODO: Not very fond of this spread
   const filePath = join(PUBLIC_DIR, ...fileRoute);
   fs.stat(filePath, (err, stat) => {
     if (err === null) {
-      res.writeHead(200, { 'content-type': contentType });
+      res.writeHead(200, { 'content-type': contentType, ...extraHeaders });
       const stream = fs.createReadStream(filePath);
       stream.pipe(res);
       return;
