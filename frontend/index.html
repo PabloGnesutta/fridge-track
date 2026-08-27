@@ -42,6 +42,16 @@
         <div id="headerMenu" class="header-menu">
           <div id="headerMenuBtn"></div>
           <div class="header-menu-panel display-none">
+            <div id="menuTabListBtn" class="header-menu-item"></div>
+            <div id="menuTabHistoryBtn" class="header-menu-item"></div>
+            <div id="menuTabHomeBtn" class="header-menu-item"></div>
+            <div class="header-menu-item toggle-item">
+              <span class="toggle-label">Mostrar barra de navegación</span>
+              <label class="switch">
+                <input type="checkbox" id="footerVisibleToggle" />
+                <span class="switch-track"></span>
+              </label>
+            </div>
             <div class="header-menu-item toggle-item">
               <span class="toggle-label">Notificaciones push</span>
               <label class="switch">
@@ -136,10 +146,6 @@
 
       <!-- Item List -->
       <div id="itemListView" class="page">
-        <div class="home-switcher" data-click-action="openHomeManage">
-          <span class="home-switcher-name"></span>
-          <span class="home-switcher-code"></span>
-        </div>
         <div id="homeSummary" class="home-summary display-none" data-click-action="openMostUrgentItem"></div>
         <div id="recipeSuggestions" class="recipe-suggestions display-none" data-click-action="openRecipeSuggestions">🍳 Ver recetas con lo que vence</div>
         <div id="recipeResults" class="recipe-results display-none"><!--  --></div>
@@ -192,39 +198,10 @@
         <div id="historyStats" class="history-stats display-none"></div>
         <div class="list"><!--  --></div>
       </div>
-    </div>
 
-    <!-- Modal -->
-    <div id="main-modal" class="modal">
-      <div class="backdrop">
-        <div class="close-modal">&times;</div>
-      </div>
-
-      <div class="content">
-        <!-- Location Form (Create/Edit) -->
-        <form id="locationForm" class="base-form">
-          <h3 class="form-title">
-            <span class="form-title-text">Nueva Ubicación</span>
-            <div id="deleteLocationBtn" class="display-none"></div>
-          </h3>
-          <div class="form-content">
-            <div class="form-control">
-              <label for="locationName">Nombre</label>
-              <input type="text" name="locationName" placeholder="ej. Heladera" />
-            </div>
-            <div class="form-control">
-              <label for="locationCategory">Qué guarda</label>
-              <select name="locationCategory"><!--  --></select>
-              <input
-                type="text" name="newCategoryName" class="display-none"
-                placeholder="Nombre de la nueva categoría" autocomplete="off"
-              />
-            </div>
-            <div class="submit"><!--  --></div>
-          </div>
-        </form>
-
-        <!-- Item Form (Create/Edit) -->
+      <!-- Item Form (Create/Edit) - its own routed page (/item/new,
+           /item/:key/edit), not a modal, so it can occupy the whole screen. -->
+      <div id="itemFormView" class="page">
         <form id="itemForm" class="base-form">
           <h3 class="form-title">Nuevo Alimento</h3>
           <div class="form-content">
@@ -256,6 +233,38 @@
             <div class="form-control">
               <label for="addedDate">Fecha agregado</label>
               <input type="date" name="addedDate" />
+            </div>
+            <div class="submit"><!--  --></div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="main-modal" class="modal">
+      <div class="backdrop">
+        <div class="close-modal">&times;</div>
+      </div>
+
+      <div class="content">
+        <!-- Location Form (Create/Edit) -->
+        <form id="locationForm" class="base-form">
+          <h3 class="form-title">
+            <span class="form-title-text">Nueva Ubicación</span>
+            <div id="deleteLocationBtn" class="display-none"></div>
+          </h3>
+          <div class="form-content">
+            <div class="form-control">
+              <label for="locationName">Nombre</label>
+              <input type="text" name="locationName" placeholder="ej. Heladera" />
+            </div>
+            <div class="form-control">
+              <label for="locationCategory">Qué guarda</label>
+              <select name="locationCategory"><!--  --></select>
+              <input
+                type="text" name="newCategoryName" class="display-none"
+                placeholder="Nombre de la nueva categoría" autocomplete="off"
+              />
             </div>
             <div class="submit"><!--  --></div>
           </div>

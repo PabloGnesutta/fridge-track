@@ -54,7 +54,13 @@ export function readVerificationCode(email) {
  */
 export async function ensureAuth(page, { email, password = 'e2e-test-password' } = {}) {
   const emailInput = page.locator('#authForm input[name="authEmail"]');
-  if (!(await emailInput.isVisible().catch(() => false))) { return; }
+  // Waits (bounded), rather than a one-shot isVisible() check - the app's
+  // boot sequence (initializeCache/IndexedDB/bootApp) is still async right
+  // after goto(), so an instant check can false-negative before #authForm
+  // ever renders, silently skipping signup for the rest of the test. Mirrors
+  // ensureHome()/ensureLocation()'s own bounded-wait pattern below.
+  const appeared = await emailInput.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
+  if (!appeared) { return; }
 
   const uniqueEmail = email || `e2e+${Date.now()}-${Math.random().toString(36).slice(2)}@test.local`;
   allowTestEmail(uniqueEmail);

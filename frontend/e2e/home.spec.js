@@ -61,29 +61,40 @@ test('creating a Home lands on the item list, ready to onboard a location', asyn
   await expect(page.locator('#locationForm')).toBeVisible();
 });
 
-test('the home switcher displays the current Home\'s join code', async ({ page }) => {
+test('each Home card shows its own join code', async ({ page }) => {
   await page.goto('/');
   await ensureAuth(page);
   await ensureHome(page, 'Casa Con Código');
+  await ensureLocation(page, 'Heladera Con Código');
 
   const joinCode = await getJoinCode(page);
-  await expect(page.locator('.home-switcher-code')).toContainText(joinCode);
+  await page.click('#tabHomeBtn .btn');
+  await expect(homeCard(page, 'Casa Con Código').locator('.home-card-code')).toContainText(joinCode);
 });
 
-test.describe('copying the join code', () => {
+test.describe('copying a Home card\'s join code', () => {
   test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
 
-  test('clicking the join code copies it, without opening the Home switcher', async ({ page }) => {
+  test('clicking the join code copies it, without switching to that Home', async ({ page }) => {
     await page.goto('/');
     await ensureAuth(page);
-    await ensureHome(page, 'Casa Portapapeles');
-    await ensureLocation(page, 'Heladera Portapapeles');
+    await ensureHome(page, 'Casa Portapapeles A');
+    await ensureLocation(page, 'Heladera Portapapeles A');
 
-    const joinCode = await getJoinCode(page);
-    await page.click('.home-switcher-code');
+    await page.click('#tabHomeBtn .btn');
+    await ensureHome(page, 'Casa Portapapeles B'); // becomes the active Home
+    await ensureLocation(page, 'Heladera Portapapeles B');
+
+    // Clicking Casa A's own code (not the active Home) proves the click
+    // stopPropagates instead of also firing the card's own
+    // data-click-action="switchHome".
+    await page.click('#tabHomeBtn .btn');
+    const codeText = await homeCard(page, 'Casa Portapapeles A').locator('.home-card-code').innerText();
+    const joinCode = codeText.split(': ')[1];
+    await homeCard(page, 'Casa Portapapeles A').locator('.home-card-code').click();
 
     await expect(page.locator('#infoToast .message')).toHaveText('Código copiado');
-    await expect(page.locator('#homeView')).toBeHidden();
+    await expect(page.locator('.home-card.active .home-card-name')).toHaveText('Casa Portapapeles B');
 
     const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
     expect(clipboardText).toBe(joinCode);
@@ -100,9 +111,9 @@ test('two Homes in one browser context keep their locations separate', async ({ 
   await addItem(page, { name: 'Solo en A', shelfLifeDays: 5 });
   await expect(page.locator('.location-chip .locationName', { hasText: 'Cocina A' })).toBeVisible();
 
-  // Switch to a brand new "Casa B" via the home switcher, with its own
+  // Switch to a brand new "Casa B" via the Hogar tab, with its own
   // differently-named location.
-  await page.click('.home-switcher');
+  await page.click('#tabHomeBtn .btn');
   await expect(page.locator('#homeView')).toBeVisible();
   await ensureHome(page, 'Casa B');
   await ensureLocation(page, 'Cocina B');
@@ -112,12 +123,12 @@ test('two Homes in one browser context keep their locations separate', async ({ 
   await expect(page.locator('.location-chip .locationName', { hasText: 'Cocina A' })).toHaveCount(0);
   await expect(page.locator('.list .row', { hasText: 'Solo en A' })).toHaveCount(0);
 
-  // Switch back to Casa A via its card in the Home switcher and confirm its
+  // Switch back to Casa A via its card on the Hogar tab and confirm its
   // data is intact and Casa B's doesn't leak into it. Clicks the card's name
   // specifically, not the card as a whole - the card's own action buttons
   // (Invitar/Copiar enlace) stopPropagation, but a generic click on the card
   // could otherwise land on either of them depending on layout.
-  await page.click('.home-switcher');
+  await page.click('#tabHomeBtn .btn');
   await page.locator('.home-card-name', { hasText: 'Casa A' }).click();
 
   await expect(page.locator('.location-chip .locationName', { hasText: 'Cocina A' })).toBeVisible();
@@ -136,7 +147,7 @@ test.describe('Home card actions', () => {
     await ensureLocation(page, 'Heladera Enlace');
 
     const joinCode = await getJoinCode(page);
-    await page.click('.home-switcher');
+    await page.click('#tabHomeBtn .btn');
     await homeCardAction(page, 'Casa Enlace', 'Copiar enlace').click();
 
     await expect(page.locator('#infoToast .message')).toHaveText('Enlace copiado');
@@ -151,7 +162,7 @@ test.describe('Home card actions', () => {
     await ensureLocation(page, 'Heladera Invitación');
 
     const inviteeEmail = `e2e+invitee-${Date.now()}@test.local`;
-    await page.click('.home-switcher');
+    await page.click('#tabHomeBtn .btn');
     await homeCardAction(page, 'Casa Invitación', 'Invitar').click();
     await page.fill('#inviteHomeForm input[name="inviteEmail"]', inviteeEmail);
     await page.click('#inviteHomeForm .submit');
@@ -184,7 +195,7 @@ test.describe('deleting a Home', () => {
     await ensureHome(page, 'Casa a Conservar');
     await ensureLocation(page, 'Heladera a Conservar');
 
-    await page.click('.home-switcher');
+    await page.click('#tabHomeBtn .btn');
     await homeCardAction(page, 'Casa a Conservar', 'Borrar').click();
     await expect(page.locator('#confirmDialog')).toHaveClass(/open/);
     await expect(page.locator('#confirmOkBtn')).toHaveClass(/danger/);
@@ -200,7 +211,7 @@ test.describe('deleting a Home', () => {
     await ensureHome(page, 'Casa Única');
     await ensureLocation(page, 'Heladera Única');
 
-    await page.click('.home-switcher');
+    await page.click('#tabHomeBtn .btn');
     await homeCardAction(page, 'Casa Única', 'Borrar').click();
     await page.click('#confirmOkBtn');
 
@@ -213,17 +224,17 @@ test.describe('deleting a Home', () => {
     await ensureAuth(page);
     await ensureHome(page, 'Casa Para Borrar');
     await ensureLocation(page, 'Heladera Para Borrar');
-    await page.click('.home-switcher');
+    await page.click('#tabHomeBtn .btn');
     await ensureHome(page, 'Casa Que Queda');
     await ensureLocation(page, 'Heladera Que Queda');
 
     // "Casa Que Queda" is active now - delete the OTHER one from its card.
-    await page.click('.home-switcher');
+    await page.click('#tabHomeBtn .btn');
     await homeCardAction(page, 'Casa Para Borrar', 'Borrar').click();
     await page.click('#confirmOkBtn');
 
     await expect(page.locator('#infoToast .message')).toHaveText('Hogar borrado');
-    await expect(page.locator('.home-switcher-name')).toHaveText('Casa Que Queda');
+    await expect(page.locator('.home-card.active .home-card-name')).toHaveText('Casa Que Queda');
   });
 
   test('deleting a Home shared with another device removes it there too on next sync', async ({ browser }) => {
@@ -243,9 +254,9 @@ test.describe('deleting a Home', () => {
       await ensureAuth(joinerPage);
       await ensureHome(joinerPage, 'Casa Del Joiner'); // so the joiner has a fallback Home too
       await joinerPage.goto(`/?joinCode=${joinCode}`);
-      await expect(joinerPage.locator('.home-switcher-name')).toHaveText('Casa Compartida A Borrar');
+      await expect(joinerPage.locator('.home-card.active .home-card-name')).toHaveText('Casa Compartida A Borrar');
 
-      await ownerPage.click('.home-switcher');
+      await ownerPage.click('#tabHomeBtn .btn');
       await homeCardAction(ownerPage, 'Casa Compartida A Borrar', 'Borrar').click();
       await ownerPage.click('#confirmOkBtn');
       await expect(ownerPage.locator('#infoToast .message')).toHaveText('Hogar borrado');
@@ -253,7 +264,7 @@ test.describe('deleting a Home', () => {
       // The joiner has no way to know in real time (no push sync) - only
       // reflected once their own device re-syncs, e.g. on reload.
       await joinerPage.reload();
-      await expect(joinerPage.locator('.home-switcher-name')).toHaveText('Casa Del Joiner');
+      await expect(joinerPage.locator('.home-card.active .home-card-name')).toHaveText('Casa Del Joiner');
     } finally {
       await ownerContext.close();
       await joinerContext.close();
@@ -281,7 +292,7 @@ test('opening a Home-invite link joins that Home directly for an already-logged-
     await ensureHome(joinerPage, 'Otra Casa');
 
     await joinerPage.goto(`/?joinCode=${joinCode}`);
-    await expect(joinerPage.locator('.home-switcher-name')).toHaveText('Casa Por Enlace');
+    await expect(joinerPage.locator('.home-card.active .home-card-name')).toHaveText('Casa Por Enlace');
   } finally {
     await ownerContext.close();
     await joinerContext.close();
@@ -319,7 +330,7 @@ test('opening a Home-invite link on a logged-out browser joins right after signu
     await joinerPage.fill('#verifyEmailForm input[name="verifyCode"]', readVerificationCode(inviteeEmail));
     await joinerPage.click('#verifyEmailForm .submit');
 
-    await expect(joinerPage.locator('.home-switcher-name')).toHaveText('Casa Invitado Nuevo');
+    await expect(joinerPage.locator('.home-card.active .home-card-name')).toHaveText('Casa Invitado Nuevo');
   } finally {
     await ownerContext.close();
     await joinerContext.close();

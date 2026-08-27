@@ -32,7 +32,7 @@ test('food-name history and autocomplete stay separate per location category', a
   await page.waitForSelector('#itemForm', { state: 'visible' });
   await page.fill('#itemForm input[name="itemName"]', 'Lec');
   await expect(page.locator('#itemForm .name-suggestions .suggestion')).toHaveCount(0);
-  await page.click('#main-modal .close-modal');
+  await page.click('#goBack2 .btn');
   await page.waitForSelector('#itemForm', { state: 'hidden' });
 
   await addItem(page, { name: 'Loratadina', shelfLifeDays: 365 });

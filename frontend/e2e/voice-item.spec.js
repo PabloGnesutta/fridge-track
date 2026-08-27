@@ -152,10 +152,9 @@ test('reopening the item form clears a stale status message from a previous atte
   await fireSpeechError(page, 'no-speech');
   await expect(page.locator('.voice-status')).not.toHaveText('');
 
-  // Close via the modal backdrop (no submit) and reopen. .content sits on
-  // top of most of .backdrop, so click a corner (well above .content's
-  // "top: 60px") rather than the element's default center point.
-  await page.click('#main-modal .backdrop', { position: { x: 5, y: 5 } });
+  // Close via the header's back button (no submit) and reopen - the item
+  // form is its own routed page, not a modal.
+  await page.click('#goBack2 .btn');
   await page.waitForSelector('#itemForm', { state: 'hidden' });
   await page.click('#newItemBtn');
   await page.waitForSelector('#itemForm', { state: 'visible' });

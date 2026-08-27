@@ -397,22 +397,33 @@ function appendItemRow(item) {
 }
 
 /**
- * Open create/edit item modal.
+ * Opens the item form as its own routed page (own URL: /item/new when
+ * creating, /item/:key/edit when editing) rather than a shared modal, so it
+ * can occupy the whole screen.
  * @param {boolean} isEdit
  * @param {boolean} [focusName] - false for the voice-entry FAB, which starts
  *   dictation immediately instead - focusing/selecting itemName would pop
  *   the on-screen keyboard open on mobile for no reason right before that.
+ * @param {string} [itemKey] - explicit item to edit, e.g. from a direct
+ *   /item/:key/edit deep link (see router.js). Defaults to
+ *   dataState.currentItem, which is what the single-item view's own edit
+ *   button relies on (it's already the "current" item at that point).
  */
-function openItemForm(isEdit, focusName = true) {
+function openItemForm(isEdit, focusName = true, itemKey) {
   const submitLabel = $getInner(submitItemBtn, '.label');
   const formTitle = $getInner(itemForm, '.form-title');
   const location = dataState.currentLocation;
   if (!location) { return; }
 
   if (isEdit === true) {
+    let item = dataState.currentItem || undefined;
+    if (itemKey && itemKey !== item?._key) {
+      item = dbStore.items.find(i => i._key === itemKey);
+    }
+    if (!item) { return showErrorToast('Alimento no encontrado'); }
+    dataState.currentItem = item;
+
     setStateField('editingItem', true);
-    const item = dataState.currentItem;
-    if (!item) { return; }
     itemNameInput.value = item.name;
     quantityInput.value = item.quantity || '';
     addedDateInput.value = toYYYYMMDD(item.addedDate);
@@ -431,10 +442,26 @@ function openItemForm(isEdit, focusName = true) {
 
   hideNameSuggestions();
   resetVoiceStatus();
-  setStateField('showItemForm', true);
+  setCurrentView('ItemForm');
+  pageTitle.innerText = isEdit ? 'Editar Alimento' : 'Nuevo Alimento';
+  syncUrl(isEdit ? `/item/${dataState.currentItem?._key}/edit` : '/item/new');
+
   if (focusName) {
     itemNameInput.focus();
     itemNameInput.select();
+  }
+}
+
+/** Mirrors closeSingleItem()/closeFoodHistory() - go-back from the item form. */
+function closeItemForm() {
+  if (appState.currentView !== 'ItemForm') { return; }
+  const wasEditing = appState.editingItem === true;
+  const item = dataState.currentItem;
+  setStateField('editingItem', false);
+  if (wasEditing && item) {
+    openSingleItem(item._key || '');
+  } else {
+    openItemList();
   }
 }
 
@@ -458,23 +485,33 @@ async function submitItemForm(e) {
   const shelfLifeDays = formData.get('shelfLifeDays') ? Number(formData.get('shelfLifeDays')) : null;
   const notes = formData.get('itemNotes')?.toString() || '';
 
-  if (appState.editingItem === true && dataState.currentItem) {
+  const wasEditing = appState.editingItem === true && !!dataState.currentItem;
+  let savedItem;
+
+  if (wasEditing) {
     const result = await updateItem(dataState.currentItem, { name, quantity, addedDate, useByDate, shelfLifeDays, notes });
     if (!result.data) { return showErrorToast(result.errorMsg); }
+    savedItem = result.data;
     setStateField('editingItem', false);
   } else {
     const result = await createItem(location._key || '', name, { quantity, addedDate, useByDate, shelfLifeDays, notes });
     if (!result.data) { return showErrorToast(result.errorMsg); }
     await recordItemCreated(location.homeId, location.categoryId, result.data.name, shelfLifeDays, addedDate);
+    savedItem = result.data;
   }
 
   itemForm.reset();
   hideNameSuggestions();
-  setStateField('showItemForm', false);
 
   await fetchAndRenderItems(location);
-  if (appState.currentView === 'SingleItem' && dataState.currentItem) {
-    renderItemDetail(dataState.currentItem);
+
+  // Navigates back to wherever the form was opened from: the edited item's
+  // own detail page (also re-rendered there via openSingleItem), or the
+  // item list for a freshly created one.
+  if (wasEditing) {
+    openSingleItem(savedItem._key || '');
+  } else {
+    openItemList();
   }
 }
 
@@ -587,7 +624,7 @@ function markItemDiscarded(item = dataState.currentItem) {
 
 
 export {
-  fetchAndRenderItems, openItemList, openItemForm, submitItemForm,
+  fetchAndRenderItems, openItemList, openItemForm, closeItemForm, submitItemForm,
   openSingleItem, closeSingleItem, tryDeleteItem, markItemUsed, markItemDiscarded, submitItemBtn,
   toggleSearch, openMostUrgentItem,
 };

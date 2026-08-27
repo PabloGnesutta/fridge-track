@@ -1,4 +1,4 @@
-import { appState, dataState, dbStore, setStateField } from "../common/state.js";
+import { appState, dataState, dbStore, setFooterHidden, setStateField } from "../common/state.js";
 import { $, $button, $getInner, $input, $queryOne } from "../lib/dom.js";
 import { _info, _log, _warn, openLogs } from "../lib/logger.js";
 import { showConfirmDialog } from "../lib/confirmDialog.js";
@@ -16,8 +16,8 @@ import {
 } from "./location-ui.js";
 import { openHomeManage, closeHomeManage, switchHome, submitCategoryForm, submitInviteForm } from "./home-ui.js";
 import {
-  closeSingleItem, markItemDiscarded, markItemUsed, openItemForm, openItemList, openMostUrgentItem,
-  openSingleItem, submitItemBtn, submitItemForm, toggleSearch, tryDeleteItem,
+  closeItemForm, closeSingleItem, markItemDiscarded, markItemUsed, openItemForm, openItemList,
+  openMostUrgentItem, openSingleItem, submitItemBtn, submitItemForm, toggleSearch, tryDeleteItem,
 } from "./item-ui.js";
 import {
   closeFoodHistory, openFoodHistory, submitFoodNameHistoryForm, switchHistoryCategory,
@@ -158,6 +158,20 @@ function initNotificationToggles() {
   });
 }
 
+/**
+ * Wires the "Mostrar barra de navegación" toggle - needed since #mainFooter
+ * can now be hidden (see setFooterHidden in state.js), and hiding it removes
+ * the only other way to switch between Lista/Historial/Hogar, which is why
+ * the header menu also gets its own Lista/Historial/Hogar shortcuts below.
+ */
+function initFooterToggle() {
+  const footerToggle = $input('footerVisibleToggle');
+  footerToggle.checked = !appState.footerHidden;
+  footerToggle.addEventListener('change', () => {
+    setFooterHidden(!footerToggle.checked);
+  });
+}
+
 function initUi() {
   // Go Back Button
   $button({
@@ -171,6 +185,9 @@ function initUi() {
             break;
           case 'SingleItem':
             closeSingleItem();
+            break;
+          case 'ItemForm':
+            closeItemForm();
             break;
           case 'FoodHistory':
             closeFoodHistory();
@@ -192,6 +209,31 @@ function initUi() {
   });
 
   initNotificationToggles();
+  initFooterToggle();
+
+  // Header-menu shortcuts to the three tabs, so navigation still works when
+  // #mainFooter is hidden via the toggle above.
+  $button({
+    appendTo: $('menuTabListBtn'),
+    svgFn: svg_list,
+    label: 'Lista',
+    class: 'horizontal',
+    listener: { fn: () => { closeHeaderMenu(); openItemList(); } },
+  });
+  $button({
+    appendTo: $('menuTabHistoryBtn'),
+    svgFn: svg_notes,
+    label: 'Historial',
+    class: 'horizontal',
+    listener: { fn: () => { closeHeaderMenu(); openFoodHistory(); } },
+  });
+  $button({
+    appendTo: $('menuTabHomeBtn'),
+    svgFn: svg_home,
+    label: 'Hogar',
+    class: 'horizontal',
+    listener: { fn: () => { closeHeaderMenu(); openHomeManage(); } },
+  });
 
   $button({
     appendTo: $('logoutBtn'),
@@ -396,7 +438,6 @@ function modalBackdropHandler() {
     if (clickedBackdrop) {
       setStateField('editingItem', false);
       setStateField('showLocationForm', false);
-      setStateField('showItemForm', false);
       setStateField('showFoodNameHistoryForm', false);
       setStateField('showCategoryForm', false);
       setStateField('showInviteForm', false);

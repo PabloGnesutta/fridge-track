@@ -37,3 +37,27 @@ test('the bottom tab bar is hidden until a Home is ready, then navigates between
   await expect(page.locator('#mainHeader')).toBeVisible();
   await expect(page.locator('[data-tab="home"]')).toHaveCSS('color', 'rgb(255, 111, 163)');
 });
+
+test('hiding the footer via the header menu persists, and its own nav shortcuts still work while it\'s hidden', async ({ page }) => {
+  await page.goto('/');
+  await ensureOnboarded(page);
+
+  await page.click('#headerMenuBtn .btn');
+  await expect(page.locator('#footerVisibleToggle')).toBeChecked();
+  await page.locator('#footerVisibleToggle').uncheck();
+  await expect(page.locator('#mainFooter')).toBeHidden();
+
+  // Even with the tab bar hidden, the header menu's own Lista/Historial/Hogar
+  // shortcuts still navigate - the whole reason they exist.
+  await page.click('#menuTabHistoryBtn .btn');
+  await expect(page).toHaveURL('/historial');
+  await expect(page.locator('#foodHistoryView')).toBeVisible();
+
+  // The preference survives a reload.
+  await page.reload();
+  await expect(page.locator('#mainFooter')).toBeHidden();
+
+  await page.click('#headerMenuBtn .btn');
+  await page.locator('#footerVisibleToggle').check();
+  await expect(page.locator('#mainFooter')).toBeVisible();
+});

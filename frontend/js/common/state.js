@@ -12,17 +12,17 @@ import { _log } from "../lib/logger.js";
  * Main state of the application
  * @typedef {object} AppState
  * @property {boolean} onboarding Forces the location form open and blocks dismissal until a first location exists
- * @property {boolean} editingItem
+ * @property {boolean} editingItem Whether the item form (its own routed page, see ItemForm below) is editing vs creating
  * @property {boolean} showLocationForm
- * @property {boolean} showItemForm
  * @property {boolean} showFoodNameHistoryForm
  * @property {boolean} showCategoryForm
  * @property {boolean} showInviteForm
  * @property {boolean} showSearch
+ * @property {boolean} footerHidden
  * @property {Views} currentView
  * @property {AuthStage} authStage
  *
- * @typedef {'ItemList'|'SingleItem'|'FoodHistory'|'Home'} Views
+ * @typedef {'ItemList'|'SingleItem'|'ItemForm'|'FoodHistory'|'Home'} Views
  * @typedef {'checking'|'login'|'verifyEmail'|'chooseHome'|'ready'} AuthStage
  *
  * @typedef {object} DataState
@@ -49,11 +49,11 @@ const appState = {
     onboarding: false,
     editingItem: false,
     showLocationForm: false,
-    showItemForm: false,
     showFoodNameHistoryForm: false,
     showCategoryForm: false,
     showInviteForm: false,
     showSearch: false,
+    footerHidden: false,
     currentView: 'ItemList',
     authStage: 'checking',
 };
@@ -82,10 +82,13 @@ const dbStore = {
 
 const $app = $('app');
 
+const FOOTER_HIDDEN_KEY = 'footerHidden';
+
 /** @type {Record<Views, string>} */
 const VIEW_ELEMENT_IDS = {
     ItemList: 'itemListView',
     SingleItem: 'singleItemView',
+    ItemForm: 'itemFormView',
     FoodHistory: 'foodHistoryView',
     Home: 'homeView',
 };
@@ -126,6 +129,18 @@ function setCurrentView(view) {
 }
 
 /**
+ * Sets whether the bottom tab bar (#mainFooter) is hidden, persisting the
+ * choice to localStorage so it survives reloads - unlike the other
+ * appState.show* toggles above, this one needs to outlive a single session
+ * since it's a standing UI preference, not a transient form/modal state.
+ * @param {boolean} hidden
+ */
+function setFooterHidden(hidden) {
+    setStateField('footerHidden', hidden);
+    localStorage.setItem(FOOTER_HIDDEN_KEY, hidden ? '1' : '0');
+}
+
+/**
  * @param {AuthStage} stage
  */
 function setAuthStage(stage) {
@@ -137,13 +152,15 @@ function initAppState() {
     setStateField('onboarding', false);
     setStateField('editingItem', false);
     setStateField('showLocationForm', false);
-    setStateField('showItemForm', false);
     setStateField('showFoodNameHistoryForm', false);
     setStateField('showCategoryForm', false);
     setStateField('showInviteForm', false);
     setStateField('showSearch', false);
+    setStateField('footerHidden', localStorage.getItem(FOOTER_HIDDEN_KEY) === '1');
     setCurrentView('ItemList');
     setAuthStage('checking');
 }
 
-export { appState, dataState, dbStore, initAppState, setStateField, setCurrentView, setAuthStage };
+export {
+    appState, dataState, dbStore, initAppState, setStateField, setCurrentView, setAuthStage, setFooterHidden,
+};

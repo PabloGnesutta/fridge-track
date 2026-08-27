@@ -148,6 +148,14 @@ svg {
   color: var(--accent-text);
 }
 
+/* Manual "Mostrar barra de navegación" toggle in the header menu (see
+   ui.js's initFooterToggle/setFooterHidden in state.js) - a standing user
+   preference, separate from the auth-stage gating rule below that hides
+   #mainFooter before login/Home are ready. */
+#app[data-footer-hidden='true'] #mainFooter {
+  display: none;
+}
+
 #itemListView {
   padding-bottom: calc(var(--footer-heigt) + 4.5rem);
 }
@@ -634,7 +642,6 @@ svg {
 
 /* Modal/Forms state */
 #app[data-show-location-form='true'] .modal,
-#app[data-show-item-form='true'] .modal,
 #app[data-show-food-name-history-form='true'] .modal,
 #app[data-show-category-form='true'] .modal,
 #app[data-show-invite-form='true'] .modal {
@@ -645,7 +652,6 @@ svg {
 }
 
 #app[data-show-location-form='true'] .modal .content,
-#app[data-show-item-form='true'] .modal .content,
 #app[data-show-food-name-history-form='true'] .modal .content,
 #app[data-show-category-form='true'] .modal .content,
 #app[data-show-invite-form='true'] .modal .content {
@@ -653,7 +659,6 @@ svg {
 }
 
 #app[data-show-location-form='false'] #locationForm,
-#app[data-show-item-form='false'] #itemForm,
 #app[data-show-food-name-history-form='false'] #foodNameHistoryForm,
 #app[data-show-category-form='false'] #categoryForm,
 #app[data-show-invite-form='false'] #inviteHomeForm {
@@ -682,6 +687,7 @@ svg {
    needs it visible. */
 #app:not([data-current-view='ItemList']) #itemListView,
 #app:not([data-current-view='SingleItem']) #singleItemView,
+#app:not([data-current-view='ItemForm']) #itemFormView,
 #app:not([data-current-view='FoodHistory']) #foodHistoryView,
 #app:not([data-current-view='Home']) #homeView {
   display: none;
@@ -720,6 +726,7 @@ svg {
 
 #app:not([data-auth-stage='ready']) #itemListView,
 #app:not([data-auth-stage='ready']) #singleItemView,
+#app:not([data-auth-stage='ready']) #itemFormView,
 #app:not([data-auth-stage='ready']) #foodHistoryView,
 #app:not([data-auth-stage='ready']) #homeView,
 #app:not([data-auth-stage='ready']) #mainFooter {
@@ -752,23 +759,6 @@ svg {
   padding: 0.75rem 0 0.25rem;
   color: var(--accent-text);
   font-size: 14px;
-}
-
-.home-switcher {
-  padding: 0.5rem 0.75rem 0;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
-.home-switcher .home-switcher-name {
-  color: var(--text-secondary);
-  text-decoration: underline;
-}
-
-.home-switcher .home-switcher-code {
-  margin-left: 0.35rem;
-  text-decoration: underline dotted;
-  cursor: pointer;
 }
 
 /* Categories management - reuses the exact .list/.row/.history-row-actions

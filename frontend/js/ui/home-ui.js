@@ -24,8 +24,6 @@ const modeToggle = $('homeModeToggle');
 const submitContainer = $queryOne('#homeForm .submit');
 
 const cardsContainer = $queryOne('#homeView .home-cards');
-const homeSwitcherLabel = $queryOne('.home-switcher-name');
-const homeSwitcherCode = $queryOne('.home-switcher-code');
 
 const categoriesList = $queryOne('#homeView .categories-list');
 const categoryForm = $form('categoryForm');
@@ -43,12 +41,16 @@ let categoryBeingEdited = null;
 let homeBeingInvited = null;
 
 /**
- * A Home-invite link's ?joinCode= param, captured at boot (see
- * captureJoinLinkCode()) before auth necessarily resolves, consumed once it
- * does (see consumePendingJoin()).
- * @type {string|null}
+ * sessionStorage key for a captured Home-invite link's ?joinCode= param (see
+ * captureJoinLinkCode()/consumePendingJoin() below). Deliberately NOT a
+ * plain module-level variable - initializeCache.js does a silent
+ * window.location.reload() on a genuinely first-ever visit (once the new
+ * service worker takes control), which can land *before* signup/email
+ * verification finishes and would otherwise wipe an in-memory value when the
+ * whole JS context restarts. sessionStorage survives that reload (cleared
+ * only once actually consumed, or when the tab closes).
  */
-let pendingJoinCode = null;
+const PENDING_JOIN_CODE_KEY = 'pendingJoinCode';
 
 /** @type {'create'|'join'} */
 let mode = 'create';
@@ -60,12 +62,6 @@ categoryForm.addEventListener('submit', submitCategoryForm);
 inviteHomeForm.addEventListener('submit', submitInviteForm);
 modeToggle.addEventListener('click', toggleMode);
 makeKeyboardActivatable(modeToggle);
-// Attached directly (not via the #app click-delegation used for
-// data-click-action elements) so stopPropagation() here reliably runs
-// before the click ever reaches .home-switcher's own openHomeManage
-// handler - otherwise tapping the code would both copy it and open the
-// Hogar tab.
-homeSwitcherCode.addEventListener('click', copyJoinCode);
 
 
 function initHomeUi() {
@@ -106,15 +102,17 @@ function toggleMode() {
 }
 
 /**
+ * Copies a card's raw join code - stopPropagation since this sits inside a
+ * card whose own data-click-action="switchHome" would otherwise also fire.
  * @param {MouseEvent} e
+ * @param {import("../local-db/home-db.js").Home} home
  */
-async function copyJoinCode(e) {
+async function copyCardJoinCode(e, home) {
   e.stopPropagation();
-  const joinCode = dataState.currentHome?.joinCode;
-  if (!joinCode) { return; }
+  if (!home.joinCode) { return; }
 
   try {
-    await navigator.clipboard.writeText(joinCode);
+    await navigator.clipboard.writeText(home.joinCode);
     showInfoToast('Código copiado');
   } catch {
     showErrorToast('No se pudo copiar el código');
@@ -154,10 +152,19 @@ async function submitHomeForm(e) {
 function buildHomeCard(home) {
   const isActive = home.id === dataState.currentHome?.id;
 
-  const header = $new({
-    class: 'home-card-header',
+  const title = $new({
+    class: 'home-card-title',
     children: [$new({ class: 'home-card-name', text: home.name })],
   });
+  if (home.joinCode) {
+    title.append($new({
+      class: 'home-card-code',
+      text: `Código: ${home.joinCode}`,
+      listener: { fn: e => copyCardJoinCode(e, home) },
+    }));
+  }
+
+  const header = $new({ class: 'home-card-header', children: [title] });
   if (isActive) {
     header.append($new({ class: 'home-card-badge', text: 'Activo' }));
   }
@@ -296,8 +303,10 @@ function deleteHomeFromCard(home) {
  * consumption once auth resolves - joining requires a session, so this
  * can't complete at boot time the way auth-ui.js's tryAutoVerifyFromLink()
  * can (that one needs no prior session). Strips the query string either
- * way so a reload doesn't re-trigger it. Called once from appBoot.js's
- * bootApp().
+ * way so a reload doesn't re-trigger *this capture step* - the code itself
+ * is stashed in sessionStorage (see PENDING_JOIN_CODE_KEY above), not just
+ * held in memory, so it still survives a reload between now and
+ * consumePendingJoin(). Called once from appBoot.js's bootApp().
  * @returns {boolean} whether a join code was found and captured
  */
 function captureJoinLinkCode() {
@@ -305,7 +314,7 @@ function captureJoinLinkCode() {
   const joinCode = params.get('joinCode');
   if (!joinCode) { return false; }
   history.replaceState(null, '', location.pathname);
-  pendingJoinCode = joinCode;
+  sessionStorage.setItem(PENDING_JOIN_CODE_KEY, joinCode);
   return true;
 }
 
@@ -318,8 +327,8 @@ function captureJoinLinkCode() {
  * @returns {Promise<import("../local-db/home-db.js").Home|null>}
  */
 async function consumePendingJoin() {
-  const code = pendingJoinCode;
-  pendingJoinCode = null;
+  const code = sessionStorage.getItem(PENDING_JOIN_CODE_KEY);
+  sessionStorage.removeItem(PENDING_JOIN_CODE_KEY);
   if (!code) { return null; }
 
   const result = await joinHome(code);
@@ -459,16 +468,11 @@ function closeHomeManage() {
 }
 
 /**
- * Keeps the card list and the current-home label in sync with
- * dataState.currentHome / dbStore.homes. Called after every Home
- * activation (create, join, switch).
+ * Keeps the card list in sync with dataState.currentHome / dbStore.homes.
+ * Called after every Home activation (create, join, switch).
  */
 function refreshHomeUi() {
   renderHomeCards();
-  homeSwitcherLabel.innerText = dataState.currentHome?.name || '';
-  homeSwitcherCode.innerText = dataState.currentHome?.joinCode
-    ? `· Código: ${dataState.currentHome.joinCode}`
-    : '';
 }
 
 

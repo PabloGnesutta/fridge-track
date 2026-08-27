@@ -1,4 +1,4 @@
-import { openItemList, openSingleItem } from "../ui/item-ui.js";
+import { openItemList, openItemForm, openSingleItem } from "../ui/item-ui.js";
 import { openFoodHistory } from "../ui/food-history-ui.js";
 import { openHomeManage } from "../ui/home-ui.js";
 import { parseRoute } from "./routeMatch.js";
@@ -32,6 +32,8 @@ function syncUrl(path, { replace = false } = {}) {
 function renderSpecificRoute(route) {
   if (route.view === 'SingleItem') {
     openSingleItem(route.itemKey);
+  } else if (route.view === 'ItemForm') {
+    openItemForm(!!route.itemKey, true, route.itemKey);
   } else if (route.view === 'FoodHistory') {
     openFoodHistory();
   } else if (route.view === 'Home') {

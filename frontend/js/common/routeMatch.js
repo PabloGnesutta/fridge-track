@@ -1,5 +1,5 @@
 /**
- * @typedef {{ view: 'ItemList' } | { view: 'SingleItem', itemKey: string } | { view: 'FoodHistory' } | { view: 'Home' }} Route
+ * @typedef {{ view: 'ItemList' } | { view: 'SingleItem', itemKey: string } | { view: 'ItemForm', itemKey?: string } | { view: 'FoodHistory' } | { view: 'Home' }} Route
  */
 
 /**
@@ -10,6 +10,11 @@
  * @returns {Route}
  */
 function parseRoute(pathname) {
+  // Checked before the generic /item/:key pattern below, which would
+  // otherwise swallow "new" as if it were an item key.
+  if (pathname.match(/^\/item\/new\/?$/)) { return { view: 'ItemForm' }; }
+  const editMatch = pathname.match(/^\/item\/([^/]+)\/edit\/?$/);
+  if (editMatch) { return { view: 'ItemForm', itemKey: editMatch[1] }; }
   const itemMatch = pathname.match(/^\/item\/([^/]+)\/?$/);
   if (itemMatch) { return { view: 'SingleItem', itemKey: itemMatch[1] }; }
   if (pathname.match(/^\/historial\/?$/)) { return { view: 'FoodHistory' }; }
