@@ -162,4 +162,32 @@ function deleteUserCascade(db, email) {
   }
 }
 
-export { listUsers, findUserByEmail, previewUserCascade, deleteUserCascade };
+/**
+ * Marks a user's email as verified directly, bypassing the normal
+ * code-entry flow (authService.confirmEmailVerification) - for an operator
+ * to unblock a user who never received/entered their code. Also clears any
+ * pending verification_code state so a stale code can't later be redeemed.
+ * @param {import('node:sqlite').DatabaseSync} db
+ * @param {string} email
+ * @returns {{id: number, email: string, alreadyVerified: boolean}|null} null if no user with that email exists.
+ */
+function verifyUserEmail(db, email) {
+  /** @type {any} */
+  const user = findUserByEmail(db, email);
+  if (!user) { return null; }
+
+  /** @type {any} */
+  const row = db.prepare('SELECT email_verified FROM users WHERE id = ?').get(user.id);
+  const alreadyVerified = !!row.email_verified;
+
+  if (!alreadyVerified) {
+    db.prepare(
+      `UPDATE users SET email_verified = 1, verification_code = NULL, verification_code_attempts = 0,
+       verification_code_sent_at = NULL, verification_code_expires_at = NULL WHERE id = ?`
+    ).run(user.id);
+  }
+
+  return { id: Number(user.id), email: user.email, alreadyVerified };
+}
+
+export { listUsers, findUserByEmail, previewUserCascade, deleteUserCascade, verifyUserEmail };
