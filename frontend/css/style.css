@@ -156,6 +156,17 @@ svg {
   display: none;
 }
 
+/* Collapses --footer-heigt to 0 while the footer itself is hidden, so every
+   consumer (page min-height, list bottom padding, toast/banner offsets in
+   toast.css/install-banner.css/notif-banner.css) stops reserving space for
+   it. Scoped via :has() off #app's own data-footer-hidden attribute (rather
+   than redefining the variable on #app itself) since --footer-heigt is
+   defined on :root and several of its consumers (the toasts/banners) are
+   #app's siblings, not its descendants. */
+:root:has(#app[data-footer-hidden='true']) {
+  --footer-heigt: 0px;
+}
+
 #itemListView {
   padding-bottom: calc(var(--footer-heigt) + 4.5rem);
 }

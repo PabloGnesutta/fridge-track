@@ -1,6 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { ensureOnboarded } from './helpers.js';
 
+/**
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<string>}
+ */
+function footerHeightVar(page) {
+  return page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--footer-heigt').trim());
+}
+
 
 test('the bottom tab bar is hidden until a Home is ready, then navigates between Lista/Historial/Hogar', async ({ page }) => {
   await page.goto('/');
@@ -42,10 +50,16 @@ test('hiding the footer via the header menu persists, and its own nav shortcuts 
   await page.goto('/');
   await ensureOnboarded(page);
 
+  const footerHeight = await footerHeightVar(page);
+
   await page.click('#headerMenuBtn .btn');
   await expect(page.locator('#footerVisibleToggle')).toBeChecked();
   await page.locator('#footerVisibleToggle').uncheck();
   await expect(page.locator('#mainFooter')).toBeHidden();
+
+  // --footer-heigt collapses to 0 while hidden, so nothing (page padding,
+  // toast/banner offsets) keeps reserving space for a footer that's gone.
+  await expect.poll(() => footerHeightVar(page)).toBe('0px');
 
   // Even with the tab bar hidden, the header menu's own Lista/Historial/Hogar
   // shortcuts still navigate - the whole reason they exist.
@@ -56,8 +70,10 @@ test('hiding the footer via the header menu persists, and its own nav shortcuts 
   // The preference survives a reload.
   await page.reload();
   await expect(page.locator('#mainFooter')).toBeHidden();
+  await expect.poll(() => footerHeightVar(page)).toBe('0px');
 
   await page.click('#headerMenuBtn .btn');
   await page.locator('#footerVisibleToggle').check();
   await expect(page.locator('#mainFooter')).toBeVisible();
+  await expect.poll(() => footerHeightVar(page)).toBe(footerHeight);
 });
