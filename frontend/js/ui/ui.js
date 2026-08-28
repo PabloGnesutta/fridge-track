@@ -1,4 +1,4 @@
-import { appState, dataState, dbStore, setFooterHidden, setStateField } from "../common/state.js";
+import { appState, dataState, dbStore, setFooterHidden, setRecipesEnabled, setStateField } from "../common/state.js";
 import { $, $button, $getInner, $input, $queryOne } from "../lib/dom.js";
 import { _info, _log, _warn, openLogs } from "../lib/logger.js";
 import { showConfirmDialog } from "../lib/confirmDialog.js";
@@ -17,7 +17,8 @@ import {
 import { openHomeManage, closeHomeManage, switchHome, submitCategoryForm, submitInviteForm } from "./home-ui.js";
 import {
   closeItemForm, closeSingleItem, markItemDiscarded, markItemUsed, openItemForm, openItemList,
-  openMostUrgentItem, openSingleItem, submitItemBtn, submitItemForm, toggleSearch, tryDeleteItem,
+  openMostUrgentItem, openRecipeSuggestions, openSingleItem, submitItemBtn, submitItemForm, toggleSearch,
+  toggleRecipeSuggestionsVisibility, tryDeleteItem,
 } from "./item-ui.js";
 import {
   closeFoodHistory, openFoodHistory, submitFoodNameHistoryForm, switchHistoryCategory,
@@ -172,6 +173,22 @@ function initFooterToggle() {
   });
 }
 
+/**
+ * Wires the "Sugerencias de recetas" toggle - purely client-side (unlike the
+ * push/email toggles above, nothing server-side needs to know), so a static
+ * set-once-at-init is enough - no per-menu-open refresh like the push
+ * toggle needs, since nothing external can change this preference
+ * underneath the app.
+ */
+function initRecipesToggle() {
+  const recipesToggle = $input('recipesEnabledToggle');
+  recipesToggle.checked = appState.recipesEnabled;
+  recipesToggle.addEventListener('change', () => {
+    setRecipesEnabled(recipesToggle.checked);
+    toggleRecipeSuggestionsVisibility();
+  });
+}
+
 function initUi() {
   // Go Back Button
   $button({
@@ -210,6 +227,7 @@ function initUi() {
 
   initNotificationToggles();
   initFooterToggle();
+  initRecipesToggle();
 
   // Header-menu shortcuts to the three tabs, so navigation still works when
   // #mainFooter is hidden via the toggle above.
@@ -408,6 +426,9 @@ function initUi() {
         break;
       case 'openMostUrgentItem':
         openMostUrgentItem();
+        break;
+      case 'openRecipeSuggestions':
+        openRecipeSuggestions();
         break;
       case 'switchLocation':
         switchLocation(dataset.locationKey || '');

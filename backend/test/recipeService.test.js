@@ -18,13 +18,23 @@ function makeStubEdamamClient(results = []) {
   };
 }
 
-function makeServices(edamamClient) {
+/** In-memory stand-in for recipeCacheService.js, so tests can inspect exactly what key was used. */
+function makeStubRecipeCacheService() {
+  const store = new Map();
+  return {
+    store,
+    getCached: (key) => (store.has(key) ? store.get(key) : null),
+    setCached: (key, results) => { store.set(key, results); },
+  };
+}
+
+function makeServices(edamamClient, recipeCacheService = makeStubRecipeCacheService()) {
   const db = new DatabaseSync(':memory:');
   runMigrations(db, migrations);
   return {
     authService: createAuthService(db),
     homeService: createHomeService(db),
-    recipeService: createRecipeService(db, edamamClient),
+    recipeService: createRecipeService(db, edamamClient, recipeCacheService),
     db,
   };
 }
@@ -123,6 +133,50 @@ test('caps the query at the 3 most urgent items', async () => {
   const queryNames = edamamClient.calls[0].query.split(' ');
   assert.equal(queryNames.length, 3);
   assert.deepEqual(queryNames, ['Cuatro', 'Tres', 'Dos']); // most overdue first
+});
+
+test('caching - a repeat call with the same urgent items does not call Edamam again', async () => {
+  const stubResults = [{ title: 'Sopa', url: 'https://example.com/sopa' }];
+  const edamamClient = makeStubEdamamClient(stubResults);
+  const recipeCacheService = makeStubRecipeCacheService();
+  const services = makeServices(edamamClient, recipeCacheService);
+  const { user, home } = makeUserAndHome(services);
+  const today = new Date();
+  insertItem(services.db, home.id, { name: 'Tomate', useByDate: today.getTime() });
+
+  const first = await services.recipeService.getSuggestionsForHome(user.id, home.id);
+  const second = await services.recipeService.getSuggestionsForHome(user.id, home.id);
+
+  assert.equal(edamamClient.calls.length, 1);
+  assert.deepEqual(first.items, stubResults);
+  assert.deepEqual(second.items, stubResults);
+});
+
+test('caching - the cache key is order-independent across different urgent-item orderings', async () => {
+  const edamamClient = makeStubEdamamClient([{ title: 'Sopa', url: 'https://example.com/sopa' }]);
+  const recipeCacheService = makeStubRecipeCacheService();
+  const services = makeServices(edamamClient, recipeCacheService);
+  const { user, home } = makeUserAndHome(services);
+  const today = new Date();
+
+  // Pollo more urgent than Tomate (Pollo first in the query/order).
+  insertItem(services.db, home.id, { id: 'item-a', name: 'Tomate', useByDate: today.getTime() });
+  insertItem(services.db, home.id, { id: 'item-b', name: 'Pollo', useByDate: today.getTime() - 24 * 60 * 60 * 1000 });
+  await services.recipeService.getSuggestionsForHome(user.id, home.id);
+  assert.equal(edamamClient.calls.length, 1);
+  assert.equal(edamamClient.calls[0].query, 'Pollo Tomate');
+
+  // Same two items, urgency now reversed (Tomate first) - same underlying
+  // set, so it should hit the cache keyed on the earlier call instead of
+  // calling Edamam a second time.
+  services.db.prepare('UPDATE items SET use_by_date = ? WHERE id = ?')
+    .run(today.getTime() - 24 * 60 * 60 * 1000, 'item-a');
+  services.db.prepare('UPDATE items SET use_by_date = ? WHERE id = ?')
+    .run(today.getTime(), 'item-b');
+  await services.recipeService.getSuggestionsForHome(user.id, home.id);
+
+  assert.equal(edamamClient.calls.length, 1);
+  assert.equal(recipeCacheService.store.size, 1);
 });
 
 test('membership is enforced', async () => {

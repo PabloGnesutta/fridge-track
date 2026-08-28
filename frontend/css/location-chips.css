@@ -9,7 +9,11 @@
 
 /* Home-wide "what's expiring" summary strip - severity color mirrors the
    existing status-badge/due-detail convention (status-expired vs
-   status-expiring-soon), not a new color of its own. */
+   status-expiring-soon), not a new color of its own. Now a flex row: the
+   badge text on the left (.home-summary-text) and the recipe-suggestions
+   CTA on the right (.recipe-suggestions-cta, see toggleRecipeSuggestionsVisibility
+   in item-ui.js) - two independently tappable zones, so the container itself
+   isn't clickable/focusable. */
 .home-summary {
   margin: 0.5rem 0.75rem 0;
   padding: 0.5rem 0.75rem;
@@ -17,40 +21,39 @@
   background-color: var(--bg-surface-raised);
   font-size: 13px;
   font-weight: bold;
-  cursor: pointer;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.home-summary:active {
-  background-color: var(--bg-surface-active);
+.home-summary-text {
+  cursor: pointer;
 }
 
-.home-summary[data-status='expired'] {
+.home-summary-text:active {
+  opacity: 0.7;
+}
+
+.home-summary[data-status='expired'] .home-summary-text {
   color: var(--status-expired-text);
 }
 
-.home-summary[data-status='expiring-soon'] {
+.home-summary[data-status='expiring-soon'] .home-summary-text {
   color: var(--status-expiring-soon-text);
 }
 
-/* Recipe-suggestions card - same visual language as .home-summary above so
-   it reads as a sibling strip, not a new component. Visibility mirrors
-   .home-summary's (see toggleRecipeSuggestionsVisibility in item-ui.js);
-   the actual API call only happens on tap, not on every render. */
-.recipe-suggestions {
-  margin: 0.5rem 0.75rem 0;
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  background-color: var(--bg-surface-raised);
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: bold;
+.recipe-suggestions-cta {
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  color: var(--text-primary);
+  font-size: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.recipe-suggestions:active {
-  background-color: var(--bg-surface-active);
+.recipe-suggestions-cta:active {
+  opacity: 0.7;
 }
 
 .recipe-results {

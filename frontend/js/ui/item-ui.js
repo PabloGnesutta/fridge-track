@@ -27,14 +27,15 @@ const STATUS_LABELS = { fresh: 'Fresco', 'expiring-soon': 'Por vencer', expired:
 
 const itemList = $queryOne('#itemListView .list');
 const homeSummary = $('homeSummary');
-homeSummary.role = 'button';
-homeSummary.tabIndex = 0;
-makeKeyboardActivatable(homeSummary);
+const homeSummaryText = $('homeSummaryText');
+homeSummaryText.role = 'button';
+homeSummaryText.tabIndex = 0;
+makeKeyboardActivatable(homeSummaryText);
 
-const recipeSuggestions = $('recipeSuggestions');
-recipeSuggestions.role = 'button';
-recipeSuggestions.tabIndex = 0;
-makeKeyboardActivatable(recipeSuggestions);
+const recipeSuggestionsCta = $('recipeSuggestionsCta');
+recipeSuggestionsCta.role = 'button';
+recipeSuggestionsCta.tabIndex = 0;
+makeKeyboardActivatable(recipeSuggestionsCta);
 const recipeResults = $('recipeResults');
 
 /**
@@ -180,13 +181,7 @@ async function fetchAndRenderItems(location) {
   }
   await renderLocationChips();
   await renderHomeSummary(location.homeId);
-  // Recipe suggestions (see toggleRecipeSuggestionsVisibility/openRecipeSuggestions
-  // below) are deliberately NOT wired live yet - the only real recipe API found
-  // with native Spanish ingredient search (Edamam) turned out not to have a
-  // genuinely free tier ($9/mo minimum). The backend service/route and this
-  // frontend plumbing are kept ready to re-enable (just re-add the call below
-  // + a 'openRecipeSuggestions' case in ui.js's click switch) once there's a
-  // free recipe source worth wiring up.
+  toggleRecipeSuggestionsVisibility();
 }
 
 /**
@@ -224,7 +219,7 @@ async function renderHomeSummary(homeId) {
   const parts = [];
   if (expired.length) { parts.push(`${expired.length} vencido${expired.length === 1 ? '' : 's'}`); }
   if (expiringSoon.length) { parts.push(`${expiringSoon.length} por vencer`); }
-  homeSummary.innerText = `⚠ ${parts.join(', ')}`;
+  homeSummaryText.innerText = `⚠ ${parts.join(', ')}`;
   homeSummary.dataset.status = expired.length ? 'expired' : 'expiring-soon';
   homeSummary.classList.remove('display-none');
 }
@@ -244,17 +239,22 @@ async function openMostUrgentItem() {
 }
 
 /**
- * Shows/hides the recipe-suggestions card based on whether #homeSummary is
- * currently showing anything - reuses that already-computed signal instead
- * of a second fetchAllItemsForHome pass. Cheap and automatic, unlike the
- * actual Edamam API call (see openRecipeSuggestions), which only happens on
- * tap - Edamam's free tier is quota-limited and third-party HTTP shouldn't
- * add latency/flakiness to routine list renders.
+ * Shows/hides the recipe-suggestions CTA (nested inside #homeSummary) based
+ * on whether #homeSummary is currently showing anything - reuses that
+ * already-computed signal instead of a second fetchAllItemsForHome pass -
+ * and on the user's recipesEnabled preference (header menu toggle). Cheap
+ * and automatic, unlike the actual Edamam API call (see
+ * openRecipeSuggestions), which only happens on tap - Edamam's free tier is
+ * quota-limited and third-party HTTP shouldn't add latency/flakiness to
+ * routine list renders. Also called directly from the header menu toggle's
+ * change handler, not just from fetchAndRenderItems, so flipping the
+ * preference updates the CTA immediately.
  */
 function toggleRecipeSuggestionsVisibility() {
   const hasUrgentItems = !homeSummary.classList.contains('display-none');
-  recipeSuggestions.classList.toggle('display-none', !hasUrgentItems);
-  if (!hasUrgentItems) {
+  const show = hasUrgentItems && appState.recipesEnabled;
+  recipeSuggestionsCta.classList.toggle('display-none', !show);
+  if (!show) {
     recipeResults.classList.add('display-none');
     recipeResults.innerHTML = '';
   }
@@ -623,5 +623,5 @@ function markItemDiscarded(item = dataState.currentItem) {
 export {
   fetchAndRenderItems, openItemList, openItemForm, closeItemForm, submitItemForm,
   openSingleItem, closeSingleItem, tryDeleteItem, markItemUsed, markItemDiscarded, submitItemBtn,
-  toggleSearch, openMostUrgentItem,
+  toggleSearch, openMostUrgentItem, openRecipeSuggestions, toggleRecipeSuggestionsVisibility,
 };

@@ -1,9 +1,14 @@
 /**
- * Thin wrapper around Edamam's Spanish-language Recipe Search endpoint
- * (test-es.edamam.com, separate app_id/app_key from Edamam's English recipe
- * API - registered separately at developer.edamam.com). Takes ingredient
- * queries directly in Spanish, matching this app's user-entered food names,
- * so no translation step is needed.
+ * Thin wrapper around Edamam's Recipe Search API v2
+ * (api.edamam.com/api/recipes/v2, free Developer plan - 10,000 calls/month,
+ * registered at developer.edamam.com). Edamam has no dedicated Spanish
+ * search - this just sends the raw Spanish item names as the query text, so
+ * it only matches recipes whose (largely English) titles/ingredients happen
+ * to share that word (loanwords like "cebolla"/"dulce de leche" match
+ * reasonably; plain grocery nouns with no English-recipe-title presence may
+ * not). No translation step is applied - see recipeService.js's
+ * recipeCacheService for why that's an acceptable tradeoff here (a cache
+ * miss just means an empty result, not wasted quota on repeat tries).
  *
  * Reads process.env.EDAMAM_* lazily inside searchRecipes(), not at module
  * top level - this module is reachable via a static import chain from
@@ -12,14 +17,12 @@
  * vars at import time would always see undefined, the same ESM-ordering
  * quirk webPushClient.js already hit.
  *
- * Response shape is best-effort: Edamam's docs describe a
- * hits[].recipe.{label,image,url,source} shape, but this couldn't be
- * verified against a live response without real credentials, so parsing is
- * tolerant - any missing/unexpected field or request failure degrades to an
- * empty list rather than throwing.
+ * Response shape (hits[].recipe.{label,image,url,source}) and the
+ * `type=public` param are confirmed against a live request with real
+ * credentials - see api.edamam.com/doc/open-api/recipe-search-v2.yaml.
  */
 
-const SEARCH_URL = 'https://test-es.edamam.com/search';
+const SEARCH_URL = 'https://api.edamam.com/api/recipes/v2';
 
 /**
  * @param {string} query
@@ -32,7 +35,7 @@ async function searchRecipes(query, { limit = 3 } = {}) {
   if (!appId || !appKey || !query) { return []; }
 
   try {
-    const url = `${SEARCH_URL}?q=${encodeURIComponent(query)}&app_id=${appId}&app_key=${appKey}&to=${limit}`;
+    const url = `${SEARCH_URL}?type=public&q=${encodeURIComponent(query)}&app_id=${appId}&app_key=${appKey}`;
     const res = await fetch(url);
     if (!res.ok) { return []; }
 

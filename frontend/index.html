@@ -53,6 +53,13 @@
               </label>
             </div>
             <div class="header-menu-item toggle-item">
+              <span class="toggle-label">Sugerencias de recetas</span>
+              <label class="switch">
+                <input type="checkbox" id="recipesEnabledToggle" />
+                <span class="switch-track"></span>
+              </label>
+            </div>
+            <div class="header-menu-item toggle-item">
               <span class="toggle-label">Notificaciones push</span>
               <label class="switch">
                 <input type="checkbox" id="pushNotifToggle" />
@@ -146,8 +153,10 @@
 
       <!-- Item List -->
       <div id="itemListView" class="page">
-        <div id="homeSummary" class="home-summary display-none" data-click-action="openMostUrgentItem"></div>
-        <div id="recipeSuggestions" class="recipe-suggestions display-none" data-click-action="openRecipeSuggestions">🍳 Ver recetas con lo que vence</div>
+        <div id="homeSummary" class="home-summary display-none">
+          <span id="homeSummaryText" class="home-summary-text" data-click-action="openMostUrgentItem"></span>
+          <span id="recipeSuggestionsCta" class="recipe-suggestions-cta display-none" data-click-action="openRecipeSuggestions">🍳 Ver recetas</span>
+        </div>
         <div id="recipeResults" class="recipe-results display-none"><!--  --></div>
         <div class="location-chips"><!--  --></div>
 

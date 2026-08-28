@@ -19,6 +19,7 @@ import { _log } from "../lib/logger.js";
  * @property {boolean} showInviteForm
  * @property {boolean} showSearch
  * @property {boolean} footerHidden
+ * @property {boolean} recipesEnabled
  * @property {Views} currentView
  * @property {AuthStage} authStage
  *
@@ -54,6 +55,7 @@ const appState = {
     showInviteForm: false,
     showSearch: false,
     footerHidden: false,
+    recipesEnabled: true,
     currentView: 'ItemList',
     authStage: 'checking',
 };
@@ -83,6 +85,7 @@ const dbStore = {
 const $app = $('app');
 
 const FOOTER_HIDDEN_KEY = 'footerHidden';
+const RECIPES_ENABLED_KEY = 'recipesEnabled';
 
 /** @type {Record<Views, string>} */
 const VIEW_ELEMENT_IDS = {
@@ -141,6 +144,20 @@ function setFooterHidden(hidden) {
 }
 
 /**
+ * Sets whether the recipe-suggestions CTA (see toggleRecipeSuggestionsVisibility
+ * in item-ui.js) is shown at all, persisting the choice like setFooterHidden
+ * above - a standing UI preference, not a transient form/modal state. Purely
+ * client-side (unlike the push/email notification toggles, which are
+ * backend-synced because the server needs to know) since this only ever
+ * affects what renders locally.
+ * @param {boolean} enabled
+ */
+function setRecipesEnabled(enabled) {
+    setStateField('recipesEnabled', enabled);
+    localStorage.setItem(RECIPES_ENABLED_KEY, enabled ? '1' : '0');
+}
+
+/**
  * @param {AuthStage} stage
  */
 function setAuthStage(stage) {
@@ -157,10 +174,12 @@ function initAppState() {
     setStateField('showInviteForm', false);
     setStateField('showSearch', false);
     setStateField('footerHidden', localStorage.getItem(FOOTER_HIDDEN_KEY) === '1');
+    setStateField('recipesEnabled', localStorage.getItem(RECIPES_ENABLED_KEY) !== '0');
     setCurrentView('ItemList');
     setAuthStage('checking');
 }
 
 export {
     appState, dataState, dbStore, initAppState, setStateField, setCurrentView, setAuthStage, setFooterHidden,
+    setRecipesEnabled,
 };
