@@ -20,15 +20,21 @@ function initializeCache() {
         // background (no navigation, no reload) can go a long time without
         // that check ever firing on its own. registration.update() forces
         // the same check on demand, so wire it to the moment a backgrounded
-        // PWA becomes foreground again - the one real gap this leaves is a
-        // session that's *never* backgrounded/foregrounded (stays open and
-        // in-focus the whole time), which still relies on the browser's own
-        // eventual check.
+        // PWA becomes foreground again.
         document.addEventListener('visibilitychange', () => {
           if (document.visibilityState === 'visible') {
-            registration.update();
+            registration.update().catch(e => _error(' - registration.update() failed:', e));
           }
         });
+
+        // Covers the device this app most plausibly runs on long-term (e.g. a tablet left open
+        // on a kitchen counter): a session that's never backgrounded/foregrounded gets no
+        // visibilitychange at all, so without this it'd depend entirely on the browser's own
+        // rare, at-most-once-per-24h check. Polling here means any session open longer than the
+        // interval eventually notices an update on its own.
+        setInterval(() => {
+          registration.update().catch(e => _error(' - registration.update() failed:', e));
+        }, 30 * 60 * 1000);
 
         // Listen for updates
         registration.addEventListener('updatefound', () => {

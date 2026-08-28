@@ -10,7 +10,7 @@
 // commit that touches any of those. See "Service worker caching" in CLAUDE.md for the one-time
 // `npm install` setup that wires the hook up (frontend/package.json's "prepare" script). Ported
 // from the sibling sonar project's own cacheServiceWorker.js/.githooks/pre-commit pair.
-const cacheVersion = 'v0fc3f46d7bbf';
+const cacheVersion = 'v360d4d5cfec1';
 const appCache = cacheVersion + '__' + 'app-cache';
 const cacheWhitelist = [appCache];
 
@@ -33,8 +33,12 @@ self.addEventListener('fetch', e =>
  * @param {Transferable[]} [transfer]
  */
 function sendToClients(msg, transfer) {
+  // includeUncontrolled: true - this runs right after activate, racing clients.claim() for
+  // control of the page that triggered the update. Without it, matchAll()'s default
+  // (controlled clients only) can come back empty if claim() hasn't taken effect yet, silently
+  // dropping the message the update banner depends on.
   // @ts-ignore
-  self.clients.matchAll()
+  return self.clients.matchAll({ includeUncontrolled: true })
     .then(
       /** @param {Client[]} clients */
       clients => {
@@ -57,18 +61,22 @@ self.addEventListener('install', () => {
 /** Activate */
 self.addEventListener('activate', e => {
   console.info(' ** Activate cache. Version:', cacheVersion);
-  // Without this, a brand new install doesn't take control of the page that triggered it - only
-  // the *next* navigation would be. Cache-first serving only populates the cache as a side effect
-  // of requests actually going through this SW, so a first-time visitor who goes offline before
-  // ever reloading would find nothing cached at all. claim() lets initializeCache.js detect
-  // control immediately; see its own comment for what it does with that.
+  // Without claim(), a brand new install doesn't take control of the page that triggered it -
+  // only the *next* navigation would be. Cache-first serving only populates the cache as a side
+  // effect of requests actually going through this SW, so a first-time visitor who goes offline
+  // before ever reloading would find nothing cached at all. claim() lets initializeCache.js
+  // detect control immediately; see its own comment for what it does with that.
+  // sendToClients is chained after claim() (rather than fired in parallel) and wrapped in the
+  // same waitUntil so the browser can't terminate this worker as idle before the postMessage
+  // that drives the update banner actually goes out - mobile OSes reclaim idle SWs far more
+  // eagerly than desktop, especially right around an app being backgrounded/foregrounded, so an
+  // un-extended message send here is easy to lose on exactly those devices.
   // @ts-ignore
-  e.waitUntil(self.clients.claim());
-  sendToClients({
+  e.waitUntil(self.clients.claim().then(() => sendToClients({
     status: 'ACTIVATING',
     cacheWhitelist,
     cacheVersion,
-  });
+  })));
 });
 
 /**
