@@ -41,7 +41,7 @@
   --text-secondary: #9fb0c9;
   --text-muted: #7c8ba3;
 
-  --header-heigt: 58px;
+  --header-heigt: 50px;
   --footer-heigt: 60px;
 }
 
@@ -89,7 +89,7 @@ svg {
 }
 
 .page-title {
-  font-size: 30px;
+  font-size: 28px;
   padding-left: 1rem;
   color: var(--text-primary);
 }
@@ -165,6 +165,14 @@ svg {
    #app's siblings, not its descendants. */
 :root:has(#app[data-footer-hidden='true']) {
   --footer-heigt: 0px;
+}
+
+/* #newItemBtn/#newItemVoiceBtn already read --footer-heigt via calc(), so
+   they collapse down with the footer on their own - this just makes that
+   intent explicit and independent of the variable cascade. */
+#app[data-footer-hidden='true'] #newItemBtn,
+#app[data-footer-hidden='true'] #newItemVoiceBtn {
+  bottom: 1rem;
 }
 
 #itemListView {

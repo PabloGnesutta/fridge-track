@@ -411,7 +411,6 @@ function appendItemRow(item) {
  */
 function openItemForm(isEdit, focusName = true, itemKey) {
   const submitLabel = $getInner(submitItemBtn, '.label');
-  const formTitle = $getInner(itemForm, '.form-title');
   const location = dataState.currentLocation;
   if (!location) { return; }
 
@@ -431,13 +430,11 @@ function openItemForm(isEdit, focusName = true, itemKey) {
     shelfLifeDaysInput.value = item.shelfLifeDays != null ? item.shelfLifeDays.toString() : '';
     itemNotesInput.value = item.notes || '';
     submitLabel.innerText = 'Guardar Cambios';
-    formTitle.innerText = 'Editar Alimento';
   } else {
     setStateField('editingItem', false);
     itemForm.reset();
     addedDateInput.value = toYYYYMMDD(new Date());
     submitLabel.innerText = 'Ingresar Alimento';
-    formTitle.innerText = 'Nuevo Alimento';
   }
 
   hideNameSuggestions();
