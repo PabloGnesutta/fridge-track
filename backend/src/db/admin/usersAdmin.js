@@ -190,4 +190,25 @@ function verifyUserEmail(db, email) {
   return { id: Number(user.id), email: user.email, alreadyVerified };
 }
 
-export { listUsers, findUserByEmail, previewUserCascade, deleteUserCascade, verifyUserEmail };
+/**
+ * Changes a user's own login email in place (same row, same id) - distinct
+ * from deleteUserCascade, nothing else about the account is touched.
+ * @param {import('node:sqlite').DatabaseSync} db
+ * @param {string} oldEmail
+ * @param {string} newEmail
+ * @returns {{id: number, oldEmail: string, newEmail: string}|null} null if no user with oldEmail exists.
+ */
+function updateUserEmail(db, oldEmail, newEmail) {
+  /** @type {any} */
+  const user = findUserByEmail(db, oldEmail);
+  if (!user) { return null; }
+
+  const normalizedNew = String(newEmail || '').trim().toLowerCase();
+  db.prepare('UPDATE users SET email = ? WHERE id = ?').run(normalizedNew, user.id);
+
+  return { id: Number(user.id), oldEmail: user.email, newEmail: normalizedNew };
+}
+
+export {
+  listUsers, findUserByEmail, previewUserCascade, deleteUserCascade, verifyUserEmail, updateUserEmail,
+};

@@ -26,6 +26,18 @@ function removeAllowedEmail(db, email) {
 
 /**
  * @param {import('node:sqlite').DatabaseSync} db
+ * @param {string} oldEmail
+ * @param {string} newEmail
+ * @returns {boolean} whether a row was actually renamed (false if oldEmail wasn't allowed-listed)
+ */
+function renameAllowedEmail(db, oldEmail, newEmail) {
+  const result = db.prepare('UPDATE allowed_emails SET email = ? WHERE email = ?')
+    .run(normalizeEmail(newEmail), normalizeEmail(oldEmail));
+  return result.changes > 0;
+}
+
+/**
+ * @param {import('node:sqlite').DatabaseSync} db
  * @returns {string[]}
  */
 function listAllowedEmails(db) {
@@ -43,4 +55,4 @@ function isEmailAllowed(db, email) {
   return !!db.prepare('SELECT 1 FROM allowed_emails WHERE email = ?').get(normalizeEmail(email));
 }
 
-export { addAllowedEmail, removeAllowedEmail, listAllowedEmails, isEmailAllowed };
+export { addAllowedEmail, removeAllowedEmail, renameAllowedEmail, listAllowedEmails, isEmailAllowed };
