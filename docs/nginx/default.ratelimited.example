@@ -112,7 +112,7 @@ server {
         listen 80;
         server_name pablognesutta.com websynth.pablognesutta.com tracker.pablognesutta.com
                     car.pablognesutta.com fridge.pablognesutta.com snap.pablognesutta.com
-                    sueldo.pablognesutta.com sonar.pablognesutta.com;
+                    sueldo.pablognesutta.com sonar.pablognesutta.com al.pablognesutta.com;
         return 301 https://$host$request_uri;
 }
 
@@ -335,7 +335,7 @@ server {
 
         limit_conn perip_conn 40;
         limit_req zone=perip_general burst=80 nodelay;
-
+olpededed b
         access_log /var/log/nginx/sonar.access.log;
         error_log /var/log/nginx/sonar.error.log warn;
 
@@ -349,6 +349,41 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
+}
+
+#################
+# Audio Library #
+#################
+server {
+        listen 443 ssl http2;
+        server_name    al.pablognesutta.com;
+        ssl_certificate /etc/letsencrypt/live/al.pablognesutta.com/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/al.pablognesutta.com/privkey.pem;
+
+        limit_conn perip_conn 40;
+        limit_req zone=perip_general burst=80 nodelay;
+
+        access_log /var/log/nginx/al.access.log;
+        error_log /var/log/nginx/al.error.log warn;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $redirect_scheme;
+
+        # signup (/api/auth/user, only live when SIGNUP_FLAG=enabled),
+        # login (/api/auth/sesion), and email verification
+        # (/api/auth/confirmar-email) are the routes worth guarding here -
+        # signup/verification can trigger an outbound SMTP send, same
+        # reasoning as fridge-track's strict zone above.
+        location ~ ^/api/auth/(user|sesion|confirmar-email)$ {
+                limit_req zone=perip_strict burst=3 nodelay;
+                proxy_pass http://localhost:3005;
+        }
+
+        location / {
+                proxy_pass http://localhost:3005;
+        }
 }
 
 # Catch-all for any TLS handshake whose SNI/Host doesn't match one of the
@@ -370,3 +405,8 @@ server {
         ssl_certificate_key /etc/letsencrypt/live/pablognesutta.com-0001/privkey.pem;
         return 444;
 }
+
+
+
+Certificate is saved at: /etc/letsencrypt/live/al.pablognesutta.com/fullchain.pem
+Key is saved at:         /etc/letsencrypt/live/al.pablognesutta.com/privkey.pem
