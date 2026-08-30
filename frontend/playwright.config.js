@@ -20,5 +20,18 @@ export default defineConfig({
     url: 'http://localhost:3001',
     reuseExistingServer: !process.env.CI,
     timeout: 15_000,
+    // Blank out SMTP_* so this server can't send real mail through
+    // backend/.env's live credentials - dotenv's configEnv() call in
+    // index.fridge.js never overrides a var that's already a key in
+    // process.env (even an empty-string one), so this wins over the .env
+    // file. Every e2e signup (helpers.js's ensureAuth, run on nearly every
+    // spec via ensureOnboarded) triggers a real verification-email send
+    // otherwise, since createUser()'s emailService.sendEmail() has no
+    // test-awareness of its own. mailClient.js's getMailTransport() then
+    // throws "not configured", which emailService.sendEmail() already
+    // catches and no-ops on by design - e2e never reads the code from an
+    // inbox anyway (readVerificationCode() pulls it straight out of sqlite),
+    // so nothing here depends on the email actually going out.
+    env: { SMTP_HOST: '', SMTP_USER: '', SMTP_PASS: '' },
   },
 });
