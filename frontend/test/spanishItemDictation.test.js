@@ -83,6 +83,13 @@ test('"vence" works as a shorter alternative to "vencimiento"', () => {
   assert.equal(result.useByDate, null);
 });
 
+test('"vencen" (plural) works as a shorter alternative to "vencimiento"', () => {
+  const result = parseItemDictation('Huevos vencen en cinco dias');
+  assert.equal(result.name, 'Huevos');
+  assert.equal(result.shelfLifeDays, 5);
+  assert.equal(result.useByDate, null);
+});
+
 test('vencimiento with no day or month recognized leaves both due fields null', () => {
   const result = parseItemDictation('Leche vencimiento pronto');
   assert.equal(result.shelfLifeDays, null);

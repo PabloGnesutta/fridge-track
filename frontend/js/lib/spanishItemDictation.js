@@ -10,8 +10,8 @@
  * a transcript missing one (or with them said out of order) still parses the
  * pieces it does have instead of failing outright. Speech recognition
  * doesn't produce punctuation, so these are spoken keywords, not the
- * literal words with a trailing colon. "vence" is accepted as a shorter
- * alternative to "vencimiento" - same due-phrase keyword either way.
+ * literal words with a trailing colon. "vence"/"vencen" are accepted as
+ * shorter alternatives to "vencimiento" - same due-phrase keyword either way.
  */
 import { parseSpanishNumber, stripAccents } from './spanishNumbers.js';
 import { MONTHS } from './date.js';
@@ -81,7 +81,7 @@ function parseItemDictation(transcript, currentDate = new Date()) {
   const keywords = [];
   normWords.forEach((word, idx) => {
     if (word === 'cantidad') { keywords.push({ key: word, idx }); }
-    else if (word === 'vencimiento' || word === 'vence') { keywords.push({ key: 'vencimiento', idx }); }
+    else if (word === 'vencimiento' || word === 'vence' || word === 'vencen') { keywords.push({ key: 'vencimiento', idx }); }
   });
 
   const nameEnd = keywords.length ? keywords[0].idx : rawWords.length;
