@@ -91,12 +91,12 @@ function createAuthService(db, emailService = createEmailService()) {
 
     sendVerificationEmail(email, code);
 
-    // pushEnabled/emailEnabled hardcoded true here rather than re-queried -
-    // matches the columns' own DEFAULT 1, so this is just avoiding a
-    // redundant round-trip for a value we already know.
+    // pushEnabled/emailEnabled/notificationHour hardcoded here rather than
+    // re-queried - matches the columns' own DEFAULTs, so this is just
+    // avoiding a redundant round-trip for a value we already know.
     return {
       id: Number(info.lastInsertRowid), email, name,
-      pushEnabled: true, emailEnabled: true, emailVerified: false,
+      pushEnabled: true, emailEnabled: true, notificationHour: 12, emailVerified: false,
     };
   }
 
@@ -205,7 +205,8 @@ function createAuthService(db, emailService = createEmailService()) {
   function getUserBySessionToken(token) {
     if (!token) { return null; }
     const row = db.prepare(
-      `SELECT users.id, users.email, users.name, users.push_enabled, users.email_enabled FROM sessions
+      `SELECT users.id, users.email, users.name, users.push_enabled, users.email_enabled,
+              users.notification_hour FROM sessions
        JOIN users ON users.id = sessions.user_id
        WHERE sessions.token = ?`
     ).get(token);
@@ -213,6 +214,7 @@ function createAuthService(db, emailService = createEmailService()) {
     return {
       id: row.id, email: row.email, name: row.name,
       pushEnabled: !!row.push_enabled, emailEnabled: !!row.email_enabled,
+      notificationHour: Number(row.notification_hour),
     };
   }
 
@@ -225,7 +227,7 @@ function createAuthService(db, emailService = createEmailService()) {
 
   /**
    * @param {number} userId
-   * @param {{pushEnabled?: boolean, emailEnabled?: boolean}} prefs
+   * @param {{pushEnabled?: boolean, emailEnabled?: boolean, notificationHour?: number}} prefs
    */
   function updateNotificationPreferences(userId, prefs) {
     if (prefs.pushEnabled !== undefined) {
@@ -234,8 +236,20 @@ function createAuthService(db, emailService = createEmailService()) {
     if (prefs.emailEnabled !== undefined) {
       db.prepare('UPDATE users SET email_enabled = ? WHERE id = ?').run(prefs.emailEnabled ? 1 : 0, userId);
     }
-    const row = db.prepare('SELECT push_enabled, email_enabled FROM users WHERE id = ?').get(userId);
-    return { pushEnabled: !!row.push_enabled, emailEnabled: !!row.email_enabled };
+    if (prefs.notificationHour !== undefined) {
+      const hour = Number(prefs.notificationHour);
+      if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+        throw new ServiceError('Hora de notificación inválida');
+      }
+      db.prepare('UPDATE users SET notification_hour = ? WHERE id = ?').run(hour, userId);
+    }
+    const row = db.prepare(
+      'SELECT push_enabled, email_enabled, notification_hour FROM users WHERE id = ?'
+    ).get(userId);
+    return {
+      pushEnabled: !!row.push_enabled, emailEnabled: !!row.email_enabled,
+      notificationHour: Number(row.notification_hour),
+    };
   }
 
   return {

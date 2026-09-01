@@ -1,5 +1,6 @@
 import { appState, dataState, dbStore, setFooterHidden, setRecipesEnabled, setStateField } from "../common/state.js";
-import { $, $button, $getInner, $input, $queryOne } from "../lib/dom.js";
+import { $, $button, $getInner, $input, $new, $queryOne } from "../lib/dom.js";
+import { localHourToUtcHour, utcHourToLocalHour } from "../lib/date.js";
 import { _info, _log, _warn, openLogs } from "../lib/logger.js";
 import { showConfirmDialog } from "../lib/confirmDialog.js";
 import { showErrorToast } from "../lib/toast.js";
@@ -107,19 +108,32 @@ async function refreshPushToggleState() {
 }
 
 /**
- * Wires the two header-menu toggles. Push is a real, currently-firing
- * feature (see backend/src/scheduler/expiryNotifier.js) so enabling it here
- * goes through the same permission-request/subscribe flow as the opt-in
- * banner (pushNotifications.js's subscribeToPush()); email has no trigger
- * yet (see emailService.js) so its toggle only ever persists a preference,
- * nothing currently reads it. Both write through to the backend immediately
+ * Wires the two header-menu toggles plus the notification-hour select.
+ * Push is a real, currently-firing feature (see
+ * backend/src/scheduler/expiryNotifier.js) so enabling it here goes through
+ * the same permission-request/subscribe flow as the opt-in banner
+ * (pushNotifications.js's subscribeToPush()); email has no trigger yet (see
+ * emailService.js) so its toggle only ever persists a preference, nothing
+ * currently reads it. All three write through to the backend immediately
  * on change - there's no separate "save" step in this menu.
  */
 function initNotificationToggles() {
   const pushToggle = $input('pushNotifToggle');
   const emailToggle = $input('emailNotifToggle');
+  const hourSelect = $input('notifHourSelect');
 
   emailToggle.checked = getNotificationPreferences().emailEnabled;
+
+  // Options built here rather than hardcoded in index.html - 24 near-
+  // identical lines of markup isn't worth it for a plain 0-23 list.
+  hourSelect.innerHTML = '';
+  for (let hour = 0; hour < 24; hour++) {
+    hourSelect.append($new({ tag: 'option', value: String(hour), text: `${String(hour).padStart(2, '0')}:00` }));
+  }
+  // Stored/sent as UTC (see date.js's localHourToUtcHour/utcHourToLocalHour
+  // doc comments), shown here as this device's local wall-clock hour.
+  hourSelect.value = String(utcHourToLocalHour(getNotificationPreferences().notificationHour));
+  let previousHourValue = hourSelect.value;
 
   if (!isPushSupported()) {
     pushToggle.disabled = true;
@@ -156,6 +170,18 @@ function initNotificationToggles() {
       emailToggle.checked = !wantEnabled;
       showErrorToast('No se pudo guardar la preferencia.');
     }
+  });
+
+  hourSelect.addEventListener('change', async () => {
+    const { error } = await apiUpdateNotificationPreferences({
+      notificationHour: localHourToUtcHour(Number(hourSelect.value)),
+    });
+    if (error) {
+      hourSelect.value = previousHourValue;
+      showErrorToast('No se pudo guardar la preferencia.');
+      return;
+    }
+    previousHourValue = hourSelect.value;
   });
 }
 

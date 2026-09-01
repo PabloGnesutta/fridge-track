@@ -87,4 +87,37 @@ function formatReadableDate(date) {
 }
 
 
-export { timeAgo, toYYYYMMDD, fromYYYYMMDD, formatReadableDate, MONTHS };
+/**
+ * Converts a local wall-clock hour (0-23, this device's timezone) to the
+ * UTC hour the backend stores notification_hour as - see
+ * backend/src/db/migrations/014_notification_hour.js for why UTC. This is a
+ * snapshot conversion using the device's current UTC offset, not a true
+ * timezone-aware one - it'll drift by an hour if the offset itself changes
+ * (DST) until the user resaves, a known/accepted limitation for this app's
+ * single-locale (Argentina, no DST since 2009) deployment.
+ * @param {number} localHour
+ * @returns {number}
+ */
+function localHourToUtcHour(localHour) {
+    const d = new Date();
+    d.setHours(localHour, 0, 0, 0);
+    return d.getUTCHours();
+}
+
+/**
+ * Reverses localHourToUtcHour() - for displaying a stored UTC hour back as
+ * this device's local wall-clock hour.
+ * @param {number} utcHour
+ * @returns {number}
+ */
+function utcHourToLocalHour(utcHour) {
+    const d = new Date();
+    d.setUTCHours(utcHour, 0, 0, 0);
+    return d.getHours();
+}
+
+
+export {
+    timeAgo, toYYYYMMDD, fromYYYYMMDD, formatReadableDate, MONTHS,
+    localHourToUtcHour, utcHourToLocalHour,
+};

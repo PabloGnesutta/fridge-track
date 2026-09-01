@@ -4,6 +4,7 @@ const USER_EMAIL_KEY = 'userEmail';
 const USER_NAME_KEY = 'userName';
 const PUSH_ENABLED_KEY = 'pushEnabled';
 const EMAIL_ENABLED_KEY = 'emailEnabled';
+const NOTIFICATION_HOUR_KEY = 'notificationHour';
 
 /**
  * @template T
@@ -80,7 +81,7 @@ async function apiCall(path, payload) {
 }
 
 /**
- * @param {{accessToken: string, userId: number, email: string, name?: string, pushEnabled?: boolean, emailEnabled?: boolean}} session
+ * @param {{accessToken: string, userId: number, email: string, name?: string, pushEnabled?: boolean, emailEnabled?: boolean, notificationHour?: number}} session
  */
 function persistSession(session) {
   localStorage.setItem(ACCESS_TOKEN_KEY, session.accessToken);
@@ -90,6 +91,7 @@ function persistSession(session) {
   persistNotificationPreferences({
     pushEnabled: session.pushEnabled !== false,
     emailEnabled: session.emailEnabled !== false,
+    notificationHour: session.notificationHour,
   });
 }
 
@@ -100,28 +102,37 @@ function clearSession() {
   localStorage.removeItem(USER_NAME_KEY);
   localStorage.removeItem(PUSH_ENABLED_KEY);
   localStorage.removeItem(EMAIL_ENABLED_KEY);
+  localStorage.removeItem(NOTIFICATION_HOUR_KEY);
 }
 
 /**
  * Both channels default to enabled - matches the backend columns' own
  * DEFAULT 1, so a session cached before this feature existed (no stored
  * keys yet) still renders as "on" instead of silently reading as off.
- * @returns {{pushEnabled: boolean, emailEnabled: boolean}}
+ * notificationHour defaults to 12 (UTC) - the column's own DEFAULT, same
+ * reasoning - and is stored/read as UTC (see date.js's localHourToUtcHour/
+ * utcHourToLocalHour for the local<->UTC conversion at the UI boundary).
+ * @returns {{pushEnabled: boolean, emailEnabled: boolean, notificationHour: number}}
  */
 function getNotificationPreferences() {
+  const storedHour = localStorage.getItem(NOTIFICATION_HOUR_KEY);
   return {
     pushEnabled: localStorage.getItem(PUSH_ENABLED_KEY) !== '0',
     emailEnabled: localStorage.getItem(EMAIL_ENABLED_KEY) !== '0',
+    notificationHour: storedHour === null ? 12 : Number(storedHour),
   };
 }
 
-/** @param {{pushEnabled?: boolean, emailEnabled?: boolean}} prefs */
+/** @param {{pushEnabled?: boolean, emailEnabled?: boolean, notificationHour?: number}} prefs */
 function persistNotificationPreferences(prefs) {
   if (prefs.pushEnabled !== undefined) {
     localStorage.setItem(PUSH_ENABLED_KEY, prefs.pushEnabled ? '1' : '0');
   }
   if (prefs.emailEnabled !== undefined) {
     localStorage.setItem(EMAIL_ENABLED_KEY, prefs.emailEnabled ? '1' : '0');
+  }
+  if (prefs.notificationHour !== undefined) {
+    localStorage.setItem(NOTIFICATION_HOUR_KEY, String(prefs.notificationHour));
   }
 }
 
@@ -250,7 +261,7 @@ async function apiRecipeSuggestions(homeId) {
 }
 
 /**
- * @param {{pushEnabled?: boolean, emailEnabled?: boolean}} prefs
+ * @param {{pushEnabled?: boolean, emailEnabled?: boolean, notificationHour?: number}} prefs
  */
 async function apiUpdateNotificationPreferences(prefs) {
   const result = await apiCall('notifications/preferences', prefs);

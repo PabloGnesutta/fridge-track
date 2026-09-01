@@ -60,16 +60,27 @@ function countExpiringItems(db, homeId, currentDate) {
 /**
  * One digest push per user per Home per day, deduped via push_notification_log.
  * @param {import('node:sqlite').DatabaseSync} db
+ * @param {{now?: Date, webPush?: {sendNotification: Function}}} [opts]
+ *   Both injectable, same reasoning as authService.js's emailService param -
+ *   production gets real current time and the real web-push client (lazily
+ *   configured, see webPushClient.js), tests can pin `now` to control the
+ *   day/hour gates deterministically and pass a stub webPush that doesn't
+ *   need real VAPID keys configured.
  */
-async function runNotificationTick(db) {
+async function runNotificationTick(db, { now = new Date(), webPush = getWebPush() } = {}) {
   const homeService = createHomeService(db);
   const pushService = createPushService(db);
-  const today = toYYYYMMDD(new Date());
-  const now = new Date();
+  const today = toYYYYMMDD(now);
 
   const subscriptionsByUser = pushService.listAllSubscriptionsGroupedByUser();
 
   for (const [userId, subscriptions] of subscriptionsByUser) {
+    // >= rather than === so a missed tick (server restart, etc.) still
+    // catches up later the same day instead of silently skipping it -
+    // same best-effort philosophy as the rest of this scheduler.
+    const notificationHour = pushService.getNotificationHour(userId);
+    if (now.getUTCHours() < notificationHour) { continue; }
+
     const homes = homeService.listHomesForUser(userId);
 
     for (const home of homes) {
@@ -87,7 +98,7 @@ async function runNotificationTick(db) {
 
       for (const subscription of subscriptions) {
         try {
-          await getWebPush().sendNotification(subscription, payload);
+          await webPush.sendNotification(subscription, payload);
           sentToAnySubscription = true;
         } catch (err) {
           if (err?.statusCode === 404 || err?.statusCode === 410) {

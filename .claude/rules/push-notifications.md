@@ -4,6 +4,7 @@ paths:
   - "backend/src/services/pushService.js"
   - "backend/src/services/webPushClient.js"
   - "backend/src/lib/itemStatus.js"
+  - "backend/src/db/migrations/014_notification_hour.js"
   - "frontend/js/pushNotifications.js"
 ---
 
@@ -18,6 +19,21 @@ per Home per day** ("N alimentos vencen pronto"), not per-item tracking — a `p
 keyed by `(user_id, home_id, sent_date)` (migration `002_push_subscriptions`, alongside `push_subscriptions`
 itself) is the entire dedup mechanism, which is why an hourly tick that's a no-op most hours is fine
 instead of needing precise cron timing.
+
+**Each user picks the hour their digest goes out** (`users.notification_hour`, migration
+`014_notification_hour.js`), stored as a UTC hour (0-23) rather than server-local so the value stays
+correct regardless of which timezone the backend process runs in — see that migration's header comment
+and `frontend/js/lib/date.js`'s `localHourToUtcHour`/`utcHourToLocalHour` for the local↔UTC conversion at
+the UI boundary (a snapshot conversion, not truly timezone-aware — it'll drift an hour if the device's UTC
+offset itself changes, e.g. DST, until the user resaves; accepted for this app's single-locale Argentina
+deployment, which hasn't observed DST since 2009). `runNotificationTick()` gates each user with
+`now.getUTCHours() >= notificationHour` (via `pushService.getNotificationHour(userId)`) **before** doing
+any home/item lookup — `>=` rather than `===` so a missed tick (server restart, etc.) still catches up
+later the same day instead of silently skipping it, same best-effort philosophy as the rest of this
+scheduler. `runNotificationTick(db, {now, webPush})` also takes an optional `now`/`webPush` for tests —
+both default to the real current time and the real (lazily-VAPID-configured) web-push client in
+production, mirroring `authService.js`'s injectable `emailService` param; this is what lets
+`expiryNotifier.test.js` control the day/hour gates deterministically without needing real VAPID keys.
 
 Since the sync engine already means `items` live in the backend db too, the scheduler queries `items`
 directly (`home_id`, `deleted_at IS NULL`) rather than needing any new sync plumbing. It runs each row

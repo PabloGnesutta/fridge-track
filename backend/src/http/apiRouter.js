@@ -52,18 +52,19 @@ export async function handleApiRequest(req, res, segments) {
       return successResponse(res, {
         accessToken, userId: user.id, email: user.email, name: user.name,
         pushEnabled: !!user.push_enabled, emailEnabled: !!user.email_enabled,
+        notificationHour: Number(user.notification_hour),
       });
     }
     if (route === 'verify-email') {
       const user = authService.verifyEmailCode(body.email, body.code);
       const accessToken = authService.createSession(user.id);
-      // pushEnabled/emailEnabled hardcoded true, same reasoning as
-      // createUser()'s own response above - a not-yet-verified user has no
-      // way to have flipped either preference yet, so these can only still
-      // be at their DEFAULT 1.
+      // pushEnabled/emailEnabled/notificationHour hardcoded, same reasoning
+      // as createUser()'s own response above - a not-yet-verified user has
+      // no way to have changed any of these yet, so they can only still be
+      // at their column DEFAULTs.
       return successResponse(res, {
         accessToken, userId: user.id, email: user.email, name: user.name,
-        pushEnabled: true, emailEnabled: true,
+        pushEnabled: true, emailEnabled: true, notificationHour: 12,
       });
     }
     if (route === 'resend-verification') {
@@ -104,6 +105,7 @@ export async function handleApiRequest(req, res, segments) {
     if (route === 'notifications/preferences') {
       return successResponse(res, authService.updateNotificationPreferences(user.id, {
         pushEnabled: body.pushEnabled, emailEnabled: body.emailEnabled,
+        notificationHour: body.notificationHour,
       }));
     }
 

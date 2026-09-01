@@ -112,6 +112,22 @@ test('listAllSubscriptionsGroupedByUser excludes a user who has turned push off'
   assert.equal(byUser.has(user.id), false);
 });
 
+test('getNotificationHour returns the column default, then the updated value', () => {
+  const services = makeServices();
+  addAllowedEmail(services.db, 'a@test.local');
+  const user = services.authService.createUser('a@test.local', 'password123');
+
+  assert.equal(services.pushService.getNotificationHour(user.id), 12);
+
+  services.authService.updateNotificationPreferences(user.id, { notificationHour: 3 });
+  assert.equal(services.pushService.getNotificationHour(user.id), 3);
+});
+
+test('getNotificationHour returns null for a nonexistent user', () => {
+  const services = makeServices();
+  assert.equal(services.pushService.getNotificationHour(999999), null);
+});
+
 test('listAllSubscriptionsGroupedByUser includes the user again once push is re-enabled', () => {
   const services = makeServices();
   addAllowedEmail(services.db, 'a@test.local');

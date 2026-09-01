@@ -10,7 +10,7 @@
 // commit that touches any of those. See "Service worker caching" in CLAUDE.md for the one-time
 // `npm install` setup that wires the hook up (frontend/package.json's "prepare" script). Ported
 // from the sibling sonar project's own cacheServiceWorker.js/.githooks/pre-commit pair.
-const cacheVersion = 'v6270f6245b3b';
+const cacheVersion = 'v15638ccbf41b';
 const appCache = cacheVersion + '__' + 'app-cache';
 const cacheWhitelist = [appCache];
 

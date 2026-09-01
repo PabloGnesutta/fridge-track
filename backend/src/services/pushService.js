@@ -58,6 +58,19 @@ function createPushService(db) {
   }
 
   /**
+   * The user's preferred digest hour (UTC, 0-23 - see migration
+   * 014_notification_hour.js). A plain per-user lookup rather than folding
+   * into listAllSubscriptionsGroupedByUser()'s existing return shape, to
+   * avoid reshaping that already-tested Map<userId, subscription[]> contract.
+   * @param {number} userId
+   * @returns {number|null} null if the user doesn't exist
+   */
+  function getNotificationHour(userId) {
+    const row = db.prepare('SELECT notification_hour FROM users WHERE id = ?').get(userId);
+    return row ? Number(row.notification_hour) : null;
+  }
+
+  /**
    * @param {number} userId
    * @param {number} homeId
    * @param {string} dateStr
@@ -83,7 +96,7 @@ function createPushService(db) {
 
   return {
     saveSubscription, removeSubscription, removeSubscriptionByEndpoint,
-    listAllSubscriptionsGroupedByUser, hasSentToday, recordSent,
+    listAllSubscriptionsGroupedByUser, getNotificationHour, hasSentToday, recordSent,
   };
 }
 

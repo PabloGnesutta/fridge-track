@@ -262,17 +262,19 @@ test('getUserBySessionToken returns null for an unknown token', () => {
   assert.equal(authService.getUserBySessionToken('not-a-real-token'), null);
 });
 
-test('new users default to both notification channels enabled', () => {
+test('new users default to both notification channels enabled, notification hour at the column default', () => {
   const { authService, db } = makeAuthService();
   addAllowedEmail(db, 'a@test.local');
   const user = authService.createUser('a@test.local', 'password123');
   assert.equal(user.pushEnabled, true);
   assert.equal(user.emailEnabled, true);
+  assert.equal(user.notificationHour, 12);
 
   const token = authService.createSession(user.id);
   const resolved = authService.getUserBySessionToken(token);
   assert.equal(resolved.pushEnabled, true);
   assert.equal(resolved.emailEnabled, true);
+  assert.equal(resolved.notificationHour, 12);
 });
 
 test('updateNotificationPreferences flips only the field given, leaving the other alone', () => {
@@ -292,4 +294,33 @@ test('updateNotificationPreferences flips only the field given, leaving the othe
   const resolved = authService.getUserBySessionToken(token);
   assert.equal(resolved.pushEnabled, false);
   assert.equal(resolved.emailEnabled, false);
+});
+
+test('updateNotificationPreferences sets notificationHour and leaves push/email alone', () => {
+  const { authService, db } = makeAuthService();
+  addAllowedEmail(db, 'a@test.local');
+  const user = authService.createUser('a@test.local', 'password123');
+
+  const after = authService.updateNotificationPreferences(user.id, { notificationHour: 7 });
+  assert.equal(after.notificationHour, 7);
+  assert.equal(after.pushEnabled, true);
+  assert.equal(after.emailEnabled, true);
+
+  const token = authService.createSession(user.id);
+  const resolved = authService.getUserBySessionToken(token);
+  assert.equal(resolved.notificationHour, 7);
+});
+
+test('updateNotificationPreferences rejects an out-of-range or non-integer notificationHour', () => {
+  const { authService, db } = makeAuthService();
+  addAllowedEmail(db, 'a@test.local');
+  const user = authService.createUser('a@test.local', 'password123');
+
+  assert.throws(() => authService.updateNotificationPreferences(user.id, { notificationHour: 24 }));
+  assert.throws(() => authService.updateNotificationPreferences(user.id, { notificationHour: -1 }));
+  assert.throws(() => authService.updateNotificationPreferences(user.id, { notificationHour: 9.5 }));
+
+  const token = authService.createSession(user.id);
+  const resolved = authService.getUserBySessionToken(token);
+  assert.equal(resolved.notificationHour, 12);
 });

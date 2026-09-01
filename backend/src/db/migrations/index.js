@@ -11,6 +11,7 @@ import { sql as categoriesBuiltinLabels } from './010_categories_builtin_labels.
 import { sql as emailVerification } from './011_email_verification.js';
 import { sql as verificationAttempts } from './012_verification_attempts.js';
 import { sql as recipeSearchCache } from './013_recipe_search_cache.js';
+import { sql as notificationHour } from './014_notification_hour.js';
 
 /**
  * Ordered, explicit registry (no directory-scanning) - add new migrations
@@ -37,6 +38,7 @@ const migrations = [
   { version: 11, name: 'email_verification', sql: emailVerification },
   { version: 12, name: 'verification_attempts', sql: verificationAttempts },
   { version: 13, name: 'recipe_search_cache', sql: recipeSearchCache },
+  { version: 14, name: 'notification_hour', sql: notificationHour },
 ];
 
 export { migrations };

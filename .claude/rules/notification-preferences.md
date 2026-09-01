@@ -2,10 +2,11 @@
 paths:
   - "backend/src/services/authService.js"
   - "backend/src/db/migrations/004*"
+  - "backend/src/db/migrations/014_notification_hour.js"
   - "frontend/css/toggle-switch.css"
 ---
 
-# Per-user notification preferences (push toggle wired, email toggle not)
+# Per-user notification preferences (push toggle wired, email toggle not; digest hour also wired)
 
 Two switches in the header hamburger menu (`#pushNotifToggle`/`#emailNotifToggle`, styled by
 `css/toggle-switch.css`, see `.claude/rules/header-menu-logging.md` for the menu itself) let a user opt
@@ -15,9 +16,21 @@ unsubscribing outright. Migration `004_notification_preferences.js` adds `push_e
 columns directly on `users` (`ALTER TABLE`, same shape as migration `003`'s `locations.category` - a
 simple per-row flag, not worth a separate table), both `DEFAULT 1` so every already-push-subscribed user
 keeps getting notified after this ships without having to re-opt-in. `authService.js`'s
-`updateNotificationPreferences(userId, {pushEnabled?, emailEnabled?})` updates only the field(s) given;
-`getUserBySessionToken()`/`signup`/`login` all now return `pushEnabled`/`emailEnabled` alongside the rest
-of the user shape, and `apiRouter.js` gained a matching `notifications/preferences` route.
+`updateNotificationPreferences(userId, {pushEnabled?, emailEnabled?, notificationHour?})` updates only the
+field(s) given (`notificationHour` validated to an integer 0-23, throwing `ServiceError` otherwise);
+`getUserBySessionToken()`/`signup`/`login` all now return `pushEnabled`/`emailEnabled`/`notificationHour`
+alongside the rest of the user shape, and `apiRouter.js`'s `notifications/preferences` route forwards all
+three.
+
+**A third control, `#notifHourSelect`, picks the hour of the daily digest** - a plain 0-23 `<select>`
+(options built in `ui.js`'s `initNotificationToggles()` rather than hardcoded in `index.html`), wired the
+same "write through to the backend immediately on change" way as the two toggles, reverting to its
+previous value on a failed save. See `.claude/rules/push-notifications.md` for how `notification_hour`
+actually gates the scheduler, and why it's stored as UTC rather than server-local - the select itself
+always shows/picks the device's *local* hour, converting via `date.js`'s `localHourToUtcHour`/
+`utcHourToLocalHour` right at this UI boundary, same pattern `apiCaller.js`'s `getNotificationPreferences()`
+uses for the other two fields (defaulting to `12`, the column's own UTC-noon default, when absent from a
+pre-this-feature cached session).
 
 **Push is actually gated by this flag; email has nowhere to plug into yet.** `pushService.js`'s
 `listAllSubscriptionsGroupedByUser()` - the scheduler's only entry point into "who to notify" (see
@@ -51,8 +64,12 @@ session, defaulting true if absent so a session cached before this feature shipp
 
 `frontend/e2e/notification-toggles.spec.js` covers: email's default-on and reload-persistence; push
 defaulting OFF for a fresh signup (no subscription yet, despite `pushEnabled` being `true`
-server-side); the permission-denied revert path; and a full successful-subscribe path that stays
-checked across a menu close/reopen. All push scenarios mock `Notification.requestPermission` *and* the
+server-side); the permission-denied revert path; a full successful-subscribe path that stays
+checked across a menu close/reopen; and the hour select persisting the chosen *local* hour across a
+reload - that test deliberately picks its target hour relative to whatever the select already shows
+(rather than a hardcoded value) and only waits for the underlying `localStorage` UTC value to change,
+since both the default and the stored value depend on whatever timezone the machine running the test
+happens to be in. All push scenarios mock `Notification.requestPermission` *and* the
 separate `Notification.permission` read-only property (the same class of substitution
 `voice-item.spec.js` uses for Web Speech, see `.claude/rules/voice-dictation.md`), plus
 `registration.pushManager.subscribe`/`getSubscription` directly on the real service-worker registration

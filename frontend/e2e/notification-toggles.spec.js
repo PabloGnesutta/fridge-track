@@ -101,4 +101,36 @@ test.describe('notification toggles (header menu)', () => {
     await page.click('#headerMenuBtn .btn');
     await expect(pushToggle).toBeChecked();
   });
+
+  test('notification-hour select persists the chosen local hour across a reload', async ({ page }) => {
+    await page.goto('/');
+    await ensureOnboarded(page);
+
+    await page.click('#headerMenuBtn .btn');
+    const hourSelect = page.locator('#notifHourSelect');
+
+    // Values are chosen relative to whatever the select already shows,
+    // rather than a hardcoded target - the initial value is the device's
+    // local rendering of the backend's default (UTC noon), which varies
+    // with the machine's timezone, so a fixed "5" could coincidentally
+    // already be selected.
+    const initialLocalValue = await hourSelect.inputValue();
+    const targetLocalValue = initialLocalValue === '5' ? '6' : '5';
+    const initialStoredUtcHour = await page.evaluate(() => localStorage.getItem('notificationHour'));
+
+    await hourSelect.selectOption(targetLocalValue);
+    // Waits on the localStorage write rather than a fixed timeout, same
+    // pattern as the email toggle test above - the change handler
+    // round-trips to the backend before persisting. The stored value is
+    // the UTC hour (see date.js), not the select's local-hour value, so
+    // this just waits for it to change rather than asserting an exact number.
+    await page.waitForFunction(
+      (prev) => localStorage.getItem('notificationHour') !== prev,
+      initialStoredUtcHour
+    );
+
+    await page.reload();
+    await page.click('#headerMenuBtn .btn');
+    await expect(hourSelect).toHaveValue(targetLocalValue);
+  });
 });
