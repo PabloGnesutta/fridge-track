@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { debug, log, error } from '../logger/logger.js';
 import { errorResponse } from './httpResponses.js';
 import { handleApiRequest } from './apiRouter.js';
@@ -9,6 +9,7 @@ import { handleApiRequest } from './apiRouter.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PUBLIC_DIR = join(__dirname, '../', '../', '../', 'frontend');
+const PUBLIC_DIR_RESOLVED = resolve(PUBLIC_DIR);
 
 /**
  * Main handler of the request. 
@@ -95,7 +96,15 @@ export async function handleRequest(req, res) {
  */
 function sendAssetFile(res, fileRoute, contentType, extraHeaders) {
   // TODO: Not very fond of this spread
-  const filePath = join(PUBLIC_DIR, ...fileRoute);
+  const filePath = resolve(PUBLIC_DIR, ...fileRoute);
+  // fileRoute segments come straight from the request URL - resolve() collapses any
+  // ".." in them, so confirm the result is still inside PUBLIC_DIR before touching
+  // the filesystem, or a path like /css/../../backend/.env reads arbitrary files.
+  if (filePath !== PUBLIC_DIR_RESOLVED && !filePath.startsWith(PUBLIC_DIR_RESOLVED + sep)) {
+    res.writeHead(404);
+    res.end();
+    return;
+  }
   fs.stat(filePath, (err, stat) => {
     if (err === null) {
       res.writeHead(200, { 'content-type': contentType, ...extraHeaders });

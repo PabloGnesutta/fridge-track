@@ -131,13 +131,19 @@ function createSyncService(db) {
   function pushCategory(homeId, category) {
     if (Number(category.homeId) !== homeId) { return; }
 
-    const existing = db.prepare('SELECT updated_at FROM categories WHERE id = ?').get(category.id);
-    if (existing && Number(/** @type {any} */(existing).updated_at) >= Number(category.updatedAt)) { return; }
+    const existing = /** @type {any} */ (
+      db.prepare('SELECT home_id, updated_at FROM categories WHERE id = ?').get(category.id)
+    );
+    // The id belongs to a different Home (e.g. a foreign UUID sent by a client
+    // that only proved membership of `homeId`, not of the row's real Home) -
+    // ignore rather than let the UPDATE below touch it.
+    if (existing && Number(existing.home_id) !== homeId) { return; }
+    if (existing && Number(existing.updated_at) >= Number(category.updatedAt)) { return; }
 
     if (existing) {
       db.prepare(
-        `UPDATE categories SET name = ?, updated_at = ?, deleted_at = ? WHERE id = ?`
-      ).run(category.name, category.updatedAt, category.deletedAt ?? null, category.id);
+        `UPDATE categories SET name = ?, updated_at = ?, deleted_at = ? WHERE id = ? AND home_id = ?`
+      ).run(category.name, category.updatedAt, category.deletedAt ?? null, category.id, homeId);
     } else {
       db.prepare(
         `INSERT INTO categories (id, home_id, name, created_at, updated_at, deleted_at)
@@ -153,15 +159,18 @@ function createSyncService(db) {
   function pushLocation(homeId, location) {
     if (Number(location.homeId) !== homeId) { return; }
 
-    const existing = db.prepare('SELECT updated_at FROM locations WHERE id = ?').get(location.id);
-    if (existing && Number(/** @type {any} */(existing).updated_at) >= Number(location.updatedAt)) { return; }
+    const existing = /** @type {any} */ (
+      db.prepare('SELECT home_id, updated_at FROM locations WHERE id = ?').get(location.id)
+    );
+    if (existing && Number(existing.home_id) !== homeId) { return; }
+    if (existing && Number(existing.updated_at) >= Number(location.updatedAt)) { return; }
 
     const categoryId = resolveCategoryId(homeId, location.categoryId, location.category);
 
     if (existing) {
       db.prepare(
-        `UPDATE locations SET name = ?, category_id = ?, updated_at = ?, deleted_at = ? WHERE id = ?`
-      ).run(location.name, categoryId, location.updatedAt, location.deletedAt ?? null, location.id);
+        `UPDATE locations SET name = ?, category_id = ?, updated_at = ?, deleted_at = ? WHERE id = ? AND home_id = ?`
+      ).run(location.name, categoryId, location.updatedAt, location.deletedAt ?? null, location.id, homeId);
     } else {
       db.prepare(
         `INSERT INTO locations (id, home_id, name, category_id, created_at, updated_at, deleted_at)
@@ -180,19 +189,22 @@ function createSyncService(db) {
   function pushItem(homeId, item) {
     if (Number(item.homeId) !== homeId) { return; }
 
-    const existing = db.prepare('SELECT updated_at FROM items WHERE id = ?').get(item.id);
-    if (existing && Number(/** @type {any} */(existing).updated_at) >= Number(item.updatedAt)) { return; }
+    const existing = /** @type {any} */ (
+      db.prepare('SELECT home_id, updated_at FROM items WHERE id = ?').get(item.id)
+    );
+    if (existing && Number(existing.home_id) !== homeId) { return; }
+    if (existing && Number(existing.updated_at) >= Number(item.updatedAt)) { return; }
 
     if (existing) {
       db.prepare(
         `UPDATE items SET location_id = ?, name = ?, normalized_name = ?, quantity = ?,
            added_date = ?, use_by_date = ?, shelf_life_days = ?, notes = ?,
            updated_at = ?, deleted_at = ?
-         WHERE id = ?`
+         WHERE id = ? AND home_id = ?`
       ).run(
         item.locationId, item.name, item.normalizedName, item.quantity ?? '',
         item.addedDate ?? null, item.useByDate ?? null, item.shelfLifeDays ?? null, item.notes ?? '',
-        item.updatedAt, item.deletedAt ?? null, item.id
+        item.updatedAt, item.deletedAt ?? null, item.id, homeId
       );
     } else {
       db.prepare(
